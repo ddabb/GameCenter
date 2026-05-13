@@ -1,0 +1,10 @@
+{
+  "engine": "cocos-creator",
+  "options": {},
+  "packages": [],
+  "id": "GameCenter",
+  "name": "GameCenter",
+  "version": "1.0.0",
+  "type": "3d",
+  "template": "TypeScript"
+}
