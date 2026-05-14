@@ -78,16 +78,20 @@ function getCellSize() {
 }
 
 function applyPuzzle(data, diff, id) {
-  const size = data.size || 5;
+  const size = data.size || 6;
   rows = size; cols = size;
-  // grid: 0=空白, 数字=黑格数字
-  grid = data.grid.map(row => row.map(cell => {
-    if (typeof cell === 'number') return cell;
-    const n = parseInt(cell);
-    return isNaN(n) ? 0 : n;
-  }));
-  solution = data.solution || [];
-  playerGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
+  const cdnGrid = data.grid || [];
+  // 提取数字到 numbers 数组，grid 初始化为全空
+  grid = Array.from({ length: rows }, () => Array(cols).fill(CELL_EMPTY));
+  numbers = [];
+  for (let r = 0; r < rows && r < cdnGrid.length; r++) {
+    for (let c = 0; c < cols && c < (cdnGrid[r] || []).length; c++) {
+      const val = parseInt(cdnGrid[r][c]);
+      if (!isNaN(val) && val > 0) {
+        numbers.push({ r, c, val });
+      }
+    }
+  }
   isComplete = false;
   currentPuzzleId_nurikabe = id;
   timer = 0;

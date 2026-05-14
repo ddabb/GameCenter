@@ -79,31 +79,9 @@ function applyPuzzle(data, diff, id) {
   const size = data.size || 5;
   rows = size; cols = size;
   grid = data.grid || [];
-  // answer: { h: [...], v: [...] }
-  if (data.answer) {
-    vLines = Array.from({ length: rows + 1 }, () => Array(cols).fill(false));
-    hLines = Array.from({ length: rows }, () => Array(cols + 1).fill(false));
-    if (data.answer.h) {
-      for (let r = 0; r < data.answer.h.length && r <= rows; r++) {
-        for (let c = 0; c < (data.answer.h[r] || []).length && c <= cols; c++) {
-          if (data.answer.h[r][c]) hLines[Math.min(r, rows-1)][Math.min(c, cols)] = true;
-        }
-      }
-    }
-    if (data.answer.v) {
-      for (let r = 0; r < data.answer.v.length && r <= rows; r++) {
-        for (let c = 0; c < (data.answer.v[r] || []).length && c < cols; c++) {
-          if (data.answer.v[r][c]) vLines[Math.min(r, rows)][Math.min(c, cols-1)] = true;
-        }
-      }
-    }
-    // Reset player lines - they should solve it themselves
-    vLines = Array.from({ length: rows + 1 }, () => Array(cols).fill(false));
-    hLines = Array.from({ length: rows }, () => Array(cols + 1).fill(false));
-  } else {
-    vLines = Array.from({ length: rows + 1 }, () => Array(cols).fill(false));
-    hLines = Array.from({ length: rows }, () => Array(cols + 1).fill(false));
-  }
+  // 初始化空的线条数组（玩家自己画线）
+  vLines = Array.from({ length: rows + 1 }, () => Array(cols).fill(false));
+  hLines = Array.from({ length: rows }, () => Array(cols + 1).fill(false));
   isComplete = false;
   currentPuzzleId_slither_link = id;
   timer = 0;

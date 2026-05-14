@@ -82,8 +82,9 @@ function applyPuzzle(data, diff, id) {
   const size = data.size || 6;
   rows = size; cols = size;
   grid = data.grid || [];
-  rowCounts = data.rowCounts || [];
-  colCounts = data.colCounts || [];
+  rowHints = data.rowCounts || data.colHints || [];
+  colHints = data.colCounts || data.colHints || [];
+  userGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
   isComplete = false;
   currentPuzzleId_battleship = id;
   timer = 0;

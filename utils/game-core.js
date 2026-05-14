@@ -36,15 +36,17 @@ let gameLoopId = null;
 let lastTime = 0;
 
 // ============== 初始化 ==============
-function init() {
-  // 获取游戏画布（通过ID "gameCanvas"，由框架层创建）
-  canvas = global.canvas || wx.createCanvas();
+function init(canvasInput) {
+  canvas = canvasInput || wx.createCanvas();
   ctx = canvas.getContext('2d');
   resize();
-  // 初始化音效
-  Audio = require('./audio-manager.js');
-  Audio.init();
-  Audio.registerAllSfx();
+  try {
+    Audio = require('./audio-manager.js');
+    Audio.init();
+    Audio.registerAllSfx();
+  } catch(e) {
+    console.warn('[GameCore] 音效模块加载失败:', e.message);
+  }
   console.info('[GameCore] 初始化完成，画布尺寸:', canvas.width, 'x', canvas.height);
 }
 
@@ -61,13 +63,6 @@ function resize() {
 
   canvas.width = screenW;
   canvas.height = screenH;
-  canvas.style = {
-    width: screenW + 'px',
-    height: screenH + 'px',
-    position: 'fixed',
-    left: 0,
-    top: 0
-  };
 }
 
 // ============== 坐标转换 ==============
@@ -206,6 +201,7 @@ function drawCircle(x, y, r, opts = {}) {
 
 // ============== 触摸检测 ==============
 function hitTest(px, py, rect) {
+  if (!rect || rect.x === undefined) return false;
   return px >= rect.x && px <= rect.x + rect.w &&
          py >= rect.y && py <= rect.y + rect.h;
 }
@@ -226,7 +222,7 @@ function startLoop() {
       currentScene.render();
     }
 
-    gameLoopId = requestAnimationFrame(loop);
+    gameLoopId = wx.requestAnimationFrame(loop);
   }
   loop();
 }
@@ -256,26 +252,34 @@ function switchScene(name) {
 // ============== 触摸事件转发 ==============
 function setupTouchEvents() {
   canvas.addEventListener('touchstart', (e) => {
+    if (!e || !e.touches || !e.touches.length) return;
     const t = e.touches[0];
     if (currentScene && currentScene.onTouchStart) {
-      const pos = screenToGame(t.clientX, t.clientY);
+      const x = t.clientX !== undefined ? t.clientX : t.x || 0;
+      const y = t.clientY !== undefined ? t.clientY : t.y || 0;
+      const pos = screenToGame(x, y);
       currentScene.onTouchStart(pos.x, pos.y, t.identifier);
     }
   }, { passive: true });
 
   canvas.addEventListener('touchmove', (e) => {
+    if (!e || !e.touches || !e.touches.length) return;
     const t = e.touches[0];
     if (currentScene && currentScene.onTouchMove) {
-      const pos = screenToGame(t.clientX, t.clientY);
+      const x = t.clientX !== undefined ? t.clientX : t.x || 0;
+      const y = t.clientY !== undefined ? t.clientY : t.y || 0;
+      const pos = screenToGame(x, y);
       currentScene.onTouchMove(pos.x, pos.y, t.identifier);
     }
   }, { passive: true });
 
   canvas.addEventListener('touchend', (e) => {
     if (currentScene && currentScene.onTouchEnd) {
-      if (e.changedTouches.length > 0) {
+      if (e.changedTouches && e.changedTouches.length > 0) {
         const t = e.changedTouches[0];
-        const pos = screenToGame(t.clientX, t.clientY);
+        const x = t.clientX !== undefined ? t.clientX : t.x || 0;
+        const y = t.clientY !== undefined ? t.clientY : t.y || 0;
+        const pos = screenToGame(x, y);
         currentScene.onTouchEnd(pos.x, pos.y, t.identifier);
       }
     }

@@ -77,14 +77,19 @@ function getCellSize() {
 }
 
 function applyPuzzle(data, diff, id) {
-  const size = data.size || 5;
+  const size = data.size || 6;
   rows = size; cols = size;
-  grid = data.grid || [];
-  tents = data.tents || {};
-  treeCount = data.treeCount || 0;
-  rowCounts = data.rowCounts || [];
-  colCounts = data.colCounts || [];
-  playerTents = {};
+  // CDN grid: 0=空, 1=树
+  grid = data.grid || Array.from({ length: rows }, () => Array(cols).fill(CELL_EMPTY));
+  // CDN tents: 对象 {"r_c": true} → 2D数组
+  const cdnTents = data.tents || {};
+  tents = Array.from({ length: rows }, () => Array(cols).fill(false));
+  if (typeof cdnTents === 'object' && !Array.isArray(cdnTents)) {
+    for (const key of Object.keys(cdnTents)) {
+      const [r, c] = key.split('_').map(Number);
+      if (r >= 0 && r < rows && c >= 0 && c < cols) tents[r][c] = true;
+    }
+  }
   isComplete = false;
   currentPuzzleId_tents = id;
   timer = 0;

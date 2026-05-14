@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-05-14T09:16:39.000Z",
+  "project": "GeZiPuzzle",
+  "type": "game",
+  "score": null,
+  "success": 16,
+  "fail": 0,
+  "totalTime": 45,
+  "scenes": [
+    { "id": "index", "label": "首页·大厅", "status": "ok" },
+    { "id": "level-select", "label": "关卡选择", "status": "ok" },
+    { "id": "akari", "label": "akari·点灯", "status": "ok" },
+    { "id": "battleship", "label": "battleship·海战", "status": "ok" },
+    { "id": "nonogram", "label": "nonogram·数织", "status": "ok" },
+    { "id": "nurikabe", "label": "nurikabe·墙格", "status": "ok" },
+    { "id": "one-stroke", "label": "one-stroke·一笔", "status": "ok" },
+    { "id": "slither-link", "label": "slither-link·回路", "status": "ok" },
+    { "id": "sokoban", "label": "sokoban·推箱子", "status": "ok" },
+    { "id": "tents", "label": "tents·搭帐篷", "status": "ok" },
+    { "id": "sudoku-solver", "label": "sudoku-solver·数独求解", "status": "ok" },
+    { "id": "sudoku-generator", "label": "sudoku-generator·数独生成", "status": "ok" },
+    { "id": "24point", "label": "24点·算24", "status": "ok" },
+    { "id": "frog-escape", "label": "frog-escape·跳跳蛙", "status": "ok" },
+    {id": "number-one", "label": "number-one·铺1", "status": "ok" },
+    { "id": "othello", "label": "othello·黑白棋", "status": "ok" }
+  ],
+  "auditData": null
+}
