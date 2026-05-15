@@ -1,0 +1,64 @@
+[gd_scene format=3 uid="uid://3q3iqxoum8sw"]
+
+[ext_resource type="Script" path="res://scripts/back_button_script.gd" id="1"]
+
+[node name="Sokoban" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.95, 0.95, 0.95, 1.0)
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 600)
+alignment = 1
+
+[node name="Header" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+margin = Rect2(20, 20, 0, 0)
+
+[node name="TitleLabel" type="Label" parent="VBox/Header"]
+layout_mode = 2
+text = "推箱子"
+horizontal_alignment = 1
+vertical_alignment = 1
+custom_font_size = 28
+
+[node name="DescriptionLabel" type="Label" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "推箱子是一款经典的益智解谜游戏。\n\n游戏规则：\n• 玩家控制一个角色在网格中移动\n• 将所有箱子推到指定的目标位置\n• 箱子只能推不能拉\n• 不能推动两个箱子\n• 利用有限的空间规划最佳路径\n\n运用智慧和策略，找到最优的推箱方案！"
+horizontal_alignment = 1
+vertical_alignment = 0
+custom_font_size = 16
+autowrap = true
+margin = Rect2(20, 10, -20, 0)
+
+[node name="BackButton" type="Button" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(200, 50)
+text = "返回首页"
+custom_font_size = 18
+flat = false
+
+[node name="Script" type="Script" parent="."]
+script = ExtResource("1")

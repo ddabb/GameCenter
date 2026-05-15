@@ -1,0 +1,64 @@
+[gd_scene format=3 uid="uid://det0eoo7oe4jr"]
+
+[ext_resource type="Script" path="res://scripts/back_button_script.gd" id="1"]
+
+[node name="Tents" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.95, 0.95, 0.95, 1.0)
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 600)
+alignment = 1
+
+[node name="Header" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+margin = Rect2(20, 20, 0, 0)
+
+[node name="TitleLabel" type="Label" parent="VBox/Header"]
+layout_mode = 2
+text = "帐篷游戏"
+horizontal_alignment = 1
+vertical_alignment = 1
+custom_font_size = 28
+
+[node name="DescriptionLabel" type="Label" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "帐篷游戏是一款有趣的逻辑解谜游戏。\n\n游戏规则：\n• 每个帐篷必须紧挨着一棵树\n• 每行每列的帐篷数量由边缘数字指定\n• 帐篷之间不能相邻（包括对角）\n• 每棵树旁边只能有一个帐篷\n\n根据数字提示，找出所有帐篷的位置！"
+horizontal_alignment = 1
+vertical_alignment = 0
+custom_font_size = 16
+autowrap = true
+margin = Rect2(20, 10, -20, 0)
+
+[node name="BackButton" type="Button" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(200, 50)
+text = "返回首页"
+custom_font_size = 18
+flat = false
+
+[node name="Script" type="Script" parent="."]
+script = ExtResource("1")

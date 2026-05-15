@@ -1,0 +1,192 @@
+[gd_scene format=3 uid="uid://6m07qn2k6qsk"]
+
+[ext_resource type="Script" path="res://scripts/othello_game.gd" id="1"]
+
+[node name="Othello" type="Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.1, 0.15, 0.25, 1.0)
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 700)
+
+[node name="Header" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="VBox/Header"]
+layout_mode = 2
+text = "黑白棋"
+horizontal_alignment = 1
+vertical_alignment = 1
+custom_font_size = 28
+add_theme_color_override("font_color", Color(1, 1, 1))
+
+[node name="ScoreBoard" type="HBoxContainer" parent="VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="BlackScore" type="VBoxContainer" parent="VBox/Header/ScoreBoard"]
+layout_mode = 2
+alignment = 1
+
+[node name="BlackIcon" type="PanelContainer" parent="VBox/Header/ScoreBoard/BlackScore"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+
+[node name="BlackInner" type="ColorRect" parent="VBox/Header/ScoreBoard/BlackScore/BlackIcon"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin = Rect2(2, 2, -2, -2)
+color = Color(0.0, 0.0, 0.0, 1.0)
+
+[node name="BlackCount" type="Label" parent="VBox/Header/ScoreBoard/BlackScore"]
+layout_mode = 2
+text = "2"
+horizontal_alignment = 1
+custom_font_size = 18
+add_theme_color_override("font_color", Color(1, 1, 1))
+
+[node name="VSSeparator" type="Label" parent="VBox/Header/ScoreBoard"]
+layout_mode = 2
+text = "VS"
+horizontal_alignment = 1
+custom_font_size = 20
+add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+
+[node name="WhiteScore" type="VBoxContainer" parent="VBox/Header/ScoreBoard"]
+layout_mode = 2
+alignment = 1
+
+[node name="WhiteIcon" type="PanelContainer" parent="VBox/Header/ScoreBoard/WhiteScore"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+
+[node name="WhiteInner" type="ColorRect" parent="VBox/Header/ScoreBoard/WhiteScore/WhiteIcon"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin = Rect2(2, 2, -2, -2)
+color = Color(1.0, 1.0, 1.0, 1.0)
+
+[node name="WhiteCount" type="Label" parent="VBox/Header/ScoreBoard/WhiteScore"]
+layout_mode = 2
+text = "2"
+horizontal_alignment = 1
+custom_font_size = 18
+add_theme_color_override("font_color", Color(1, 1, 1))
+
+[node name="StatusLabel" type="Label" parent="VBox/Header"]
+layout_mode = 2
+text = "黑棋先行"
+horizontal_alignment = 1
+custom_font_size = 16
+add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+
+[node name="DifficultyBar" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="DiffEasy" type="Button" parent="VBox/DifficultyBar"]
+layout_mode = 2
+text = "简单"
+custom_font_size = 14
+flat = false
+
+[node name="DiffMedium" type="Button" parent="VBox/DifficultyBar"]
+layout_mode = 2
+text = "中等"
+custom_font_size = 14
+flat = false
+
+[node name="DiffHard" type="Button" parent="VBox/DifficultyBar"]
+layout_mode = 2
+text = "困难"
+custom_font_size = 14
+flat = false
+
+[node name="DiffExpert" type="Button" parent="VBox/DifficultyBar"]
+layout_mode = 2
+text = "专家"
+custom_font_size = 14
+flat = false
+
+[node name="BoardContainer" type="PanelContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(320, 320)
+
+[node name="Board" type="GridContainer" parent="VBox/BoardContainer"]
+layout_mode = 1
+columns = 8
+margin = Rect2(10, 10, -10, -10)
+
+[node name="TurnIndicator" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="TurnPiece" type="PanelContainer" parent="VBox/TurnIndicator"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+
+[node name="TurnInner" type="ColorRect" parent="VBox/TurnIndicator/TurnPiece"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.0, 0.0, 0.0, 1.0)
+
+[node name="TurnText" type="Label" parent="VBox/TurnIndicator"]
+layout_mode = 2
+text = "黑棋回合"
+custom_font_size = 16
+add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+
+[node name="Controls" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="BtnRestart" type="Button" parent="VBox/Controls"]
+layout_mode = 2
+text = "重新开始"
+custom_font_size = 16
+flat = false
+
+[node name="BtnSound" type="Button" parent="VBox/Controls"]
+layout_mode = 2
+text = "🔊"
+custom_font_size = 20
+flat = false
+
+[node name="BackButton" type="Button" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(200, 50)
+text = "返回首页"
+custom_font_size = 18
+flat = false

@@ -1,0 +1,64 @@
+[gd_scene format=3 uid="uid://cpyogqbweaqum"]
+
+[ext_resource type="Script" path="res://scripts/back_button_script.gd" id="1"]
+
+[node name="Akari" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.95, 0.95, 0.95, 1.0)
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 600)
+alignment = 1
+
+[node name="Header" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+margin = Rect2(20, 20, 0, 0)
+
+[node name="TitleLabel" type="Label" parent="VBox/Header"]
+layout_mode = 2
+text = "数灯游戏"
+horizontal_alignment = 1
+vertical_alignment = 1
+custom_font_size = 28
+
+[node name="DescriptionLabel" type="Label" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "数灯游戏是一款经典的逻辑推理益智游戏。\n\n游戏规则：\n• 在网格中放置灯泡，使得所有白色格子都被照亮\n• 数字表示其周围（最多4个方向）需要放置的灯泡数量\n• 灯泡之间不能互相照亮\n• 每个灯泡可以照亮其所在行和列的所有格子\n\n使用提示数字和逻辑推理，找到正确的灯泡放置位置！"
+horizontal_alignment = 1
+vertical_alignment = 0
+custom_font_size = 16
+autowrap = true
+margin = Rect2(20, 10, -20, 0)
+
+[node name="BackButton" type="Button" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(200, 50)
+text = "返回首页"
+custom_font_size = 18
+flat = false
+
+[node name="Script" type="Script" parent="."]
+script = ExtResource("1")
