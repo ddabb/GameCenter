@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cjaa5ktqoph4i"]
 
-[ext_resource type="Script" path="res://scripts/back_button_script.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/frog_escape_game.gd" id="1"]
 
 [node name="FrogEscape" type="Control"]
 layout_mode = 3
