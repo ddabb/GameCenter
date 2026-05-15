@@ -20,6 +20,20 @@ const DIRECTIONS = [
 const BLACK = 1
 const WHITE = 2
 
+# Colors matching freetools design
+const COLOR_BG = Color(0.102, 0.102, 0.18)
+const COLOR_BOARD_GREEN = Color(0.176, 0.353, 0.153)  # #2d5a27
+const COLOR_BOARD_LINE = Color(0.15, 0.30, 0.13)
+const COLOR_BLACK_PIECE = Color(0.1, 0.1, 0.1)
+const COLOR_WHITE_PIECE = Color(1.0, 1.0, 1.0)
+const COLOR_VALID_HINT = Color(1, 1, 1, 0.4)
+const COLOR_LAST_MOVE = Color(1, 0.843, 0)  # gold #ffd700
+const COLOR_SCORE_BG = Color(1, 1, 1, 0.1)
+const COLOR_DIFF_ACTIVE = Color(0.4, 0.494, 0.918)  # #667eea
+const COLOR_DIFF_INACTIVE = Color(1, 1, 1, 0.1)
+const COLOR_TEXT = Color(1, 1, 1)
+const COLOR_TEXT_DIM = Color(0.7, 0.7, 0.7)
+
 var board = []
 var current_player = BLACK
 var valid_moves = []
@@ -44,21 +58,21 @@ var back_button = null
 var diff_buttons = []
 
 func _ready():
-	board_node = get_node_or_null("ScrollContainer/VBox/BoardContainer/Board")
-	black_count_label = get_node_or_null("ScrollContainer/VBox/Header/ScoreBoard/BlackScore/BlackCount")
-	white_count_label = get_node_or_null("ScrollContainer/VBox/Header/ScoreBoard/WhiteScore/WhiteCount")
-	status_label = get_node_or_null("ScrollContainer/VBox/Header/StatusLabel")
-	turn_piece = get_node_or_null("ScrollContainer/VBox/TurnIndicator/TurnPiece")
-	turn_text = get_node_or_null("ScrollContainer/VBox/TurnIndicator/TurnText")
-	btn_restart = get_node_or_null("ScrollContainer/VBox/Controls/BtnRestart")
-	btn_sound = get_node_or_null("ScrollContainer/VBox/Controls/BtnSound")
-	back_button = get_node_or_null("ScrollContainer/VBox/BackButton")
+	board_node = get_node_or_null("VBox/BoardCenter/BoardBg/Board")
+	black_count_label = get_node_or_null("VBox/ScoreBoard/BlackScore/HBox/BlackCount")
+	white_count_label = get_node_or_null("VBox/ScoreBoard/WhiteScore/HBox/WhiteCount")
+	status_label = get_node_or_null("VBox/StatusLabel")
+	turn_piece = get_node_or_null("VBox/TurnIndicator/TurnPiece")
+	turn_text = get_node_or_null("VBox/TurnIndicator/TurnText")
+	btn_restart = get_node_or_null("VBox/Controls/BtnRestart")
+	btn_sound = get_node_or_null("VBox/Controls/BtnSound")
+	back_button = get_node_or_null("VBox/BackButton")
 	
 	diff_buttons = [
-		get_node_or_null("ScrollContainer/VBox/DifficultyBar/DiffEasy"),
-		get_node_or_null("ScrollContainer/VBox/DifficultyBar/DiffMedium"),
-		get_node_or_null("ScrollContainer/VBox/DifficultyBar/DiffHard"),
-		get_node_or_null("ScrollContainer/VBox/DifficultyBar/DiffExpert")
+		get_node_or_null("VBox/DifficultyBar/DiffEasy"),
+		get_node_or_null("VBox/DifficultyBar/DiffMedium"),
+		get_node_or_null("VBox/DifficultyBar/DiffHard"),
+		get_node_or_null("VBox/DifficultyBar/DiffExpert")
 	]
 	
 	if btn_restart:
@@ -72,7 +86,73 @@ func _ready():
 		if diff_buttons[i]:
 			diff_buttons[i].pressed.connect(Callable(self, "set_difficulty").bind(i))
 	
+	# Style score panels with semi-transparent bg
+	var score_panels = [
+		get_node_or_null("VBox/ScoreBoard/BlackScore"),
+		get_node_or_null("VBox/ScoreBoard/WhiteScore")
+	]
+	for panel in score_panels:
+		if panel:
+			var sb = StyleBoxFlat.new()
+			sb.bg_color = COLOR_SCORE_BG
+			sb.corner_radius_top_left = 16
+			sb.corner_radius_top_right = 16
+			sb.corner_radius_bottom_left = 16
+			sb.corner_radius_bottom_right = 16
+			sb.content_margin_top = 6
+			sb.content_margin_bottom = 6
+			sb.content_margin_left = 12
+			sb.content_margin_right = 12
+			panel.add_theme_stylebox_override("panel", sb)
+	
+	# Style board bg
+	var board_bg = get_node_or_null("VBox/BoardCenter/BoardBg")
+	if board_bg:
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = COLOR_BOARD_GREEN
+		sb.corner_radius_top_left = 10
+		sb.corner_radius_top_right = 10
+		sb.corner_radius_bottom_left = 10
+		sb.corner_radius_bottom_right = 10
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
+		sb.content_margin_left = 4
+		sb.content_margin_right = 4
+		board_bg.add_theme_stylebox_override("panel", sb)
+	
+	# Style difficulty buttons
+	_update_diff_style()
+	
 	init_game()
+
+func _update_diff_style():
+	var diffs = ["easy", "medium", "hard", "expert"]
+	for i in range(4):
+		if not diff_buttons[i]:
+			continue
+		var sb = StyleBoxFlat.new()
+		if diffs[i] == difficulty:
+			sb.bg_color = COLOR_DIFF_ACTIVE
+		else:
+			sb.bg_color = COLOR_DIFF_INACTIVE
+		sb.corner_radius_top_left = 14
+		sb.corner_radius_top_right = 14
+		sb.corner_radius_bottom_left = 14
+		sb.corner_radius_bottom_right = 14
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
+		sb.content_margin_left = 10
+		sb.content_margin_right = 10
+		diff_buttons[i].add_theme_stylebox_override("normal", sb)
+		# Hover
+		var hsb = sb.duplicate()
+		hsb.bg_color = Color(sb.bg_color.r + 0.1, sb.bg_color.g + 0.1, sb.bg_color.b + 0.1, sb.bg_color.a)
+		diff_buttons[i].add_theme_stylebox_override("hover", hsb)
+		# Font color
+		if diffs[i] == difficulty:
+			diff_buttons[i].add_theme_color_override("font_color", Color(1, 1, 1))
+		else:
+			diff_buttons[i].add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 
 func _on_back_pressed():
 	get_tree().change_scene_to_file("res://scenes/control.tscn")
@@ -123,38 +203,101 @@ func create_board_ui():
 	for child in board_node.get_children():
 		child.queue_free()
 	
+	# Calculate cell size based on board width
+	var cell_size = 38
+	var available = board_node.custom_minimum_size.x
+	if available > 0:
+		cell_size = int((available - 2 * 7) / 8)  # minus gaps
+		cell_size = maxi(cell_size, 30)
+		cell_size = mini(cell_size, 50)
+	
 	for r in range(8):
 		for c in range(8):
-			var cell = Button.new()
-			cell.custom_minimum_size = Vector2(38, 38)
+			var cell = PanelContainer.new()
+			cell.custom_minimum_size = Vector2(cell_size, cell_size)
 			cell.set_meta("row", r)
 			cell.set_meta("col", c)
-			cell.pressed.connect(Callable(self, "on_cell_tap").bind(r, c))
-			update_cell_appearance(cell, r, c)
+			cell.mouse_filter = Control.MOUSE_FILTER_PASS
+			
+			# Green cell background
+			var cell_sb = StyleBoxFlat.new()
+			cell_sb.bg_color = COLOR_BOARD_GREEN
+			cell_sb.border_color = COLOR_BOARD_LINE
+			cell_sb.border_width_top = 1
+			cell_sb.border_width_bottom = 1
+			cell_sb.border_width_left = 1
+			cell_sb.border_width_right = 1
+			cell.add_theme_stylebox_override("panel", cell_sb)
+			
+			# Click detection via gui_input
+			cell.gui_input.connect(_on_cell_gui_input.bind(r, c))
+			
 			board_node.add_child(cell)
+
+func _on_cell_gui_input(event: InputEvent, row: int, col: int):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		on_cell_tap(row, col)
+	elif event is InputEventScreenTouch and event.pressed:
+		on_cell_tap(row, col)
 
 func update_cell_appearance(cell, row, col):
 	var cell_data = board[row][col]
 	var value = cell_data.value
 	
-	cell.remove_theme_color_override("normal_color")
-	cell.remove_theme_color_override("hover_color")
+	# Reset cell - remove old piece/hint children
+	for child in cell.get_children():
+		child.queue_free()
 	
-	if value == 0:
-		cell.add_theme_color_override("normal_color", Color(0.3, 0.6, 0.3))
-		cell.add_theme_color_override("hover_color", Color(0.4, 0.7, 0.4))
-	elif value == BLACK:
-		cell.add_theme_color_override("normal_color", Color(0.0, 0.0, 0.0))
-		cell.add_theme_color_override("hover_color", Color(0.2, 0.2, 0.2))
+	if value == BLACK:
+		var piece = ColorRect.new()
+		piece.color = COLOR_BLACK_PIECE
+		piece.anchors_preset = Control.PRESET_CENTER
+		# Make piece 80% of cell size, centered
+		var pw = cell.custom_minimum_size.x * 0.8
+		piece.custom_minimum_size = Vector2(pw, pw)
+		piece.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		piece.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cell.add_child(piece)
+		
+		if cell_data.is_last_move:
+			var ring = ColorRect.new()
+			ring.color = COLOR_LAST_MOVE
+			var rw = cell.custom_minimum_size.x * 0.85
+			ring.custom_minimum_size = Vector2(rw, rw)
+			ring.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			cell.add_child(ring)
+			# Move ring behind piece
+			cell.move_child(ring, 0)
+	
 	elif value == WHITE:
-		cell.add_theme_color_override("normal_color", Color(1.0, 1.0, 1.0))
-		cell.add_theme_color_override("hover_color", Color(0.9, 0.9, 0.9))
+		var piece = ColorRect.new()
+		piece.color = COLOR_WHITE_PIECE
+		var pw = cell.custom_minimum_size.x * 0.8
+		piece.custom_minimum_size = Vector2(pw, pw)
+		piece.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		piece.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cell.add_child(piece)
+		
+		if cell_data.is_last_move:
+			var ring = ColorRect.new()
+			ring.color = COLOR_LAST_MOVE
+			var rw = cell.custom_minimum_size.x * 0.85
+			ring.custom_minimum_size = Vector2(rw, rw)
+			ring.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			ring.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			cell.add_child(ring)
+			cell.move_child(ring, 0)
 	
-	if cell_data.is_valid_move and value == 0:
-		cell.text = "·"
-		cell.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5))
-	else:
-		cell.text = ""
+	elif cell_data.is_valid_move:
+		# Small dot hint
+		var hint = ColorRect.new()
+		hint.color = COLOR_VALID_HINT
+		var hw = cell.custom_minimum_size.x * 0.3
+		hint.custom_minimum_size = Vector2(hw, hw)
+		hint.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cell.add_child(hint)
 
 func update_ui():
 	if black_count_label:
@@ -163,7 +306,7 @@ func update_ui():
 		white_count_label.text = str(white_count)
 	
 	if turn_piece:
-		turn_piece.color = Color(0, 0, 0) if current_player == BLACK else Color(1, 1, 1)
+		turn_piece.color = COLOR_BLACK_PIECE if current_player == BLACK else COLOR_WHITE_PIECE
 	
 	if turn_text:
 		turn_text.text = "黑棋回合" if current_player == BLACK else "白棋回合"
@@ -184,11 +327,7 @@ func update_ui():
 func set_difficulty(index):
 	var diffs = ["easy", "medium", "hard", "expert"]
 	difficulty = diffs[index]
-	
-	for i in range(4):
-		if diff_buttons[i]:
-			diff_buttons[i].flat = (i != index)
-	
+	_update_diff_style()
 	init_game()
 
 func get_valid_moves(board_data, player):
