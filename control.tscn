@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://cg5w4qldvf231"]
+
+[ext_resource type="Texture2D" uid="uid://bcb81ex8g6qk6" path="res://icon.svg" id="1_0fbet"]
+
+[node name="Control" type="Control" unique_id=292408175]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 952.0
+offset_top = -936.0
+offset_right = 952.0
+offset_bottom = -936.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Icon" type="Sprite2D" parent="." unique_id=1581909260]
+position = Vector2(-423, 1374)
+texture = ExtResource("1_0fbet")
+
+[node name="Button" type="Button" parent="." unique_id=10245420]
+layout_mode = 0
+offset_left = -591.0
+offset_top = 1125.0
+offset_right = -535.0
+offset_bottom = 1156.0
+text = "黑白棋"
