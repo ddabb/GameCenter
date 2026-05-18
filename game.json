@@ -1,0 +1,12 @@
+{
+    "deviceOrientation": "portrait",
+    "scripts": [
+        "games/menu.js",
+        "games/othello.js",
+        "games/akari.js",
+        "games/sokoban.js",
+        "games/nurikabe.js",
+        "games/tents.js",
+        "game.js"
+    ]
+}
