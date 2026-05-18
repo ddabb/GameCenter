@@ -45,7 +45,7 @@ class Nonogram {
     this.bindEvents();
   }
   
-  loadLevel() {
+  async loadLevel() {
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
     const safeLevel = String(this.level).padStart(4, '0');
     try {

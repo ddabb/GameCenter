@@ -35,7 +35,7 @@ class SlitherLink {
     this.bindEvents();
   }
   
-  loadLevel() {
+  async loadLevel() {
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
     // 从本地 data/ 目录加载关卡数据
     const safeLevel = String(this.level).padStart(4, '0');

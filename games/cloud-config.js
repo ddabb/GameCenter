@@ -1,36 +1,39 @@
 /**
- * 腾讯云开发配置文件
- * 抖音云服务用于题库存储和排行榜
+ * 云端题库配置
+ * CDN 模式：从 jsDelivr + GitHub 加载题库 JSON
+ * 本地模式：从 games/data/ 目录 require 加载
  */
 
 module.exports = {
-  // 云服务配置
+  // ========== CDN 题库配置 ==========
+  cdn: {
+    // 是否启用 CDN 题库（true = 优先走 CDN，false = 仅本地）
+    enabled: true,
+    // jsDelivr + GitHub 仓库地址（去掉末尾斜杠）
+    baseUrl: 'https://cdn.jsdelivr.net/gh/ddabb/DouyinCloudServer@main',
+    // 请求超时（毫秒）
+    timeout: 10000
+  },
+
+  // ========== 抖音云开发（保留，用于排行榜/云端存档） ==========
   cloud: {
     envID: 'env-EBp3Ma9y5U',
     serviceID: '1m0xd0x4hscok'
   },
 
-  // 默认域名
   baseURL: 'https://1m0xd0x4hscok-env-EBp3Ma9y5U.service.douyincloud.run',
 
-  // 云函数/容器路径配置
   api: {
-    // 题库接口路径
     puzzle: '/puzzle',
-    // 排行榜接口路径
     leaderboard: '/leaderboard'
   },
 
-  // 云端题库存储配置
+  // 旧版云端题库（已废弃，保留字段兼容）
   puzzleStorage: {
-    // 是否启用云端题库（false=使用本地data/目录）
     enabled: false,
-    // 题库刷新间隔（毫秒），设为0则每次启动都请求
     refreshInterval: 0,
-    // 本地缓存题库的最大数量（控制内存占用）
     maxCacheSize: 100
   },
 
-  // 调试模式
   debug: false
 };

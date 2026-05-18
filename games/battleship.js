@@ -48,7 +48,7 @@ class Battleship {
     this.bindEvents();
   }
   
-  loadLevel() {
+  async loadLevel() {
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
     // 尝试从 data/ 加载真实关卡
     const safeLevel = String(this.level).padStart(4, '0');

@@ -19,8 +19,8 @@ Page({
     this.loadLevel();
   },
 
-  loadLevel() {
-    const data = LevelLoader.load('akari', this.level, this.difficulty);
+  async loadLevel() {
+    const data = await LevelLoader.load('akari', this.level, this.difficulty);
     if (!data) { tt.showToast({ title: '关卡加载失败', icon: 'none' }); return; }
     this.grid = data.grid;
     this.clues = data.clues;
