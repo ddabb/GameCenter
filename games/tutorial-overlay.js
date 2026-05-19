@@ -76,6 +76,7 @@ class TutorialOverlay {
 
   shouldShow() {
     if (this.dismissed) return false;
+    if (this._manualShow) return true;
     try {
       return !wx.getStorageSync(this.storageKey);
     } catch (e) {
@@ -85,9 +86,33 @@ class TutorialOverlay {
 
   dismiss() {
     this.dismissed = true;
+    this._manualShow = false;
     try {
       wx.setStorageSync(this.storageKey, '1');
     } catch (e) {}
+  }
+
+  /**
+   * 手动显示规则弹窗（不受 storage 限制）
+   */
+  show() {
+    this.dismissed = false;
+    this._manualShow = true;
+  }
+
+  /**
+   * 关闭手动显示的弹窗
+   */
+  hide() {
+    this.dismissed = true;
+    this._manualShow = false;
+  }
+
+  /**
+   * 是否正在显示（用于检测点击）
+   */
+  isShowing() {
+    return this._manualShow || this.shouldShow();
   }
 
   draw() {

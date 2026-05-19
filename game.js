@@ -36,6 +36,7 @@ const SlitherLink = require('./games/slither-link.js');
 const Nonogram = require('./games/nonogram.js');
 const Battleship = require('./games/battleship.js');
 const MergeABC = require('./games/merge-abc.js');
+const FrogEscape = require('./games/frog-escape.js');
 
 let systemInfo = wx.getSystemInfoSync();
 let canvas = wx.createCanvas();
@@ -101,6 +102,9 @@ function loadGame(gameName, level) {
       break;
     case 'merge-abc':
       gameInstance = new MergeABC(ctx, canvas, systemInfo, switchGame, level);
+      break;
+    case 'frog-escape':
+      gameInstance = new FrogEscape(ctx, canvas, systemInfo, switchGame);
       break;
     default:
       gameInstance = new Menu(ctx, canvas, systemInfo, switchGame);

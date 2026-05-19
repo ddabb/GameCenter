@@ -34,6 +34,7 @@ class Menu {
     
     this.games = [
       { name: 'othello', title: '黑白棋', icon: '⚫', color: '#2D5A27' },
+      { name: 'frog-escape', title: '躲避牛蛙', icon: '🐸', color: '#27ae60' },
       { name: 'akari', title: '数灯', icon: '💡', color: '#FFB800' },
       { name: 'sokoban', title: '推箱子', icon: '📦', color: '#8B4513' },
       { name: 'nurikabe', title: '数墙', icon: '🧱', color: '#607D8B' },
@@ -104,8 +105,8 @@ class Menu {
         if (x >= buttonX && x <= buttonX + this.buttonSize &&
             y >= buttonY && y <= buttonY + this.buttonSize) {
           const gameName = this.games[i].name;
-          // 黑白棋和合成ABC直接进入游戏，其他游戏跳转到选关页面
-          if (gameName === 'othello' || gameName === 'merge-abc') {
+          // 黑白棋、躲避牛蛙、合成ABC直接进入游戏，其他游戏跳转到选关页面
+          if (gameName === 'othello' || gameName === 'frog-escape' || gameName === 'merge-abc') {
             this.switchGame(gameName);
           } else {
             this.switchGame('level-select', gameName);
@@ -117,8 +118,8 @@ class Menu {
       const db = this._dailyBanner;
       if (db && x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
         const dc = this.dailyChallenge.getToday();
-        // 黑白棋和合成ABC直接进入游戏，其他游戏跳转到选关页面
-        if (dc.game === 'othello' || dc.game === 'merge-abc') {
+        // 黑白棋、躲避牛蛙、合成ABC直接进入游戏，其他游戏跳转到选关页面
+        if (dc.game === 'othello' || dc.game === 'frog-escape' || dc.game === 'merge-abc') {
           this.switchGame(dc.game);
         } else {
           this.switchGame('level-select', dc.game);

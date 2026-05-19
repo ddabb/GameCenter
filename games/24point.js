@@ -31,6 +31,7 @@ class TwentyFourPoint {
     this.gameName = '24point';
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
+    this.achievement = new AchievementManager();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     
     this.generateNewGame();
@@ -264,15 +265,27 @@ class TwentyFourPoint {
   
   bindEvents() {
     this.clickHandler = (e) => {
-      if (this.victory) {
-        let touch = e.touches ? e.touches[0] : e;
-      if (this.tutorial && this.tutorial.shouldShow() && this.tutorial.hitTest(x, y)) {
-        this.tutorial.dismiss();
+      let touch = e.touches ? e.touches[0] : e;
+      let x = touch.clientX;
+      let y = touch.clientY;
+      
+      // 规则弹窗点击
+      if (this.tutorial && this.tutorial.shouldShow()) {
+        if (this.tutorial.hitTest(x, y)) {
+          this.tutorial.dismiss();
+          this.draw();
+        }
+        return; // 弹窗显示时阻止其他点击
+      }
+      
+      // 规则按钮
+      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
+        this.tutorial.show();
         this.draw();
         return;
       }
-        let x = touch.clientX;
-        let y = touch.clientY;
+      
+      if (this.victory) {
         if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
           this.level++;
           this.victory = false;
@@ -291,18 +304,8 @@ class TwentyFourPoint {
       }
       
       if (this.showResult && this.isCorrect) {
-        // 由胜利面板处理
         return;
       }
-      
-      let touch = e.touches ? e.touches[0] : e;
-      if (this.tutorial && this.tutorial.shouldShow() && this.tutorial.hitTest(x, y)) {
-        this.tutorial.dismiss();
-        this.draw();
-        return;
-      }
-      let x = touch.clientX;
-      let y = touch.clientY;
       
       // 新题按钮
       if (x > this.width - 80 && y > this.height - 60) {
@@ -381,12 +384,28 @@ class TwentyFourPoint {
     this.drawExpression();
     this.drawBottomBar();
     
+    // 规则按钮（右上角）
+    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
+    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 22px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
+    
     if (this.showResult) {
       this.drawResult();
     }
 
     if (this.victory) {
       this.drawVictory();
+    }
+    
+    // 规则弹窗
+    if (this.tutorial.shouldShow()) {
+      this.tutorial.draw();
     }
   }
   

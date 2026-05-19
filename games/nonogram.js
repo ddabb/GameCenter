@@ -39,12 +39,14 @@ class Nonogram {
     this.animationTime = 0;
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
+    this.achievement = new AchievementManager();
 
 
 
     this.hintMgr = new HintManager(); this._levelData = null;
     
     this.loadLevel();
+    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
   }
   
@@ -95,7 +97,18 @@ class Nonogram {
       let touch = e.touches ? e.touches[0] : e;
       let x = touch.clientX;
       let y = touch.clientY;
-      if (this.victory) {
+      // 规则按钮（右上角）
+    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
+    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 22px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
+
+    if (this.victory) {
         if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
           this.level++;
           this.loadLevel();
@@ -147,6 +160,13 @@ class Nonogram {
       if (x >= 15 && x <= 95 && y >= 10 && y <= 55) {
         sound.play('click');
           this.switchGame('level-select', this.gameName);
+        return;
+      }
+
+      // 规则按钮
+      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
+        this.tutorial.show();
+        this.draw();
         return;
       }
 
@@ -218,6 +238,11 @@ class Nonogram {
     
     if (this.victory) {
       this.drawVictory();
+    }
+
+    // 规则弹窗
+    if (this.tutorial.shouldShow()) {
+      this.tutorial.draw();
     }
   }
   

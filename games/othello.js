@@ -49,6 +49,7 @@ class Othello {
     this.validMoves = [];
     
     this.initBoard();
+    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
   }
   

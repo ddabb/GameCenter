@@ -30,12 +30,14 @@ class Tents {
     this.animationTime = 0;
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
+    this.achievement = new AchievementManager();
 
 
 
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     
     this.loadLevel();
+    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
   }
   
@@ -148,9 +150,27 @@ class Tents {
           this.switchGame('level-select', this.gameName);
         return;
       }
+
+      // 规则按钮
+      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
+        this.tutorial.show();
+        this.draw();
+        return;
+      }
       
       // 通关面板
-      if (this.victory) {
+      // 规则按钮（右上角）
+    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
+    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 22px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
+
+    if (this.victory) {
         if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
           this.level++;
           this.loadLevel();
@@ -206,6 +226,11 @@ class Tents {
     
     if (this.victory) {
       this.drawVictory();
+    }
+
+    // 规则弹窗
+    if (this.tutorial.shouldShow()) {
+      this.tutorial.draw();
     }
   }
   
@@ -423,6 +448,67 @@ class Tents {
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
   }
+  roundRect(x, y, w, h, r) {
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + r, y);
+    this.ctx.lineTo(x + w - r, y);
+    this.ctx.arcTo(x + w, y, x + w, y + r, r);
+    this.ctx.lineTo(x + w, y + h - r);
+    this.ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    this.ctx.lineTo(x + r, y + h);
+    this.ctx.arcTo(x, y + h, x, y + h - r, r);
+    this.ctx.lineTo(x, y + r);
+    this.ctx.arcTo(x, y, x + r, y, r);
+    this.ctx.closePath();
+  }
+
+  showBackButton() {
+    const panelW = 260, panelH = 200;
+    const panelX = (this.width - panelW) / 2;
+    const panelY = (this.height - panelH) / 2;
+
+    // 半透明遮罩
+    this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    this.ctx.fillRect(0, 0, this.width, this.height);
+
+    // 面板背景
+    this.roundRect(panelX, panelY, panelW, panelH, 16);
+    this.ctx.fillStyle = '#1e2a4a';
+    this.ctx.fill();
+    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
+
+    // 标题
+    this.ctx.fillStyle = '#6BCB77';
+    this.ctx.font = 'bold 22px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('🎉 恭喜通关！', this.width / 2, panelY + 50);
+
+    this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    this.ctx.font = '15px Arial';
+    this.ctx.fillText('关卡 ' + this.level, this.width / 2, panelY + 80);
+
+    // 下一关按钮
+    const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
+    this.roundRect(btnX, panelY + 100, btnW, btnH, 21);
+    this.ctx.fillStyle = '#6BCB77';
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 17px Arial';
+    this.ctx.fillText('下一关', this.width / 2, panelY + 126);
+    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
+
+    // 返回选关按钮
+    this.roundRect(btnX, panelY + 152, btnW, btnH, 21);
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '15px Arial';
+    this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
+    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
+  }
+
 }
 
 module.exports = Tents;

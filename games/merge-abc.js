@@ -111,14 +111,17 @@ class MergeABC {
     const storedBest = wx.getStorageSync('merge_abc_best');
     if (storedBest) this._bestScore = storedBest;
 
+    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
   }
 
   bindEvents() {
     this.touchStartHandler = (e) => {
+      let touch = e.touches ? e.touches[0] : e;
+      const x = touch.clientX;
+      const y = touch.clientY;
+      
       if (this._showModal) {
-        const x = e.touches ? e.touches[0].clientX : e.clientX;
-        const y = e.touches ? e.touches[0].clientY : e.clientY;
         if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
           this.level++;
           this.restart();
@@ -134,7 +137,7 @@ class MergeABC {
         }
         return;
       }
-      let touch = e.touches ? e.touches[0] : e;
+      
       // 撤销按钮检测
       if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
         const state = this.undoMgr.undo();
@@ -150,8 +153,8 @@ class MergeABC {
         this.draw();
         return;
       }
-      this._startX = touch.clientX;
-      this._startY = touch.clientY;
+      this._startX = x;
+      this._startY = y;
     };
 
     this.touchEndHandler = (e) => {

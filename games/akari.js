@@ -5,6 +5,7 @@
  */
 const statsManager = require('./stats-manager.js').getInstance();
 const LevelLoader = require('./level-loader');
+const TutorialOverlay = require('./tutorial-overlay');
 const Confetti = require('./confetti');
 const sound = require('./sound-manager');
 const UndoManager = require('./undo-manager');
@@ -37,6 +38,7 @@ class Akari {
     this.statsKey = `progress_${this.gameName}_${this.difficulty}`;
     statsManager.startGame(this.gameName, this.level);
 
+    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
     this.loadLevel();
   }
@@ -85,13 +87,34 @@ class Akari {
   bindEvents() {
     this._clickHandler = (e) => {
       this.animationTime = 0;
+      
+      // 规则弹窗点击
+      if (this.tutorial && this.tutorial.shouldShow()) {
+        const touch = e.touches ? e.touches[0] : e;
+        const x = touch.clientX;
+        const y = touch.clientY;
+        if (this.tutorial.hitTest(x, y)) {
+          this.tutorial.dismiss();
+          this.draw();
+        }
+        return; // 弹窗显示时阻止其他点击
+      }
+      
+      const touch = e.touches ? e.touches[0] : e;
+      const x = touch.clientX;
+      const y = touch.clientY;
+      
+      // 规则按钮
+      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
+        this.tutorial.show();
+        this.draw();
+        return;
+      }
+      
       if (this.victory) {
         this._handleVictoryClick(e);
         return;
       }
-      const touch = e.touches ? e.touches[0] : e;
-      const x = touch.clientX;
-      const y = touch.clientY;
 
       // 返回按钮
       if (y < 70 && x < 100) {
@@ -162,6 +185,17 @@ class Akari {
     this.ctx.font = 'bold 18px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(`💡 数灯  第${this.level}关`, this.width / 2, 38);
+
+    // 规则按钮（右上角）
+    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
+    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 22px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
 
     this.ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     this.ctx.lineWidth = 1;
@@ -252,6 +286,11 @@ class Akari {
     this.ctx.font = '12px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillText('点击切换：空格→灯泡→标记', this.width / 2, this.height - 10);
+    
+    // 规则弹窗
+    if (this.tutorial.shouldShow()) {
+      this.tutorial.draw();
+    }
   }
 
   _drawLightRays(ctx, row, col, cellSize, offsetX, offsetY) {
@@ -380,46 +419,46 @@ class Akari {
     this.ctx.font = '16px Arial';
     this.ctx.fillText(`第 ${this.level} 关`, W / 2, H / 2 - 30);
 
-    // 按钮
+    // 下一关按钮
     const btnY = H / 2 + 10;
-    this.ctx.fillStyle = '#2196F3';
+    const btnW = 180, btnH = 42, btnX = (W - btnW) / 2;
+    this.ctx.fillStyle = '#4CAF50';
     this.ctx.beginPath();
-    roundRect(this.ctx,W / 2 - 110, btnY, 220, 44, 10);
+    roundRect(this.ctx, btnX, btnY, btnW, btnH, 21);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 17px Arial';
+    this.ctx.fillText('➡️ 下一关', W / 2, btnY + 26);
+    this._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // 返回选关按钮
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, btnX, btnY + 52, btnW, btnH, 21);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '15px Arial';
-    this.ctx.fillText('🔄 重玩本关', W / 2, btnY + 28);
-
-    this.ctx.fillStyle = '#4CAF50';
-    this.ctx.beginPath();
-    roundRect(this.ctx,W / 2 - 110, btnY + 56, 220, 44, 10);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.fillText('➡️ 下一关', W / 2, btnY + 84);
+    this.ctx.fillText('返回选关', W / 2, btnY + 78);
+    this._backBtn = { x: btnX, y: btnY + 52, w: btnW, h: btnH };
   }
 
   _handleVictoryClick(e) {
     const touch = e.touches ? e.touches[0] : e;
     const x = touch.clientX, y = touch.clientY;
     const W = this.width, H = this.height;
-    const btnY = H / 2 + 10;
-
-    if (x >= W / 2 - 110 && x <= W / 2 + 110) {
-      if (y >= btnY && y <= btnY + 44) {
-        this.victory = false;
-        this.loadLevel();
-        return;
-      }
-      if (y >= btnY + 56 && y <= btnY + 100) {
-        this.victory = false;
-        this.level++;
-        this.loadLevel();
-        return;
-      }
+    
+    // 下一关按钮
+    if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
+      this.victory = false;
+      this.level++;
+      this.loadLevel();
+      return;
     }
-    // 点击卡片外返回
-    if (y > H / 2 + 110 || y < H / 2 - 130) {
+    
+    // 返回选关按钮
+    if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
       this.switchGame('level-select', this.gameName);
+      return;
     }
   }
 
