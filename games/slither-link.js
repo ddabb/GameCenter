@@ -1,11 +1,17 @@
 const statsManager = require('./stats-manager.js').getInstance();
 const Confetti = require('./confetti');
+const sound = require('./sound-manager');
+const TutorialOverlay = require('./tutorial-overlay');
+const UndoManager = require('./undo-manager');
+const { AchievementManager } = require('./achievement-manager');
+const { ShareCard } = require('./share-card');
 /**
  * 数回 (Slither Link) - 小游戏版
  * 规则：在格点间画线，形成一条闭合回路，数字表示该格周围的线段数
  */
 class SlitherLink {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
+    console.log(`[SlitherLink] 初始化游戏, 关卡: ${level}`);
     this.ctx = ctx;
     this.canvas = canvas;
     this.systemInfo = systemInfo;
@@ -36,16 +42,12 @@ class SlitherLink {
   }
   
   async loadLevel() {
+    console.log(`[SlitherLink] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
     // 从本地 data/ 目录加载关卡数据
     const safeLevel = String(this.level).padStart(4, '0');
     try {
-      const data = require(`../data/slither-link/easy/easy-${safeLevel}.json`)
-const sound = require('./sound-manager');
-const TutorialOverlay = require('./tutorial-overlay');
-const UndoManager = require('./undo-manager');
-const { AchievementManager } = require('./achievement-manager');
-const { ShareCard } = require('./share-card');
+      const data = require(`../data/slither-link/easy/easy-${safeLevel}.json`);
 
       if (data && data.grid) {
         this.size = data.size || 5;
@@ -184,6 +186,7 @@ const { ShareCard } = require('./share-card');
         }
       }
     }
+    console.log(`[SlitherLink] 通关！关卡: ${this.level}`);
     this.victory = true;
       this.confetti.start();
       // 成就检测

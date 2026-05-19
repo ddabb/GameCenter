@@ -1,7 +1,13 @@
 const statsManager = require('./stats-manager.js').getInstance();
 const Confetti = require('./confetti');
+const sound = require('./sound-manager');
+const TutorialOverlay = require('./tutorial-overlay');
+const UndoManager = require('./undo-manager');
+const { AchievementManager } = require('./achievement-manager');
+const { ShareCard } = require('./share-card');
 class Sokoban {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
+    console.log(`[Sokoban] 初始化游戏, 关卡: ${level}`);
     this.ctx = ctx;
     this.canvas = canvas;
     this.systemInfo = systemInfo;
@@ -83,16 +89,12 @@ class Sokoban {
   }
   
   async loadLevel() {
+    console.log(`[Sokoban] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
     // 尝试从 data/ 加载真实关卡
     const safeLevel = String(this.level).padStart(4, '0');
     try {
-      const data = require(`../data/sokoban/easy-${safeLevel}.json`)
-const sound = require('./sound-manager');
-const TutorialOverlay = require('./tutorial-overlay');
-const UndoManager = require('./undo-manager');
-const { AchievementManager } = require('./achievement-manager');
-const { ShareCard } = require('./share-card');
+      const data = require(`../data/sokoban/easy-${safeLevel}.json`);
 
       if (data && data.grid) {
         this.size = data.rows || data.grid.length;
@@ -216,6 +218,7 @@ const { ShareCard } = require('./share-card');
       let onTarget = this.boxes.some(b => b.r === t.r && b.c === t.c);
       if (!onTarget) return;
     }
+    console.log(`[Sokoban] 通关！关卡: ${this.level}, 步数: ${this.moves}`);
     this.victory = true;
       this.confetti.start();
       // 成就检测
@@ -408,6 +411,7 @@ const { ShareCard } = require('./share-card');
   }
   
   drawBoard() {
+    if (!this.grid || !this.grid.length) return;
     for (let r = 0; r < this.size; r++) {
       for (let c = 0; c < this.size; c++) {
         let x = this.boardOffsetX + c * this.cellSize;

@@ -1,7 +1,13 @@
 const statsManager = require('./stats-manager.js').getInstance();
 const Confetti = require('./confetti');
+const sound = require('./sound-manager');
+const TutorialOverlay = require('./tutorial-overlay');
+const UndoManager = require('./undo-manager');
+const { AchievementManager } = require('./achievement-manager');
+const { ShareCard } = require('./share-card');
 class Tents {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
+    console.log(`[Tents] 初始化游戏, 关卡: ${level}`);
     this.ctx = ctx;
     this.canvas = canvas;
     this.systemInfo = systemInfo;
@@ -31,16 +37,12 @@ class Tents {
   }
   
   async loadLevel() {
+    console.log(`[Tents] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
     // 尝试从 data/ 加载真实关卡
     const safeLevel = String(this.level).padStart(4, '0');
     try {
-      const data = require(`../data/tents/easy/easy-${safeLevel}.json`)
-const sound = require('./sound-manager');
-const TutorialOverlay = require('./tutorial-overlay');
-const UndoManager = require('./undo-manager');
-const { AchievementManager } = require('./achievement-manager');
-const { ShareCard } = require('./share-card');
+      const data = require(`../data/tents/easy/easy-${safeLevel}.json`);
 
       if (data && data.grid) {
         this.size = data.size || 6;
@@ -211,6 +213,7 @@ const { ShareCard } = require('./share-card');
         if (this.board[r][c] !== 1 && this.tents[r][c] === 0) return;
       }
     }
+    console.log(`[Tents] 通关！关卡: ${this.level}`);
     this.victory = true;
       this.confetti.start();
       // 成就检测
