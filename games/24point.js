@@ -16,6 +16,9 @@ class TwentyFourPoint {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     this.level = level;
     statsManager.startGame(this.gameName, level) || 1; // 关卡号
     
@@ -400,18 +403,18 @@ class TwentyFourPoint {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.font = 'bold 18px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, 38);
+    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
 
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('🧮 24点速算', this.width / 2, 40);
+    this.ctx.fillText('🧮 24点速算', this.width / 2, this.statusBarHeight + 40);
     
     this.ctx.font = (this.width / 32) + 'px Arial';
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    this.ctx.fillText('用四个数字计算出24', this.width / 2, 70);
+    this.ctx.fillText('用四个数字计算出24', this.width / 2, this.statusBarHeight + 70);
     
-    this.ctx.fillText('第 ' + this.level + ' 关', this.width / 2, 95);
+    this.ctx.fillText('第 ' + this.level + ' 关', this.width / 2, this.statusBarHeight + 95);
   }
   
   drawNumberCards() {
@@ -419,7 +422,7 @@ class TwentyFourPoint {
     const cardH = 70;
     const gap = 15;
     const startX = (this.width - (cardW * 4 + gap * 3)) / 2;
-    const startY = 120;
+    const startY = this.statusBarHeight + 120;
     
     for (let i = 0; i < 4; i++) {
       const x = startX + i * (cardW + gap);
@@ -454,7 +457,7 @@ class TwentyFourPoint {
     const opH = 45;
     const gap = 15;
     const startX = (this.width - (opW * 6 + gap * 5)) / 2;
-    const startY = 220;
+    const startY = this.statusBarHeight + 200;
     
     for (let i = 0; i < 6; i++) {
       const x = startX + i * (opW + gap);
@@ -474,18 +477,19 @@ class TwentyFourPoint {
   drawExpression() {
     // 输入框背景
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    const exprY = this.statusBarHeight + 210;
     this.ctx.beginPath();
-    roundRect(this.ctx,30, 280, this.width - 60, 40, 8);
+    roundRect(this.ctx,30, exprY, this.width - 60, 40, 8);
     this.ctx.fill();
     
     // 表达式文字
     this.ctx.fillStyle = '#fff';
     this.ctx.font = (this.width / 25) + 'px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText(this.expression || '点击上方数字和运算符', 45, 307);
+    this.ctx.fillText(this.expression || '点击上方数字和运算符', 45, exprY + 27);
     
     // 清除和确认按钮
-    const btnY = 280;
+    const btnY = exprY;
     const btnH = 40;
     const btnW = 50;
     

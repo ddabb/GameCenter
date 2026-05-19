@@ -15,13 +15,16 @@ class Nurikabe {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     this.level = level;
     statsManager.startGame(this.gameName, level) || 1; // 关卡号
     this.gameName = 'nurikabe';
     
     this.cellSize = Math.min(this.width * 0.9 / 7, 50);
     this.boardOffsetX = (this.width - this.cellSize * 7) / 2;
-    this.boardOffsetY = 100;
+    this.boardOffsetY = this.statusBarHeight + 100;
     
     this.board = [];
     this.marks = [];
@@ -203,7 +206,7 @@ class Nurikabe {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.font = 'bold 18px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, 38);
+    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
 
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';

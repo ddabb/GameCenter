@@ -15,8 +15,12 @@ class Othello {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
+    this.gameName = 'othello';
     this.level = level;
-    statsManager.startGame(this.gameName, level) || 1; // 关卡号，从选关页面传入
+    statsManager.startGame(this.gameName, level) || 1;
     
     this.difficulty = 'medium'; // easy, medium, hard, expert
     this.difficulties = [
@@ -28,7 +32,7 @@ class Othello {
     
     this.cellSize = Math.min(this.width * 0.85 / 8, 38);
     this.boardOffsetX = (this.width - this.cellSize * 8) / 2;
-    this.boardOffsetY = 175;
+    this.boardOffsetY = this.statusBarHeight + 175;
     
     this.BLACK = 1;
     this.WHITE = 2;
@@ -475,7 +479,7 @@ class Othello {
   }
   
   drawDifficultyBar() {
-    let y = 55;
+    let y = this.statusBarHeight + 55;
     let w = 60;
     let h = 32;
     let gap = 8;
@@ -511,16 +515,16 @@ class Othello {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.font = 'bold 18px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, 38);
+    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
 
     // 标题
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 20) + 'px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('⚫ 黑白棋 ⚪', this.width / 2, 100);
+    this.ctx.fillText('⚫ 黑白棋 ⚪', this.width / 2, this.statusBarHeight + 100);
 
     // 分数板 - 紧凑一行
-    let scoreY = 108;
+    let scoreY = this.statusBarHeight + 108;
     let scoreWidth = this.width * 0.75;
     let scoreX = (this.width - scoreWidth) / 2;
     let scoreH = 34;

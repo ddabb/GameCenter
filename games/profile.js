@@ -162,7 +162,7 @@ class Profile {
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', this.padding + 30, 43);
+    this.ctx.fillText('← 返回', this.padding + 30, this.statusBarHeight + 43);
     
     // 标题
     this.ctx.fillStyle = '#fff';

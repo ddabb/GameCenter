@@ -19,6 +19,9 @@ class Sokoban {
     statsManager.startGame(this.gameName, level) || 1;
     this.gameName = 'sokoban';
     
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     this.difficulty = 'easy';
     this.difficulties = [
       { name: 'easy', label: '简单', size: 6 },
@@ -29,7 +32,7 @@ class Sokoban {
     this.size = 6;
     this.cellSize = Math.min(this.width * 0.8 / this.size, 45);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = 130;
+    this.boardOffsetY = this.statusBarHeight + 130;
     
     this.grid = []; // 0=空, 1=墙, 2=目标
     this.boxes = [];
@@ -398,16 +401,16 @@ class Sokoban {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.font = 'bold 18px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, 38);
+    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
 
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 18) + 'px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('📦 推箱子', this.width / 2, 100);
+    this.ctx.fillText('📦 推箱子', this.width / 2, this.statusBarHeight + 100);
     
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     this.ctx.font = (this.width / 28) + 'px Arial';
-    this.ctx.fillText('⏱️ ' + this.moves + ' 步', this.width / 2, 120);
+    this.ctx.fillText('⏱️ ' + this.moves + ' 步', this.width / 2, this.statusBarHeight + 120);
   }
   
   drawBoard() {

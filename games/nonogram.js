@@ -19,6 +19,9 @@ class Nonogram {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     this.level = level;
     statsManager.startGame(this.gameName, level) || 1;
     this.gameName = 'nonogram';
@@ -26,7 +29,7 @@ class Nonogram {
     this.size = 6;
     this.cellSize = Math.min(this.width * 0.8 / this.size, 45);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = 150;
+    this.boardOffsetY = this.statusBarHeight + 150;
     
     this.grid = [];
     this.rowHints = [];
@@ -231,7 +234,7 @@ class Nonogram {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.font = 'bold 18px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, 38);
+    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
 
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';

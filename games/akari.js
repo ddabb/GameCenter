@@ -20,6 +20,9 @@ class Akari {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
 
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     this.gameName = 'akari';
     this.level = level || 1;
     this.difficulty = 'easy';
@@ -146,7 +149,7 @@ class Akari {
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '13px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, 36);
+    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 36);
 
     this.ctx.beginPath();
     roundRect(this.ctx,this.width - 90, 10, 80, 40, 8);

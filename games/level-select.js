@@ -28,6 +28,9 @@ class LevelSelect {
 
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
+    
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
 
     // 状态
     this.difficulty = 'easy';
@@ -49,9 +52,9 @@ class LevelSelect {
 
     // 布局
     this.padding = 15;
-    this.backBtn = { x: 10, y: 10, w: 50, h: 35 };
-    this.titleY = 55;
-    this.tabY = 75;
+    this.backBtn = { x: 10, y: this.statusBarHeight + 10, w: 50, h: 35 };
+    this.titleY = this.statusBarHeight + 55;
+    this.tabY = this.statusBarHeight + 75;
     this.tabH = 32;
     this.gridStartY = this.tabY + (this.showDifficultyTabs ? this.tabH + 10 : 10);
     this.cols = 5;

@@ -6,6 +6,10 @@ class Menu {
     this.switchGame = switchGame;
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
+    
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     const { DailyChallenge } = require('./daily-challenge');
     this.dailyChallenge = new DailyChallenge();
     this._dailyBanner = null;
@@ -13,7 +17,7 @@ class Menu {
     // 右上角"我的"按钮
     this.profileBtn = {
       x: this.width - 80,
-      y: 20,
+      y: this.statusBarHeight + 20,
       w: 65,
       h: 35
     };
@@ -21,7 +25,7 @@ class Menu {
     // 左上角音效开关
     this.soundBtn = {
       x: 10,
-      y: 20,
+      y: this.statusBarHeight + 20,
       w: 50,
       h: 35
     };
@@ -90,7 +94,11 @@ class Menu {
       for (let i = 0; i < this.games.length; i++) {
         const col = i % this.cols;
         const row = Math.floor(i / this.cols);
-        const buttonX = this.padding + col * (this.buttonSize + this.gridGap);
+        const isLastRow = row === Math.floor((this.games.length - 1) / this.cols);
+        const offsetX = (isLastRow && this.games.length % this.cols !== 0)
+          ? (this.cols - (this.games.length % this.cols)) * (this.buttonSize + this.gridGap) / 2
+          : 0;
+        const buttonX = this.padding + col * (this.buttonSize + this.gridGap) + offsetX;
         const buttonY = this.startY + row * (this.buttonSize + this.gridGap);
         
         if (x >= buttonX && x <= buttonX + this.buttonSize &&

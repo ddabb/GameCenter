@@ -98,7 +98,7 @@ class Stats {
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', this.padding + 35, 38);
+    this.ctx.fillText('← 返回', this.padding + 35, this.statusBarHeight + 38);
 
     // 标题
     this.ctx.font = 'bold 18px Arial';

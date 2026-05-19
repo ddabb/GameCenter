@@ -65,9 +65,12 @@ class MergeABC {
     this.level = level;
     statsManager.startGame(this.gameName, level) || 1; // 关卡号
 
+    // 安全区域适配 - 获取状态栏高度
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     // 布局参数
     this.padding = 15;
-    this.boardOffsetY = 175;
+    this.boardOffsetY = this.statusBarHeight + 150;
     this.boardPadding = 12;
     this.gridGap = 10;
 
@@ -78,10 +81,10 @@ class MergeABC {
     // 按钮尺寸
     this.btnWidth = Math.floor((this.boardWidth - 15) / 2);
     this.btnHeight = 44;
-    this.btnY = this.boardOffsetY + this.cellSize * 4 + this.boardPadding * 2 + 20;
+    this.btnY = this.boardOffsetY + this.cellSize * 4 + this.gridGap * 3 + this.boardPadding * 2 + 30;
 
     // 尝试恢复存档
-    const saved = tt.getStorageSync('merge_abc_saved');
+    const saved = wx.getStorageSync('merge_abc_saved');
     if (saved && saved.board && saved.board.length === 16) {
       this._board = saved.board;
       this._score = saved.score || 0;
@@ -105,7 +108,7 @@ class MergeABC {
     this._animationTime = 0;
 
     // 加载最高分
-    const storedBest = tt.getStorageSync('merge_abc_best');
+    const storedBest = wx.getStorageSync('merge_abc_best');
     if (storedBest) this._bestScore = storedBest;
 
     this.bindEvents();
@@ -178,7 +181,12 @@ class MergeABC {
       let absDx = Math.abs(dx);
       let absDy = Math.abs(dy);
 
-      // 返回按钮（改用顶部返回按钮）
+      // 顶部返回按钮（考虑状态栏高度）
+      if (endX >= 15 && endX <= 95 && endY >= this.statusBarHeight + 10 && endY <= this.statusBarHeight + 55) {
+        sound.play('click');
+        this.switchGame('menu');
+        return;
+      }
 
       if (Math.max(absDx, absDy) < 30) return;
 
@@ -264,7 +272,7 @@ class MergeABC {
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
-      const saved = tt.getStorageSync(key);
+      const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
       if (this.level >= progress.unlocked) {
@@ -274,7 +282,7 @@ class MergeABC {
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      tt.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
     }
@@ -461,12 +469,12 @@ class MergeABC {
   saveBestScore() {
     if (this._score > this._bestScore) {
       this._bestScore = this._score;
-      tt.setStorageSync('merge_abc_best', this._bestScore);
+      wx.setStorageSync('merge_abc_best', this._bestScore);
     }
   }
 
   saveGame() {
-    tt.setStorageSync('merge_abc_saved', {
+    wx.setStorageSync('merge_abc_saved', {
       board: this._board,
       score: this._score,
       bestScore: this._bestScore
@@ -496,21 +504,25 @@ class MergeABC {
     ctx.fillStyle = '#faf8ef';
     ctx.fillRect(0, 0, width, this.height);
 
-      
+    // 顶部返回按钮（考虑状态栏高度）
+    ctx.fillStyle = '#776e65';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
 
     // 标题
     ctx.fillStyle = '#776e65';
     ctx.font = `bold ${width / 14}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('🔤 ABC合成记', width / 2, 50);
+    ctx.fillText('🔤 ABC合成记', width / 2, this.statusBarHeight + 50);
 
     // 副标题
     ctx.fillStyle = '#9e948a';
     ctx.font = `${width / 32}px sans-serif`;
-    ctx.fillText('相同字母合并,升级到Z!', width / 2, 75);
+    ctx.fillText('相同字母合并,升级到Z!', width / 2, this.statusBarHeight + 75);
 
     // 分数栏
-    const barY = 95;
+    const barY = this.statusBarHeight + 95;
     const barH = 44;
     const halfW = (width - this.padding * 2 - 10) / 2;
 
@@ -605,16 +617,6 @@ class MergeABC {
     ctx.font = `${width / 32}px sans-serif`;
     ctx.fillText('滑动屏幕控制方向', width / 2, tipsY);
     ctx.fillText('相同字母合成下一字母', width / 2, tipsY + 22);
-
-    // 返回按钮
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    roundRect(this.ctx, this.padding, this.height - 55, 80, 36, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = `${width / 26}px sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText('← 返回', this.padding + 12, this.height - 30);
-    ctx.textAlign = 'center';
 
     // 游戏结束弹窗
     if (this._showModal) {

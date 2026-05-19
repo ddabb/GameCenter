@@ -19,12 +19,15 @@ class SlitherLink {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     this.level = level;
     statsManager.startGame(this.gameName, level) || 1;
     this.gameName = 'slither-link';
     this.cellSize = Math.min(this.width * 0.85 / this.size, 50);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = 175;
+    this.boardOffsetY = this.statusBarHeight + 175;
     
     this.hEdges = [];
     this.vEdges = [];

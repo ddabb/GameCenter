@@ -19,6 +19,9 @@ class Battleship {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     
+    // 安全区域适配
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
     this.level = level;
     statsManager.startGame(this.gameName, level) || 1; // 关卡号
     this.gameName = 'battleship';
@@ -26,7 +29,7 @@ class Battleship {
     this.size = 8; // 8x8网格
     this.cellSize = Math.min(this.width * 0.85 / this.size, 42);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = 120;
+    this.boardOffsetY = this.statusBarHeight + 120;
     
     // 网格状态：0=空，1=战舰，-1=已打空，2=已击中
     this.grid = [];
@@ -296,7 +299,7 @@ class Battleship {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.font = 'bold 18px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, 38);
+    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
 
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
