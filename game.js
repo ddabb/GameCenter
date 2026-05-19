@@ -19,6 +19,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x + r[0], y, r[0]);
   ctx.closePath();
 }
+window.roundRect = roundRect;
 
 const Menu = require('./games/menu.js');
 const PrivacyPolicy = require('./games/privacy.js');
