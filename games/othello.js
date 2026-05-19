@@ -30,9 +30,9 @@ class Othello {
       { name: 'expert', label: '专家', depth: 5 }
     ];
     
-    this.cellSize = Math.min(this.width * 0.85 / 8, 38);
+    this.cellSize = Math.min(this.width * 0.9 / 8, 42);
     this.boardOffsetX = (this.width - this.cellSize * 8) / 2;
-    this.boardOffsetY = this.statusBarHeight + 175;
+    this.boardOffsetY = this.statusBarHeight + 200;
     
     this.BLACK = 1;
     this.WHITE = 2;
@@ -100,9 +100,11 @@ class Othello {
       let x = touch.clientX;
       let y = touch.clientY;
       // 顶部返回按钮（左上角）
-      if (x >= 15 && x <= 95 && y >= 10 && y <= 55) {
+      let btnY = this.statusBarHeight + 15;
+      let btnH = 30;
+      if (x >= 15 && x <= 95 && y >= btnY && y <= btnY + btnH) {
         sound.play('click');
-          this.switchGame('level-select', this.gameName);
+          this.switchGame('menu');
         return;
       }
 
@@ -119,7 +121,7 @@ class Othello {
         }
         if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
           sound.play('click');
-          this.switchGame('level-select', this.gameName);
+          this.switchGame('menu');
           return;
         }
         if (!this._nextBtn || !this._backBtn) {
@@ -479,7 +481,7 @@ class Othello {
   }
   
   drawDifficultyBar() {
-    let y = this.statusBarHeight + 55;
+    let y = this.statusBarHeight + 110;
     let w = 60;
     let h = 32;
     let gap = 8;
@@ -513,49 +515,50 @@ class Othello {
   drawHeader() {
     // 左上角返回按钮
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    this.ctx.font = 'bold 18px Arial';
+    this.ctx.font = 'bold 16px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
+    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 28);
 
     // 标题
     this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 20) + 'px Arial';
+    this.ctx.font = 'bold 20px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('⚫ 黑白棋 ⚪', this.width / 2, this.statusBarHeight + 100);
+    this.ctx.fillText('⚫ 黑白棋 ⚪', this.width / 2, this.statusBarHeight + 30);
 
-    // 分数板 - 紧凑一行
-    let scoreY = this.statusBarHeight + 108;
-    let scoreWidth = this.width * 0.75;
+    // 分数板和回合提示合并一行
+    let infoY = this.statusBarHeight + 55;
+    let scoreWidth = this.width * 0.85;
     let scoreX = (this.width - scoreWidth) / 2;
-    let scoreH = 34;
+    let scoreH = 36;
 
     // 左侧黑棋
     let blackActive = this.currentPlayer === this.BLACK && !this.gameOver;
     this.ctx.fillStyle = blackActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
     this.ctx.beginPath();
-    roundRect(this.ctx, scoreX, scoreY, scoreWidth / 2 - 4, scoreH, scoreH/2);
+    roundRect(this.ctx, scoreX, infoY, scoreWidth / 2 - 4, scoreH, scoreH/2);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 18) + 'px Arial';
-    this.ctx.fillText('⚫ ' + this.blackCount, scoreX + scoreWidth / 4, scoreY + scoreH/2 + 6);
+    this.ctx.font = 'bold 18px Arial';
+    this.ctx.fillText('⚫ ' + this.blackCount, scoreX + scoreWidth / 4, infoY + scoreH/2 + 6);
+
+    // 中间回合提示
+    if (!this.gameOver) {
+      let turnText = this.currentPlayer === this.BLACK ? '🎯 你的回合' : '🤔 AI思考';
+      let turnColor = this.currentPlayer === this.BLACK ? '#6BCB77' : '#FFD700';
+      this.ctx.fillStyle = turnColor;
+      this.ctx.font = 'bold 14px Arial';
+      this.ctx.fillText(turnText, this.width / 2, infoY + scoreH/2 + 5);
+    }
 
     // 右侧白棋
     let whiteActive = this.currentPlayer === this.WHITE && !this.gameOver;
     this.ctx.fillStyle = whiteActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
     this.ctx.beginPath();
-    roundRect(this.ctx, scoreX + scoreWidth / 2 + 4, scoreY, scoreWidth / 2 - 4, scoreH, scoreH/2);
+    roundRect(this.ctx, scoreX + scoreWidth / 2 + 4, infoY, scoreWidth / 2 - 4, scoreH, scoreH/2);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
-    this.ctx.fillText(this.whiteCount + ' ⚪', scoreX + scoreWidth * 3/4, scoreY + scoreH/2 + 6);
-
-    // 回合提示
-    if (!this.gameOver) {
-      let turnText = this.currentPlayer === this.BLACK ? '🎯 你的回合' : '🤔 AI思考中...';
-      let turnColor = this.currentPlayer === this.BLACK ? '#6BCB77' : '#FFD700';
-      this.ctx.fillStyle = turnColor;
-      this.ctx.font = (this.width / 30) + 'px Arial';
-      this.ctx.fillText(turnText, this.width / 2, scoreY + scoreH + 20);
-    }
+    this.ctx.font = 'bold 18px Arial';
+    this.ctx.fillText(this.whiteCount + ' ⚪', scoreX + scoreWidth * 3/4, infoY + scoreH/2 + 6);
   }
   
   drawBoard() {
@@ -648,7 +651,7 @@ class Othello {
   }
   
   drawBottomBar() {
-    this.drawButton(15, this.height - 55, 70, 40, '← 返回');
+    // 底部留空，不再绘制返回按钮
   }
   
   drawButton(x, y, w, h, text) {

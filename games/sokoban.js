@@ -124,7 +124,10 @@ class Sokoban {
     } catch (e) { /* 使用内置题 */ }
     
     // 内置题目
-    let lvl = this.levels[this.difficulty];
+    let lvl = this.levels[this.difficulty] && this.levels[this.difficulty][0];
+    if (!lvl) {
+      lvl = this.levels.easy[0];
+    }
     this.size = lvl.grid.length;
     this.cellSize = Math.min(this.width * 0.8 / this.size, 40);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;

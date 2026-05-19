@@ -55,7 +55,7 @@ class Menu {
     this.cols = 3;
     this.padding = 15;
     this.gridGap = 10;
-    this.headerHeight = 70;
+    this.headerHeight = 95;
     this.footerHeight = 20;
     this.availableHeight = this.height - this.headerHeight - this.footerHeight - this.padding * 2;
     this.buttonSize = Math.min(
@@ -199,14 +199,14 @@ class Menu {
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 14) + 'px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('🎮 指尖谜题', this.padding, 75);
+    this.ctx.fillText('🎮 指尖谜题', this.padding, 95);
     
     // 分隔线
     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
-    this.ctx.moveTo(this.width * 0.15, 90);
-    this.ctx.lineTo(this.width * 0.85, 90);
+    this.ctx.moveTo(this.width * 0.15, 110);
+    this.ctx.lineTo(this.width * 0.85, 110);
     this.ctx.stroke();
     
     // 每日挑战横幅
@@ -218,7 +218,7 @@ class Menu {
     const bannerW = this.width * 0.9;
     const bannerH = 44;
     const bannerX = (this.width - bannerW) / 2;
-    const bannerY = 96;
+    const bannerY = 116;
     this._dailyBanner = { x: bannerX, y: bannerY, w: bannerW, h: bannerH };
     
     this.ctx.fillStyle = dc.completed ? 'rgba(76,175,80,0.15)' : 'rgba(255,193,7,0.15)';
