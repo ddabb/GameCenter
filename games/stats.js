@@ -93,7 +93,7 @@ class Stats {
     // 返回按钮
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    roundRect(ctx,this.padding, 15, 70, 35, 8);
+    roundRect(this.ctx,this.padding, 15, 70, 35, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -113,7 +113,7 @@ class Stats {
     // 卡片背景
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
     this.ctx.beginPath();
-    roundRect(ctx,this.padding, cardY, cardW, cardH, 12);
+    roundRect(this.ctx,this.padding, cardY, cardW, cardH, 12);
     this.ctx.fill();
 
     // 四个统计项
@@ -166,7 +166,7 @@ class Stats {
       // 卡片背景
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       this.ctx.beginPath();
-      roundRect(ctx,this.padding, itemY, cardW, itemH - 6, 10);
+      roundRect(this.ctx,this.padding, itemY, cardW, itemH - 6, 10);
       this.ctx.fill();
 
       // 游戏图标
@@ -201,12 +201,12 @@ class Stats {
 
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
       this.ctx.beginPath();
-      roundRect(ctx,barX, barY, barW, barH, 3);
+      roundRect(this.ctx,barX, barY, barW, barH, 3);
       this.ctx.fill();
 
       this.ctx.fillStyle = winRateColor;
       this.ctx.beginPath();
-      roundRect(ctx,barX, barY, barW * (winRate / 100), barH, 3);
+      roundRect(this.ctx,barX, barY, barW * (winRate / 100), barH, 3);
       this.ctx.fill();
 
       // 最佳记录
@@ -231,7 +231,7 @@ class Stats {
       const thumbY = startY + (this.scrollY / this.maxScroll) * (trackH - thumbH);
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      roundRect(ctx,this.width - 6, thumbY, 3, thumbH, 2);
+      roundRect(this.ctx,this.width - 6, thumbY, 3, thumbH, 2);
       this.ctx.fill();
     }
   }

@@ -650,7 +650,7 @@ class Othello {
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    roundRect(ctx,x, y, w, h, 20);
+    roundRect(this.ctx, x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';

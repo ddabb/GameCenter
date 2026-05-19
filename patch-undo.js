@@ -117,7 +117,7 @@ for (const file of gameFiles) {
     const undoBtnY = this.height - 55;
     this.ctx.fillStyle = this.undoMgr && this.undoMgr.canUndo() ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)';
     this.ctx.beginPath();
-    this.ctx.roundRect(undoBtnX, undoBtnY, undoBtnW, undoBtnH, 8);
+    roundRect(this.ctx, undoBtnX, undoBtnY, undoBtnW, undoBtnH, 8);
     this.ctx.fill();
     this.ctx.fillStyle = this.undoMgr && this.undoMgr.canUndo() ? '#fff' : 'rgba(255,255,255,0.3)';
     this.ctx.font = '14px Arial';

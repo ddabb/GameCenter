@@ -428,7 +428,7 @@ class TwentyFourPoint {
       // 卡片阴影
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       this.ctx.beginPath();
-      roundRect(ctx,x + 3, startY + 5, cardW, cardH, 10);
+      roundRect(this.ctx,x + 3, startY + 5, cardW, cardH, 10);
       this.ctx.fill();
       
       // 卡片主体
@@ -437,7 +437,7 @@ class TwentyFourPoint {
       gradient.addColorStop(1, '#C92A2A');
       this.ctx.fillStyle = gradient;
       this.ctx.beginPath();
-      roundRect(ctx,x, startY + pulse, cardW, cardH, 10);
+      roundRect(this.ctx,x, startY + pulse, cardW, cardH, 10);
       this.ctx.fill();
       
       // 数字
@@ -461,7 +461,7 @@ class TwentyFourPoint {
       
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      roundRect(ctx,x, startY, opW, opH, 8);
+      roundRect(this.ctx,x, startY, opW, opH, 8);
       this.ctx.fill();
       
       this.ctx.fillStyle = '#fff';
@@ -475,7 +475,7 @@ class TwentyFourPoint {
     // 输入框背景
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    roundRect(ctx,30, 280, this.width - 60, 40, 8);
+    roundRect(this.ctx,30, 280, this.width - 60, 40, 8);
     this.ctx.fill();
     
     // 表达式文字
@@ -492,7 +492,7 @@ class TwentyFourPoint {
     // 清除
     this.ctx.fillStyle = 'rgba(255, 107, 107, 0.3)';
     this.ctx.beginPath();
-    roundRect(ctx,this.width / 2 - 60, btnY, btnW, btnH, 8);
+    roundRect(this.ctx,this.width / 2 - 60, btnY, btnW, btnH, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = (this.width / 30) + 'px Arial';
@@ -502,7 +502,7 @@ class TwentyFourPoint {
     // 确认
     this.ctx.fillStyle = 'rgba(107, 203, 119, 0.3)';
     this.ctx.beginPath();
-    roundRect(ctx,this.width / 2 + 10, btnY, btnW, btnH, 8);
+    roundRect(this.ctx,this.width / 2 + 10, btnY, btnW, btnH, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.fillText('✓', this.width / 2 + 35, btnY + 27);
@@ -517,7 +517,7 @@ class TwentyFourPoint {
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    roundRect(ctx,x, y, w, h, 20);
+    roundRect(this.ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';

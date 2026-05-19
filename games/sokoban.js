@@ -374,13 +374,13 @@ const { ShareCard } = require('./share-card');
       if (isActive) {
         this.ctx.fillStyle = 'rgba(139, 69, 19, 0.5)';
         this.ctx.beginPath();
-        roundRect(ctx,x - 2, y - h/2 - 2, w + 4, h + 4, 8);
+        roundRect(this.ctx,x - 2, y - h/2 - 2, w + 4, h + 4, 8);
         this.ctx.fill();
       }
       
       this.ctx.fillStyle = isActive ? '#8B4513' : 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      roundRect(ctx,x, y - h/2, w, h, 8);
+      roundRect(this.ctx,x, y - h/2, w, h, 8);
       this.ctx.fill();
       
       this.ctx.fillStyle = isActive ? '#fff' : 'rgba(255, 255, 255, 0.7)';
@@ -449,7 +449,7 @@ const { ShareCard } = require('./share-card');
       // 箱子阴影
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       this.ctx.beginPath();
-      roundRect(ctx,x + 3, y + 4, this.cellSize - 4, this.cellSize - 4, 6);
+      roundRect(this.ctx,x + 3, y + 4, this.cellSize - 4, this.cellSize - 4, 6);
       this.ctx.fill();
       
       // 箱子
@@ -463,7 +463,7 @@ const { ShareCard } = require('./share-card');
       }
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
-      roundRect(ctx,x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
+      roundRect(this.ctx,x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
       this.ctx.fill();
       
       // 箱子图标
@@ -508,7 +508,7 @@ const { ShareCard } = require('./share-card');
       
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      roundRect(ctx,bx, by, btnSize, btnSize, 12);
+      roundRect(this.ctx,bx, by, btnSize, btnSize, 12);
       this.ctx.fill();
       
       this.ctx.font = (btnSize * 0.5) + 'px Arial';
@@ -525,7 +525,7 @@ const { ShareCard } = require('./share-card');
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    roundRect(ctx,x, y, w, h, 20);
+    roundRect(this.ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';

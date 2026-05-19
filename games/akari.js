@@ -141,7 +141,7 @@ class Akari {
     // 顶栏
     this.ctx.fillStyle = 'rgba(255,255,255,0.1)';
     this.ctx.beginPath();
-    roundRect(ctx,10, 10, 80, 40, 8);
+    roundRect(this.ctx,10, 10, 80, 40, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '13px Arial';
@@ -149,7 +149,7 @@ class Akari {
     this.ctx.fillText('← 返回', 50, 36);
 
     this.ctx.beginPath();
-    roundRect(ctx,this.width - 90, 10, 80, 40, 8);
+    roundRect(this.ctx,this.width - 90, 10, 80, 40, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.fillText('🔄 重开', this.width - 50, 36);
@@ -236,7 +236,7 @@ class Akari {
     if (this.undoMgr.canUndo()) {
       this.ctx.fillStyle = 'rgba(255,255,255,0.12)';
       this.ctx.beginPath();
-      roundRect(ctx,this.width / 2 - 50, this.height - 70, 100, 42, 8);
+      roundRect(this.ctx,this.width / 2 - 50, this.height - 70, 100, 42, 8);
       this.ctx.fill();
       this.ctx.fillStyle = '#fff';
       this.ctx.font = '14px Arial';
@@ -365,7 +365,7 @@ class Akari {
     // 胜利卡片
     this.ctx.fillStyle = 'rgba(255,255,255,0.12)';
     this.ctx.beginPath();
-    roundRect(ctx,W / 2 - 130, H / 2 - 120, 260, 240, 16);
+    roundRect(this.ctx,W / 2 - 130, H / 2 - 120, 260, 240, 16);
     this.ctx.fill();
 
     this.ctx.fillStyle = '#FFD700';
@@ -381,7 +381,7 @@ class Akari {
     const btnY = H / 2 + 10;
     this.ctx.fillStyle = '#2196F3';
     this.ctx.beginPath();
-    roundRect(ctx,W / 2 - 110, btnY, 220, 44, 10);
+    roundRect(this.ctx,W / 2 - 110, btnY, 220, 44, 10);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '15px Arial';
@@ -389,7 +389,7 @@ class Akari {
 
     this.ctx.fillStyle = '#4CAF50';
     this.ctx.beginPath();
-    roundRect(ctx,W / 2 - 110, btnY + 56, 220, 44, 10);
+    roundRect(this.ctx,W / 2 - 110, btnY + 56, 220, 44, 10);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.fillText('➡️ 下一关', W / 2, btnY + 84);

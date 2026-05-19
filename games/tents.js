@@ -291,7 +291,7 @@ const { ShareCard } = require('./share-card');
     // 棋盘阴影
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     this.ctx.beginPath();
-    roundRect(ctx,this.boardOffsetX + 3, this.boardOffsetY + 5, 
+    roundRect(this.ctx,this.boardOffsetX + 3, this.boardOffsetY + 5, 
                        this.cellSize * 7, this.cellSize * 7, 8);
     this.ctx.fill();
     
@@ -377,7 +377,7 @@ const { ShareCard } = require('./share-card');
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    roundRect(ctx,x, y, w, h, 20);
+    roundRect(this.ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';

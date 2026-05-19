@@ -316,7 +316,7 @@ class Battleship {
     // 棋盘背景
     this.ctx.fillStyle = 'rgba(0, 50, 80, 0.5)';
     this.ctx.beginPath();
-    roundRect(ctx,this.boardOffsetX - 5, this.boardOffsetY - 5, 
+    roundRect(this.ctx,this.boardOffsetX - 5, this.boardOffsetY - 5, 
                        this.cellSize * this.size + 10, this.cellSize * this.size + 10, 8);
     this.ctx.fill();
     
@@ -377,7 +377,7 @@ class Battleship {
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    roundRect(ctx,x, y, w, h, 20);
+    roundRect(this.ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';

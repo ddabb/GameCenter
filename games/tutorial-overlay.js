@@ -110,7 +110,7 @@ class TutorialOverlay {
 
     this.ctx.fillStyle = '#1e2a4a';
     this.ctx.beginPath();
-    roundRect(ctx,panelX, panelY, panelW, panelH, 16);
+    roundRect(this.ctx,panelX, panelY, panelW, panelH, 16);
     this.ctx.fill();
     this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     this.ctx.lineWidth = 1;
@@ -145,7 +145,7 @@ class TutorialOverlay {
     const btnX = (w - btnW) / 2;
     const btnY = panelY + panelH - 60;
     this.ctx.beginPath();
-    roundRect(ctx,btnX, btnY, btnW, btnH, 21);
+    roundRect(this.ctx,btnX, btnY, btnW, btnH, 21);
     this.ctx.fillStyle = '#6BCB77';
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';

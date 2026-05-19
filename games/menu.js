@@ -95,8 +95,13 @@ class Menu {
         
         if (x >= buttonX && x <= buttonX + this.buttonSize &&
             y >= buttonY && y <= buttonY + this.buttonSize) {
-          // 跳转到选关页面，传递游戏名称
-          this.switchGame('level-select', this.games[i].name);
+          const gameName = this.games[i].name;
+          // 黑白棋和合成ABC直接进入游戏，其他游戏跳转到选关页面
+          if (gameName === 'othello' || gameName === 'merge-abc') {
+            this.switchGame(gameName);
+          } else {
+            this.switchGame('level-select', gameName);
+          }
           return;
         }
       }
@@ -104,7 +109,12 @@ class Menu {
       const db = this._dailyBanner;
       if (db && x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
         const dc = this.dailyChallenge.getToday();
-        this.switchGame('level-select', dc.game);
+        // 黑白棋和合成ABC直接进入游戏，其他游戏跳转到选关页面
+        if (dc.game === 'othello' || dc.game === 'merge-abc') {
+          this.switchGame(dc.game);
+        } else {
+          this.switchGame('level-select', dc.game);
+        }
         return;
       }
     };
@@ -181,7 +191,7 @@ class Menu {
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 14) + 'px Arial';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText('🎮 格子游戏合集', this.padding, 75);
+    this.ctx.fillText('🎮 指尖谜题', this.padding, 75);
     
     // 分隔线
     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';

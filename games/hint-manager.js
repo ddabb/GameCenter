@@ -101,7 +101,7 @@ class HintManager {
     
     this.ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
     this.ctx.beginPath();
-    roundRect(ctx,x + 2, y + 2, cellSize - 4, cellSize - 4, 4);
+    roundRect(this.ctx,x + 2, y + 2, cellSize - 4, cellSize - 4, 4);
     this.ctx.fill();
     this.ctx.strokeStyle = '#4CAF50';
     this.ctx.lineWidth = 2;

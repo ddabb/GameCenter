@@ -74,7 +74,7 @@ for (const file of gameFiles) {
     const hintBtnY = this.height - 55;
     this.ctx.fillStyle = this.hintMgr && this.hintMgr.canHint() ? 'rgba(76,175,80,0.2)' : 'rgba(255,255,255,0.05)';
     this.ctx.beginPath();
-    this.ctx.roundRect(hintBtnX, hintBtnY, hintBtnW, hintBtnH, 8);
+    roundRect(this.ctx, hintBtnX, hintBtnY, hintBtnW, hintBtnH, 8);
     this.ctx.fill();
     this.ctx.fillStyle = this.hintMgr && this.hintMgr.canHint() ? '#4CAF50' : 'rgba(255,255,255,0.3)';
     this.ctx.font = '14px Arial';

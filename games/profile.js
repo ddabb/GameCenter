@@ -157,7 +157,7 @@ class Profile {
     // 返回按钮
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    roundRect(ctx,this.padding, 20, 60, 35, 8);
+    roundRect(this.ctx,this.padding, 20, 60, 35, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -179,7 +179,7 @@ class Profile {
     // 统计卡片背景
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
     this.ctx.beginPath();
-    roundRect(ctx,this.padding, cardY, cardWidth, cardHeight, 12);
+    roundRect(this.ctx,this.padding, cardY, cardWidth, cardHeight, 12);
     this.ctx.fill();
     
     // 三个统计项
@@ -210,7 +210,7 @@ class Profile {
     this.statsBtn = { x: this.padding + 10, y: cardY + 82, w: cardWidth - 20, h: 28 };
     this.ctx.fillStyle = 'rgba(76, 175, 80, 0.2)';
     this.ctx.beginPath();
-    roundRect(ctx,this.statsBtn.x, this.statsBtn.y, this.statsBtn.w, this.statsBtn.h, 6);
+    roundRect(this.ctx,this.statsBtn.x, this.statsBtn.y, this.statsBtn.w, this.statsBtn.h, 6);
     this.ctx.fill();
     this.ctx.strokeStyle = 'rgba(76, 175, 80, 0.4)';
     this.ctx.lineWidth = 1;
@@ -245,7 +245,7 @@ class Profile {
       // 项目背景
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       this.ctx.beginPath();
-      roundRect(ctx,this.padding, itemY, this.width - this.padding * 2, itemHeight - 8, 10);
+      roundRect(this.ctx,this.padding, itemY, this.width - this.padding * 2, itemHeight - 8, 10);
       this.ctx.fill();
       
       // 游戏图标
@@ -273,12 +273,12 @@ class Profile {
       
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
       this.ctx.beginPath();
-      roundRect(ctx,barX, barY, barWidth, barHeight, 4);
+      roundRect(this.ctx,barX, barY, barWidth, barHeight, 4);
       this.ctx.fill();
       
       this.ctx.fillStyle = info.color;
       this.ctx.beginPath();
-      roundRect(ctx,barX, barY, barWidth * progress, barHeight, 4);
+      roundRect(this.ctx,barX, barY, barWidth * progress, barHeight, 4);
       this.ctx.fill();
       
       // 星星数量
@@ -299,7 +299,7 @@ class Profile {
     // 返回按钮
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    roundRect(ctx,this.padding, this.height - 55, 80, 35, 8);
+    roundRect(this.ctx,this.padding, this.height - 55, 80, 35, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -309,7 +309,7 @@ class Profile {
     // 隐私政策按钮
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    roundRect(ctx,this.width - this.padding - 90, this.height - 55, 90, 35, 8);
+    roundRect(this.ctx,this.width - this.padding - 90, this.height - 55, 90, 35, 8);
     this.ctx.fill();
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     this.ctx.font = '13px Arial';

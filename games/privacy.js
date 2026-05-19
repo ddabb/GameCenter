@@ -117,7 +117,7 @@ class PrivacyPolicy {
     // 返回按钮
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    roundRect(ctx,this.padding, 15, 70, 35, 8);
+    roundRect(this.ctx,this.padding, 15, 70, 35, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -185,7 +185,7 @@ class PrivacyPolicy {
       const thumbY = startY + (this.scrollY / this.maxScroll) * (trackH - thumbH);
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      roundRect(ctx,this.width - 6, thumbY, 3, thumbH, 2);
+      roundRect(this.ctx,this.width - 6, thumbY, 3, thumbH, 2);
       this.ctx.fill();
     }
   }
