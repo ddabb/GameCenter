@@ -3,7 +3,13 @@
  * 优先从 CDN（jsDelivr + GitHub）加载，失败时回退本地 data/ 目录
  * 所有方法均返回 Promise
  */
-const config = require('./cloud-config.js');
+
+// CDN 配置（内联，不再依赖 cloud-config.js）
+const CDN_CONFIG = {
+  enabled: true,
+  baseUrl: 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data',
+  timeout: 10000
+};
 
 class LevelLoader {
 
@@ -11,10 +17,10 @@ class LevelLoader {
 
   static fetchFromCDN(url) {
     return new Promise((resolve, reject) => {
-      tt.request({
-        url: url + '?t=' + Date.now(),   // 防缓存
+      wx.request({
+        url: url + '?t=' + Date.now(),
         method: 'GET',
-        timeout: config.cdn.timeout || 10000,
+        timeout: CDN_CONFIG.timeout || 10000,
         success(res) {
           if (res.statusCode === 200 && res.data) {
             resolve(res.data);
@@ -33,34 +39,26 @@ class LevelLoader {
 
   static getCDNUrl(gameName, level, difficulty) {
     const pad = String(level).padStart(4, '0');
-    const base = config.cdn.baseUrl.replace(/\/$/, '');
+    const base = CDN_CONFIG.baseUrl.replace(/\/$/, '');
 
     switch (gameName) {
-      // 有难度子目录的三款
       case 'akari':
       case 'tents':
       case 'slither-link':
         return base + '/' + gameName + '/' + difficulty + '/' + difficulty + '-' + pad + '.json';
-
-      // 扁平结构（文件名带 easy- 前缀）
       case 'battleship':
         return base + '/' + gameName + '/easy-' + pad + '.json';
-
-      // 扁平结构（文件名带游戏名前缀）
       case 'nonogram':
         return base + '/' + gameName + '/nonogram-' + pad + '.json';
       case 'sokoban':
         return base + '/' + gameName + '/sokoban-' + pad + '.json';
       case 'nurikabe':
         return base + '/' + gameName + '/nurikabe-' + pad + '.json';
-
-      // 程序生成，无 CDN 文件
       case '24point':
       case 'merge-abc':
       case 'othello':
       case 'number-one':
         return null;
-
       default:
         return null;
     }
@@ -70,16 +68,14 @@ class LevelLoader {
 
   static async load(gameName, level, difficulty = 'easy') {
     // 1. 尝试 CDN
-    if (config.cdn.enabled) {
+    if (CDN_CONFIG.enabled) {
       const url = LevelLoader.getCDNUrl(gameName, level, difficulty);
       if (url) {
         try {
           const data = await LevelLoader.fetchFromCDN(url);
           return LevelLoader.normalize(gameName, data, level, difficulty);
         } catch (e) {
-          if (config.debug) {
-            console.warn('[LevelLoader] CDN 失败，回退本地:', gameName, level, e);
-          }
+          // CDN 失败 → 回退本地
         }
       }
     }
@@ -87,25 +83,23 @@ class LevelLoader {
     // 2. 本地 fallback
     switch (gameName) {
       case 'slither-link': return LevelLoader.loadSlitherLink(level, difficulty);
-      case 'akari':       return LevelLoader.loadAkari(level, difficulty);
-      case 'tents':      return LevelLoader.loadTents(level, difficulty);
-      case 'nonogram':   return LevelLoader.loadNonogram(level);
-      case 'sokoban':    return LevelLoader.loadSokoban(level);
-      case 'nurikabe':   return LevelLoader.loadNurikabe(level);
-      case 'battleship': return LevelLoader.loadBattleship(level);
-      case 'number-one': return LevelLoader.loadNumberOne(level);
-      case 'merge-abc':  return LevelLoader.loadMergeAbc(level);
-      case '24point':    return LevelLoader.load24Point(level);
-      case 'othello':    return LevelLoader.loadOthello(level);
-      default:            return null;
+      case 'akari':        return LevelLoader.loadAkari(level, difficulty);
+      case 'tents':         return LevelLoader.loadTents(level, difficulty);
+      case 'nonogram':     return LevelLoader.loadNonogram(level);
+      case 'sokoban':      return LevelLoader.loadSokoban(level);
+      case 'nurikabe':     return LevelLoader.loadNurikabe(level);
+      case 'battleship':   return LevelLoader.loadBattleship(level);
+      case 'number-one':   return LevelLoader.loadNumberOne(level);
+      case 'merge-abc':    return LevelLoader.loadMergeAbc(level);
+      case '24point':      return LevelLoader.load24Point(level);
+      case 'othello':      return LevelLoader.loadOthello(level);
+      default:              return null;
     }
   }
 
   /* ========== 数据标准化 ========== */
 
   static normalize(gameName, data, level, difficulty) {
-    // CDN 文件格式与本地 require 完全一致，直接返回
-    // 若后续格式有差异，在此统一转换
     return data;
   }
 

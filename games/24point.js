@@ -1,5 +1,5 @@
 /**
- * 24点速算 - 抖音小游戏版
+ * 24点速算 - 小游戏版
  * 规则：用四个数字和加减乘除运算得到24
  */
 const statsManager = require('./stats-manager.js').getInstance();
@@ -234,7 +234,7 @@ class TwentyFourPoint {
       this.confetti.start();
       // 成就检测
       let winCount = 0;
-      try { const p = JSON.parse(tt.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
       const newlyAchieved = this.achievement.check(this.gameName, winCount);
       this._newAchievements = newlyAchieved;
       sound.play('victory');
@@ -428,7 +428,7 @@ class TwentyFourPoint {
       // 卡片阴影
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       this.ctx.beginPath();
-      this.ctx.roundRect(x + 3, startY + 5, cardW, cardH, 10);
+      roundRect(ctx,x + 3, startY + 5, cardW, cardH, 10);
       this.ctx.fill();
       
       // 卡片主体
@@ -437,7 +437,7 @@ class TwentyFourPoint {
       gradient.addColorStop(1, '#C92A2A');
       this.ctx.fillStyle = gradient;
       this.ctx.beginPath();
-      this.ctx.roundRect(x, startY + pulse, cardW, cardH, 10);
+      roundRect(ctx,x, startY + pulse, cardW, cardH, 10);
       this.ctx.fill();
       
       // 数字
@@ -461,7 +461,7 @@ class TwentyFourPoint {
       
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      this.ctx.roundRect(x, startY, opW, opH, 8);
+      roundRect(ctx,x, startY, opW, opH, 8);
       this.ctx.fill();
       
       this.ctx.fillStyle = '#fff';
@@ -475,7 +475,7 @@ class TwentyFourPoint {
     // 输入框背景
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    this.ctx.roundRect(30, 280, this.width - 60, 40, 8);
+    roundRect(ctx,30, 280, this.width - 60, 40, 8);
     this.ctx.fill();
     
     // 表达式文字
@@ -492,7 +492,7 @@ class TwentyFourPoint {
     // 清除
     this.ctx.fillStyle = 'rgba(255, 107, 107, 0.3)';
     this.ctx.beginPath();
-    this.ctx.roundRect(this.width / 2 - 60, btnY, btnW, btnH, 8);
+    roundRect(ctx,this.width / 2 - 60, btnY, btnW, btnH, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = (this.width / 30) + 'px Arial';
@@ -502,7 +502,7 @@ class TwentyFourPoint {
     // 确认
     this.ctx.fillStyle = 'rgba(107, 203, 119, 0.3)';
     this.ctx.beginPath();
-    this.ctx.roundRect(this.width / 2 + 10, btnY, btnW, btnH, 8);
+    roundRect(ctx,this.width / 2 + 10, btnY, btnW, btnH, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.fillText('✓', this.width / 2 + 35, btnY + 27);
@@ -517,7 +517,7 @@ class TwentyFourPoint {
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    this.ctx.roundRect(x, y, w, h, 20);
+    roundRect(ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';
@@ -617,7 +617,7 @@ class TwentyFourPoint {
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
-      const saved = tt.getStorageSync(key);
+      const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
       if (this.level >= progress.unlocked) {
@@ -627,7 +627,7 @@ class TwentyFourPoint {
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      tt.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
     }

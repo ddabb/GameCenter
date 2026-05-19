@@ -111,6 +111,20 @@ class Menu {
     this.canvas.addEventListener('click', this.clickHandler);
   }
   
+  roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
   update() {
     this.animationTime += 0.05;
   }
@@ -145,7 +159,7 @@ class Menu {
     const sBtn = this.soundBtn;
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    this.ctx.roundRect(sBtn.x, sBtn.y, sBtn.w, sBtn.h, 8);
+    this.roundRect(this.ctx,sBtn.x, sBtn.y, sBtn.w, sBtn.h, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -156,7 +170,7 @@ class Menu {
     const btn = this.profileBtn;
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    this.ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
+    this.roundRect(this.ctx,btn.x, btn.y, btn.w, btn.h, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -191,7 +205,7 @@ class Menu {
     
     this.ctx.fillStyle = dc.completed ? 'rgba(76,175,80,0.15)' : 'rgba(255,193,7,0.15)';
     this.ctx.beginPath();
-    this.ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 10);
+    this.roundRect(this.ctx,bannerX, bannerY, bannerW, bannerH, 10);
     this.ctx.fill();
     this.ctx.strokeStyle = dc.completed ? 'rgba(76,175,80,0.3)' : 'rgba(255,193,7,0.3)';
     this.ctx.lineWidth = 1;
@@ -235,7 +249,7 @@ class Menu {
       // 按钮阴影
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       this.ctx.beginPath();
-      this.ctx.roundRect(buttonX + 2, y + 4, this.buttonSize, this.buttonSize, 16);
+      this.roundRect(this.ctx,buttonX + 2, y + 4, this.buttonSize, this.buttonSize, 16);
       this.ctx.fill();
       
       // 按钮主体渐变
@@ -244,13 +258,13 @@ class Menu {
       gradient.addColorStop(1, game.color);
       this.ctx.fillStyle = gradient;
       this.ctx.beginPath();
-      this.ctx.roundRect(buttonX, y, this.buttonSize, this.buttonSize, 16);
+      this.roundRect(this.ctx,buttonX, y, this.buttonSize, this.buttonSize, 16);
       this.ctx.fill();
       
       // 顶部高光条
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      this.ctx.roundRect(buttonX + 4, y + 4, this.buttonSize - 8, 6, 3);
+      this.roundRect(this.ctx,buttonX + 4, y + 4, this.buttonSize - 8, 6, 3);
       this.ctx.fill();
       
       // 图标
@@ -266,7 +280,7 @@ class Menu {
       
       // 通关进度
       try {
-        const saved = tt.getStorageSync(`progress_${game.name}`);
+        const saved = wx.getStorageSync(`progress_${game.name}`);
         if (saved) {
           const progress = JSON.parse(saved);
           const completed = Object.keys(progress.stars).length;

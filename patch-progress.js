@@ -11,7 +11,7 @@ const SAVE_PROGRESS_METHOD = `
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
-      const saved = tt.getStorageSync(key);
+      const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
       if (this.level >= progress.unlocked) {
@@ -21,7 +21,7 @@ const SAVE_PROGRESS_METHOD = `
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      tt.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
     }

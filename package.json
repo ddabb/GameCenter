@@ -1,7 +1,7 @@
 {
   "name": "solvepuzzle-server",
   "version": "1.0.0",
-  "description": "SolvePuzzle题库服务 - 部署到抖音云开发容器",
+  "description": "SolvePuzzle题库服务 - 部署到小游戏云服务容器",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -19,7 +19,7 @@ class DailyChallenge {
 
   _load() {
     try {
-      const d = tt.getStorageSync(this.storageKey);
+      const d = wx.getStorageSync(this.storageKey);
       return d ? JSON.parse(d) : { completed: {} };
     } catch (e) {
       return { completed: {} };
@@ -28,7 +28,7 @@ class DailyChallenge {
 
   _save() {
     try {
-      tt.setStorageSync(this.storageKey, JSON.stringify(this.data));
+      wx.setStorageSync(this.storageKey, JSON.stringify(this.data));
     } catch (e) {}
   }
 

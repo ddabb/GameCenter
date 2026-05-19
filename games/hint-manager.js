@@ -99,13 +99,13 @@ class HintManager {
     const x = offsetX + col * cellSize;
     const y = offsetY + row * cellSize;
     
-    ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
-    ctx.beginPath();
-    ctx.roundRect(x + 2, y + 2, cellSize - 4, cellSize - 4, 4);
-    ctx.fill();
-    ctx.strokeStyle = '#4CAF50';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    this.ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
+    this.ctx.beginPath();
+    roundRect(ctx,x + 2, y + 2, cellSize - 4, cellSize - 4, 4);
+    this.ctx.fill();
+    this.ctx.strokeStyle = '#4CAF50';
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
   }
 
   /**

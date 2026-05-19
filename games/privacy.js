@@ -51,7 +51,7 @@ class PrivacyPolicy {
       '将在应用内公示新版本。',
       '',
       '八、联系我们',
-      '如有疑问，请通过抖音平台',
+      '如有疑问，请通过微信平台',
       '联系开发者：泽楠思维实验室',
     ];
 
@@ -117,7 +117,7 @@ class PrivacyPolicy {
     // 返回按钮
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    this.ctx.roundRect(this.padding, 15, 70, 35, 8);
+    roundRect(ctx,this.padding, 15, 70, 35, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -185,7 +185,7 @@ class PrivacyPolicy {
       const thumbY = startY + (this.scrollY / this.maxScroll) * (trackH - thumbH);
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      this.ctx.roundRect(this.width - 6, thumbY, 3, thumbH, 2);
+      roundRect(ctx,this.width - 6, thumbY, 3, thumbH, 2);
       this.ctx.fill();
     }
   }

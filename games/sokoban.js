@@ -220,7 +220,7 @@ const { ShareCard } = require('./share-card');
       this.confetti.start();
       // 成就检测
       let winCount = 0;
-      try { const p = JSON.parse(tt.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
       const newlyAchieved = this.achievement.check(this.gameName, winCount);
       this._newAchievements = newlyAchieved;
       sound.play('victory');
@@ -374,13 +374,13 @@ const { ShareCard } = require('./share-card');
       if (isActive) {
         this.ctx.fillStyle = 'rgba(139, 69, 19, 0.5)';
         this.ctx.beginPath();
-        this.ctx.roundRect(x - 2, y - h/2 - 2, w + 4, h + 4, 8);
+        roundRect(ctx,x - 2, y - h/2 - 2, w + 4, h + 4, 8);
         this.ctx.fill();
       }
       
       this.ctx.fillStyle = isActive ? '#8B4513' : 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      this.ctx.roundRect(x, y - h/2, w, h, 8);
+      roundRect(ctx,x, y - h/2, w, h, 8);
       this.ctx.fill();
       
       this.ctx.fillStyle = isActive ? '#fff' : 'rgba(255, 255, 255, 0.7)';
@@ -449,7 +449,7 @@ const { ShareCard } = require('./share-card');
       // 箱子阴影
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       this.ctx.beginPath();
-      this.ctx.roundRect(x + 3, y + 4, this.cellSize - 4, this.cellSize - 4, 6);
+      roundRect(ctx,x + 3, y + 4, this.cellSize - 4, this.cellSize - 4, 6);
       this.ctx.fill();
       
       // 箱子
@@ -463,7 +463,7 @@ const { ShareCard } = require('./share-card');
       }
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
-      this.ctx.roundRect(x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
+      roundRect(ctx,x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
       this.ctx.fill();
       
       // 箱子图标
@@ -508,7 +508,7 @@ const { ShareCard } = require('./share-card');
       
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
-      this.ctx.roundRect(bx, by, btnSize, btnSize, 12);
+      roundRect(ctx,bx, by, btnSize, btnSize, 12);
       this.ctx.fill();
       
       this.ctx.font = (btnSize * 0.5) + 'px Arial';
@@ -525,7 +525,7 @@ const { ShareCard } = require('./share-card');
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    this.ctx.roundRect(x, y, w, h, 20);
+    roundRect(ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';
@@ -546,7 +546,7 @@ const { ShareCard } = require('./share-card');
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
-      const saved = tt.getStorageSync(key);
+      const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
       if (this.level >= progress.unlocked) {
@@ -556,7 +556,7 @@ const { ShareCard } = require('./share-card');
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      tt.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
     }

@@ -77,7 +77,7 @@ class TutorialOverlay {
   shouldShow() {
     if (this.dismissed) return false;
     try {
-      return !tt.getStorageSync(this.storageKey);
+      return !wx.getStorageSync(this.storageKey);
     } catch (e) {
       return false;
     }
@@ -86,7 +86,7 @@ class TutorialOverlay {
   dismiss() {
     this.dismissed = true;
     try {
-      tt.setStorageSync(this.storageKey, '1');
+      wx.setStorageSync(this.storageKey, '1');
     } catch (e) {}
   }
 
@@ -99,8 +99,8 @@ class TutorialOverlay {
     const h = this.height;
 
     // 遮罩
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, 0, w, h);
+    this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    this.ctx.fillRect(0, 0, w, h);
 
     // 面板
     const panelW = Math.min(280, w - 40);
@@ -108,50 +108,50 @@ class TutorialOverlay {
     const panelX = (w - panelW) / 2;
     const panelY = (h - panelH) / 2;
 
-    ctx.fillStyle = '#1e2a4a';
-    ctx.beginPath();
-    ctx.roundRect(panelX, panelY, panelW, panelH, 16);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    this.ctx.fillStyle = '#1e2a4a';
+    this.ctx.beginPath();
+    roundRect(ctx,panelX, panelY, panelW, panelH, 16);
+    this.ctx.fill();
+    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
 
     // 图标+标题
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 20px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(tutorial.icon + ' ' + tutorial.title, w / 2, panelY + 40);
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 20px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(tutorial.icon + ' ' + tutorial.title, w / 2, panelY + 40);
 
     // 分隔线
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    ctx.moveTo(panelX + 20, panelY + 55);
-    ctx.lineTo(panelX + panelW - 20, panelY + 55);
-    ctx.stroke();
+    this.ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    this.ctx.moveTo(panelX + 20, panelY + 55);
+    this.ctx.lineTo(panelX + panelW - 20, panelY + 55);
+    this.ctx.stroke();
 
     // 提示列表
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'left';
+    this.ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'left';
     tutorial.tips.forEach((tip, i) => {
-      ctx.fillStyle = '#6BCB77';
-      ctx.fillText('✓', panelX + 25, panelY + 80 + i * 30);
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText(tip, panelX + 45, panelY + 80 + i * 30);
+      this.ctx.fillStyle = '#6BCB77';
+      this.ctx.fillText('✓', panelX + 25, panelY + 80 + i * 30);
+      this.ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      this.ctx.fillText(tip, panelX + 45, panelY + 80 + i * 30);
     });
 
     // "知道了"按钮
     const btnW = 160, btnH = 42;
     const btnX = (w - btnW) / 2;
     const btnY = panelY + panelH - 60;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btnY, btnW, btnH, 21);
-    ctx.fillStyle = '#6BCB77';
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('开始游戏', w / 2, btnY + 26);
+    this.ctx.beginPath();
+    roundRect(ctx,btnX, btnY, btnW, btnH, 21);
+    this.ctx.fillStyle = '#6BCB77';
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 16px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('开始游戏', w / 2, btnY + 26);
 
     // 记录按钮位置供点击检测
     this._dismissBtn = { x: btnX, y: btnY, w: btnW, h: btnH };

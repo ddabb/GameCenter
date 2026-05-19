@@ -36,7 +36,7 @@ class AchievementManager {
 
   _load() {
     try {
-      const d = tt.getStorageSync(this.storageKey);
+      const d = wx.getStorageSync(this.storageKey);
       return d ? JSON.parse(d) : { unlocked: {}, newlyUnlocked: [] };
     } catch (e) {
       return { unlocked: {}, newlyUnlocked: [] };
@@ -45,7 +45,7 @@ class AchievementManager {
 
   _save() {
     try {
-      tt.setStorageSync(this.storageKey, JSON.stringify(this.data));
+      wx.setStorageSync(this.storageKey, JSON.stringify(this.data));
     } catch (e) {}
   }
 
@@ -84,7 +84,7 @@ class AchievementManager {
     let totalWins = 0;
     GAMES.forEach(g => {
       try {
-        const p = JSON.parse(tt.getStorageSync(`progress_${g}`) || '{}');
+        const p = JSON.parse(wx.getStorageSync(`progress_${g}`) || '{}');
         totalWins += p.unlocked || 0;
       } catch (e) {}
     });

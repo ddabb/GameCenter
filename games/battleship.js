@@ -7,7 +7,7 @@ const { ShareCard } = require('./share-card');
 const { HintManager } = require('./hint-manager');
 const Confetti = require('./confetti');
 /**
- * 战舰 (Battleship) - 抖音小游戏版
+ * 战舰 (Battleship) - 小游戏版
  * 规则：猜测敌方战舰位置，击沉所有战舰获胜
  */
 class Battleship {
@@ -245,7 +245,7 @@ class Battleship {
       this.confetti.start();
       // 成就检测
       let winCount = 0;
-      try { const p = JSON.parse(tt.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
       const newlyAchieved = this.achievement.check(this.gameName, winCount);
       this._newAchievements = newlyAchieved;
       sound.play('victory');
@@ -316,7 +316,7 @@ class Battleship {
     // 棋盘背景
     this.ctx.fillStyle = 'rgba(0, 50, 80, 0.5)';
     this.ctx.beginPath();
-    this.ctx.roundRect(this.boardOffsetX - 5, this.boardOffsetY - 5, 
+    roundRect(ctx,this.boardOffsetX - 5, this.boardOffsetY - 5, 
                        this.cellSize * this.size + 10, this.cellSize * this.size + 10, 8);
     this.ctx.fill();
     
@@ -377,7 +377,7 @@ class Battleship {
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    this.ctx.roundRect(x, y, w, h, 20);
+    roundRect(ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';
@@ -398,7 +398,7 @@ class Battleship {
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
-      const saved = tt.getStorageSync(key);
+      const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
       if (this.level >= progress.unlocked) {
@@ -408,7 +408,7 @@ class Battleship {
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      tt.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
     }

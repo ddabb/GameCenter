@@ -37,7 +37,7 @@ for (const file of gameFiles) {
   // 3. 在 victory=true 后检测成就
   content = content.replace(
     /this\.victory = true;\s*\n\s*this\.confetti\.start\(\)/,
-    `this.victory = true;\n      this.confetti.start();\n      // 成就检测\n      let winCount = 0;\n      try { const p = JSON.parse(tt.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}\n      const newlyAchieved = this.achievement.check(this.gameName, winCount);\n      this._newAchievements = newlyAchieved;`
+    `this.victory = true;\n      this.confetti.start();\n      // 成就检测\n      let winCount = 0;\n      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}\n      const newlyAchieved = this.achievement.check(this.gameName, winCount);\n      this._newAchievements = newlyAchieved;`
   );
 
   // 4. drawVictory 中显示成就弹窗（如果有新成就）

@@ -71,7 +71,7 @@ class StatsManager {
         stats.levelStats[this.currentLevel].totalTime += duration;
       }
 
-      tt.setStorageSync(key, JSON.stringify(stats));
+      wx.setStorageSync(key, JSON.stringify(stats));
     } catch (e) {
       console.log('保存统计失败', e);
     }
@@ -86,7 +86,7 @@ class StatsManager {
   // 获取某游戏的统计数据
   getStats(gameName) {
     try {
-      const saved = tt.getStorageSync(`stats_${gameName}`);
+      const saved = wx.getStorageSync(`stats_${gameName}`);
       if (saved) {
         return JSON.parse(saved);
       }

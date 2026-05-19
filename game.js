@@ -1,7 +1,25 @@
-console.log('使用抖音开发者工具开发过程中可以参考以下文档:');
-console.log('https://developer.open-douyin.com/docs/resource/zh-CN/mini-game/guide/minigame/introduction');
+// SolvePuzzle 微信小游戏入口
 
-// 导入游戏类
+/**
+ * 圆角矩形 helper（兼容所有微信版本，替代 roundRect）
+ * 自动 beginPath，四个角统一半径 r
+ */
+function roundRect(ctx, x, y, w, h, r) {
+  if (typeof r === 'number') r = [r, r, r, r];
+  if (typeof r === 'undefined') r = [0, 0, 0, 0];
+  ctx.beginPath();
+  ctx.moveTo(x + r[0], y);
+  ctx.lineTo(x + w - r[1], y);
+  ctx.arcTo(x + w, y, x + w, y + r[1], r[1]);
+  ctx.lineTo(x + w, y + h - r[2]);
+  ctx.arcTo(x + w, y + h, x + w - r[2], y + h, r[2]);
+  ctx.lineTo(x + r[3], y + h);
+  ctx.arcTo(x, y + h, x, y + h - r[3], r[3]);
+  ctx.lineTo(x, y + r[0]);
+  ctx.arcTo(x, y, x + r[0], y, r[0]);
+  ctx.closePath();
+}
+
 const Menu = require('./games/menu.js');
 const PrivacyPolicy = require('./games/privacy.js');
 const Stats = require('./games/stats.js');
@@ -18,22 +36,26 @@ const Nonogram = require('./games/nonogram.js');
 const Battleship = require('./games/battleship.js');
 const MergeABC = require('./games/merge-abc.js');
 
-let systemInfo = tt.getSystemInfoSync();
-let canvas = tt.createCanvas(),
-  ctx = canvas.getContext('2d');
+let systemInfo = wx.getSystemInfoSync();
+let canvas = wx.createCanvas();
+let ctx = canvas.getContext('2d');
 canvas.width = systemInfo.windowWidth;
 canvas.height = systemInfo.windowHeight;
 
 let currentGame = 'menu';
-let games = {};
 let gameInstance = null;
 
 function loadGame(gameName, level) {
-  if (gameInstance) {
-    gameInstance.destroy();
+  if (!ctx) {
+    console.error('[game] ctx is undefined, cannot load game');
+    return;
   }
-  
-  switch(gameName) {
+  if (gameInstance) {
+    try { gameInstance.destroy(); } catch(e) { /* ignore */ }
+    gameInstance = null;
+  }
+
+  switch (gameName) {
     case 'menu':
       gameInstance = new Menu(ctx, canvas, systemInfo, switchGame);
       break;
@@ -90,9 +112,13 @@ function switchGame(gameName, level) {
 }
 
 function draw() {
-  if (gameInstance) {
-    gameInstance.update();
-    gameInstance.draw();
+  try {
+    if (gameInstance) {
+      gameInstance.update();
+      gameInstance.draw();
+    }
+  } catch (e) {
+    console.error('[Draw]', e.message, e.stack);
   }
   requestAnimationFrame(draw);
 }

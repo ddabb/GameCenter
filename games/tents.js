@@ -215,7 +215,7 @@ const { ShareCard } = require('./share-card');
       this.confetti.start();
       // 成就检测
       let winCount = 0;
-      try { const p = JSON.parse(tt.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
       const newlyAchieved = this.achievement.check(this.gameName, winCount);
       this._newAchievements = newlyAchieved;
       sound.play('victory');
@@ -291,7 +291,7 @@ const { ShareCard } = require('./share-card');
     // 棋盘阴影
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     this.ctx.beginPath();
-    this.ctx.roundRect(this.boardOffsetX + 3, this.boardOffsetY + 5, 
+    roundRect(ctx,this.boardOffsetX + 3, this.boardOffsetY + 5, 
                        this.cellSize * 7, this.cellSize * 7, 8);
     this.ctx.fill();
     
@@ -377,7 +377,7 @@ const { ShareCard } = require('./share-card');
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    this.ctx.roundRect(x, y, w, h, 20);
+    roundRect(ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';
@@ -398,7 +398,7 @@ const { ShareCard } = require('./share-card');
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
-      const saved = tt.getStorageSync(key);
+      const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
       if (this.level >= progress.unlocked) {
@@ -408,7 +408,7 @@ const { ShareCard } = require('./share-card');
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      tt.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
     }

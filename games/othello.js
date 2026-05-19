@@ -490,13 +490,13 @@ class Othello {
       if (isActive) {
         this.ctx.fillStyle = 'rgba(107, 203, 119, 0.3)';
         this.ctx.beginPath();
-        this.ctx.roundRect(x - 2, y - h/2 - 2, w + 4, h + 4, 8);
+        roundRect(ctx,x - 2, y - h/2 - 2, w + 4, h + 4, 8);
         this.ctx.fill();
       }
       
       this.ctx.fillStyle = isActive ? '#6BCB77' : 'rgba(255, 255, 255, 0.2)';
       this.ctx.beginPath();
-      this.ctx.roundRect(x, y - h/2, w, h, 8);
+      roundRect(ctx,x, y - h/2, w, h, 8);
       this.ctx.fill();
       
       this.ctx.fillStyle = isActive ? '#fff' : 'rgba(255, 255, 255, 0.7)';
@@ -529,7 +529,7 @@ class Othello {
     let blackActive = this.currentPlayer === this.BLACK && !this.gameOver;
     this.ctx.fillStyle = blackActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
     this.ctx.beginPath();
-    this.ctx.roundRect(scoreX, scoreY, scoreWidth / 2 - 4, scoreH, scoreH/2);
+    roundRect(ctx,scoreX, scoreY, scoreWidth / 2 - 4, scoreH, scoreH/2);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 18) + 'px Arial';
@@ -539,7 +539,7 @@ class Othello {
     let whiteActive = this.currentPlayer === this.WHITE && !this.gameOver;
     this.ctx.fillStyle = whiteActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
     this.ctx.beginPath();
-    this.ctx.roundRect(scoreX + scoreWidth / 2 + 4, scoreY, scoreWidth / 2 - 4, scoreH, scoreH/2);
+    roundRect(ctx,scoreX + scoreWidth / 2 + 4, scoreY, scoreWidth / 2 - 4, scoreH, scoreH/2);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.fillText(this.whiteCount + ' ⚪', scoreX + scoreWidth * 3/4, scoreY + scoreH/2 + 6);
@@ -558,14 +558,14 @@ class Othello {
     // 棋盘阴影
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
     this.ctx.beginPath();
-    this.ctx.roundRect(this.boardOffsetX + 4, this.boardOffsetY + 6, 
+    roundRect(ctx,this.boardOffsetX + 4, this.boardOffsetY + 6, 
                        this.cellSize * 8, this.cellSize * 8, 10);
     this.ctx.fill();
     
     // 棋盘背景
     this.ctx.fillStyle = '#2D5A27';
     this.ctx.beginPath();
-    this.ctx.roundRect(this.boardOffsetX, this.boardOffsetY, 
+    roundRect(ctx,this.boardOffsetX, this.boardOffsetY, 
                        this.cellSize * 8, this.cellSize * 8, 10);
     this.ctx.fill();
   }
@@ -650,7 +650,7 @@ class Othello {
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
-    this.ctx.roundRect(x, y, w, h, 20);
+    roundRect(ctx,x, y, w, h, 20);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';
@@ -747,7 +747,7 @@ class Othello {
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
-      const saved = tt.getStorageSync(key);
+      const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
       if (this.level >= progress.unlocked) {
@@ -757,7 +757,7 @@ class Othello {
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      tt.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
     }

@@ -515,7 +515,7 @@ class MergeABC {
     const halfW = (width - this.padding * 2 - 10) / 2;
 
     ctx.fillStyle = '#bbada0';
-    this.roundRect(ctx, this.padding, barY, halfW, barH, 10);
+    roundRect(ctx, this.padding, barY, halfW, barH, 10);
     ctx.fill();
     ctx.fillStyle = '#eee4da';
     ctx.font = `${width / 32}px sans-serif`;
@@ -525,7 +525,7 @@ class MergeABC {
     ctx.fillText(this._score, this.padding + 16, barY + 36);
 
     ctx.fillStyle = '#bbada0';
-    this.roundRect(ctx, this.padding + halfW + 10, barY, halfW, barH, 10);
+    roundRect(ctx, this.padding + halfW + 10, barY, halfW, barH, 10);
     ctx.fill();
     ctx.fillStyle = '#eee4da';
     ctx.font = `${width / 32}px sans-serif`;
@@ -539,7 +539,7 @@ class MergeABC {
     const boardY = this.boardOffsetY;
     const boardInnerW = this.cellSize * 4 + this.gridGap * 3 + this.boardPadding * 2;
     ctx.fillStyle = '#bbada0';
-    this.roundRect(ctx, boardX, boardY, boardInnerW, boardInnerW, 12);
+    roundRect(ctx, boardX, boardY, boardInnerW, boardInnerW, 12);
     ctx.fill();
 
     // 绘制格子
@@ -553,13 +553,13 @@ class MergeABC {
         if (tile === '') {
           // 空格
           ctx.fillStyle = 'rgba(238,228,218,0.35)';
-          this.roundRect(ctx, cellX, cellY, this.cellSize, this.cellSize, 8);
+          roundRect(ctx, cellX, cellY, this.cellSize, this.cellSize, 8);
           ctx.fill();
         } else {
           // 方块
           const c = COLORS[tile] || { bg: '#f9d423', color: '#fff' };
           ctx.fillStyle = c.bg;
-          this.roundRect(ctx, cellX, cellY, this.cellSize, this.cellSize, 8);
+          roundRect(ctx, cellX, cellY, this.cellSize, this.cellSize, 8);
           ctx.fill();
 
           // 字母
@@ -584,7 +584,7 @@ class MergeABC {
 
     // 重玩按钮
     ctx.fillStyle = '#8f7a66';
-    this.roundRect(ctx, this.padding, btnY, this.btnWidth, this.btnHeight, 8);
+    roundRect(ctx, this.padding, btnY, this.btnWidth, this.btnHeight, 8);
     ctx.fill();
     ctx.fillStyle = '#f9f6f2';
     ctx.font = `bold ${btnFontSize}px sans-serif`;
@@ -593,7 +593,7 @@ class MergeABC {
 
     // 撤销按钮
     ctx.fillStyle = '#cdc1b4';
-    this.roundRect(ctx, this.padding + this.btnWidth + 15, btnY, this.btnWidth, this.btnHeight, 8);
+    roundRect(ctx, this.padding + this.btnWidth + 15, btnY, this.btnWidth, this.btnHeight, 8);
     ctx.fill();
     ctx.fillStyle = '#776e65';
     ctx.font = `bold ${btnFontSize}px sans-serif`;
@@ -608,7 +608,7 @@ class MergeABC {
 
     // 返回按钮
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    this.roundRect(ctx, this.padding, this.height - 55, 80, 36, 8);
+    roundRect(ctx, this.padding, this.height - 55, 80, 36, 8);
     ctx.fill();
     ctx.fillStyle = '#fff';
     ctx.font = `${width / 26}px sans-serif`;
