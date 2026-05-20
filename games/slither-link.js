@@ -1,3 +1,4 @@
+const LevelLoader = require('./level-loader');
 const statsManager = require('./stats-manager.js').getInstance();
 const Confetti = require('./confetti');
 const sound = require('./sound-manager');
@@ -49,29 +50,33 @@ class SlitherLink {
   async loadLevel() {
     console.log(`[SlitherLink] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
-    // 从本地 data/ 目录加载关卡数据
-    const safeLevel = String(this.level).padStart(4, '0');
     try {
-      const data = require(`../data/slither-link/easy/easy-${safeLevel}.json`);
-const roundRect = require('../utils/round-rect.js');
-
+      const data = await LevelLoader.load('slither-link', this.level, this.difficulty);
       if (data && data.grid) {
         this.size = data.size || 5;
         this.cellSize = Math.min(this.width * 0.85 / this.size, 50);
         this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
         this.hints = data.grid;
+        this.victory = false;
+        this.undoMgr.clear();
+        this.draw();
+        return;
       }
-    } catch (e) {
-      // 加载失败，使用内置题
-      this.hints = [
-        [3, 2, 1, 1, 2],
-        [1, 2, 1, 1, 2],
-        [1, 2, 2, 2, 1],
-        [2, 1, 1, 2, 1],
-        [2, 2, 1, 2, 3]
-      ];
-    }
+    } catch (e) { /* CDN失败，走内置题 */ }
     
+    // 内置题目（保底）
+    this.hints = [
+      [3, 2, 1, 1, 2],
+      [1, 2, 1, 1, 2],
+      [1, 2, 2, 2, 1],
+      [2, 1, 1, 2, 1],
+      [2, 2, 1, 2, 3]
+    ];
+    this.size = 5;
+    this.cellSize = Math.min(this.width * 0.85 / this.size, 50);
+    this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
+    this.victory = false;
+    this.undoMgr.clear();
     // 初始化边状态
     this.hEdges = [];
     this.vEdges = [];
@@ -83,6 +88,7 @@ const roundRect = require('../utils/round-rect.js');
         this.vEdges[r][c] = 0;
       }
     }
+    this.draw();
   }
   
   bindEvents() {

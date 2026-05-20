@@ -1,3 +1,4 @@
+const LevelLoader = require('./level-loader');
 const statsManager = require('./stats-manager.js').getInstance();
 const sound = require('./sound-manager');
 const TutorialOverlay = require('./tutorial-overlay');
@@ -52,36 +53,36 @@ class Nonogram {
   
   async loadLevel() {
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
-    const safeLevel = String(this.level).padStart(4, '0');
     try {
-      const data = require(`../data/nonogram/easy-${safeLevel}.json`);
-const roundRect = require('../utils/round-rect.js');
-      this._levelData = data
-
-      if (data) {
+      const data = await LevelLoader.load('nonogram', this.level);
+      if (data && data.answer) {
         this.size = data.size || 6;
         this.cellSize = Math.min(this.width * 0.8 / this.size, 45);
         this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
         this.answer = data.answer || [];
         this.rowHints = data.rowHints || [];
         this.colHints = data.colHints || [];
+        this.victory = false;
+        this.undoMgr.clear();
+        this.draw();
+        return;
       }
-    } catch (e) {
-      // 使用内置题目
-      this.answer = [
-        [0,1,0,0,1,0],
-        [1,1,1,1,1,1],
-        [1,1,1,1,1,1],
-        [1,1,1,1,1,1],
-        [0,1,1,1,1,0],
-        [0,0,1,1,0,0]
-      ];
-      this.size = 6;
-      this.rowHints = [[1,1],[6],[6],[6],[4],[2]];
-      this.colHints = [[3,1],[3],[4],[4],[4],[1,1]];
-    }
+    } catch (e) { /* CDN失败，走内置题 */ }
     
-    // 初始化玩家网格
+    // 内置题目（保底）
+    this.answer = [
+      [0,1,0,0,1,0],
+      [1,1,1,1,1,1],
+      [1,1,1,1,1,1],
+      [1,1,1,1,1,1],
+      [0,1,1,1,1,0],
+      [0,0,1,1,0,0]
+    ];
+    this.size = 6;
+    this.rowHints = [[1,1],[6],[6],[6],[4],[2]];
+    this.colHints = [[3,1],[3],[4],[4],[4],[1,1]];
+    this.victory = false;
+    this.undoMgr.clear();
     this.grid = [];
     for (let r = 0; r < this.size; r++) {
       this.grid[r] = [];
@@ -89,8 +90,7 @@ const roundRect = require('../utils/round-rect.js');
         this.grid[r][c] = 0;
       }
     }
-    
-    this.victory = false;
+    this.draw();
   }
   
   bindEvents() {
@@ -423,6 +423,10 @@ const roundRect = require('../utils/round-rect.js');
 
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
+  }
+
+  _drawAchievementPopup() {
+    this._newAchievements = null;
   }
 }
 

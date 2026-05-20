@@ -46,6 +46,8 @@ class LevelLoader {
       case 'tents':
       case 'slither-link':
         return base + '/' + gameName + '/' + difficulty + '/' + difficulty + '-' + pad + '.json';
+      case 'one-stroke':
+        return base + '/one-stroke/' + difficulty + '-' + pad + '.json';
       case 'battleship':
         return base + '/' + gameName + '/easy-' + pad + '.json';
       case 'nonogram':
@@ -84,15 +86,16 @@ class LevelLoader {
     switch (gameName) {
       case 'slither-link': return LevelLoader.loadSlitherLink(level, difficulty);
       case 'akari':        return LevelLoader.loadAkari(level, difficulty);
-      case 'tents':         return LevelLoader.loadTents(level, difficulty);
+      case 'tents':       return LevelLoader.loadTents(level, difficulty);
       case 'nonogram':     return LevelLoader.loadNonogram(level);
-      case 'sokoban':      return LevelLoader.loadSokoban(level);
+      case 'sokoban':     return LevelLoader.loadSokoban(level);
       case 'nurikabe':     return LevelLoader.loadNurikabe(level);
-      case 'battleship':   return LevelLoader.loadBattleship(level);
-      case 'number-one':   return LevelLoader.loadNumberOne(level);
-      case 'merge-abc':    return LevelLoader.loadMergeAbc(level);
+      case 'one-stroke':   return LevelLoader.loadOneStroke(level, difficulty);
+      case 'battleship':  return LevelLoader.loadBattleship(level);
       case '24point':      return LevelLoader.load24Point(level);
       case 'othello':      return LevelLoader.loadOthello(level);
+      case 'merge-abc':    return LevelLoader.loadMergeAbc(level);
+      case 'number-one':    return LevelLoader.loadNumberOne(level);
       default:              return null;
     }
   }
@@ -100,6 +103,14 @@ class LevelLoader {
   /* ========== 数据标准化 ========== */
 
   static normalize(gameName, data, level, difficulty) {
+    // one-stroke 格式：{ holes, answer }，直接返回
+    if (gameName === 'one-stroke') {
+      return data;
+    }
+    // 其他游戏：兼容 CDN 包裹格式 { data: {...} }
+    if (data && data.data && typeof data.data === 'object') {
+      return data.data;
+    }
     return data;
   }
 
@@ -172,6 +183,15 @@ class LevelLoader {
         return require('./battleship/battleship-' + pad + '.json');
       } catch (e2) { return null; }
     }
+  }
+
+  static loadOneStroke(level, difficulty) {
+    try {
+      const pad = String(level).padStart(4, '0');
+      const dir = difficulty || 'easy';
+      const file = require('./one-stroke/' + dir + '-' + pad + '.json');
+      return { rows: file.rows || 6, cols: file.cols || 6, holes: file.holes || [], answer: file.answer || [] };
+    } catch (e) { return null; }
   }
 
   static loadNumberOne(level) {

@@ -51,7 +51,13 @@ class Othello {
     
     this.skipMessage = null;
     this.skipMessageTimer = 0;
-    this.initBoard();
+    if (!this.loadState()) {
+      this.initBoard();
+    } else {
+      // 从存档恢复，重新计算计数和合法着法
+      this.updateCount();
+      this.updateValidMoves();
+    }
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
   }
@@ -86,6 +92,39 @@ class Othello {
     }
   }
   
+  saveState() {
+    try {
+      wx.setStorageSync('othello_saved', {
+        board: this.board,
+        currentPlayer: this.currentPlayer,
+        difficulty: this.difficulty,
+        blackCount: this.blackCount,
+        whiteCount: this.whiteCount,
+        gameOver: this.gameOver,
+        winner: this.winner,
+        level: this.level
+      });
+    } catch (e) { /* ignore */ }
+  }
+  
+  loadState() {
+    try {
+      const saved = wx.getStorageSync('othello_saved');
+      if (saved && saved.board && saved.board.length === 8) {
+        this.board = saved.board;
+        this.currentPlayer = saved.currentPlayer || this.BLACK;
+        this.difficulty = saved.difficulty || 'medium';
+        this.blackCount = saved.blackCount || 2;
+        this.whiteCount = saved.whiteCount || 2;
+        this.gameOver = saved.gameOver || false;
+        this.winner = saved.winner || null;
+        this.level = saved.level || 1;
+        return true;
+      }
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+  
   setDifficulty(diff) {
     this.difficulty = diff;
     this.initBoard();
@@ -96,6 +135,7 @@ class Othello {
 
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.gameOver = false;
+    this.saveState();
   }
   
   bindEvents() {
@@ -238,6 +278,7 @@ class Othello {
     this.updateCount();
     this.checkGameOver();
     this.updateValidMoves();
+    this.saveState();
   }
   
   updateCount() {
@@ -919,6 +960,10 @@ class Othello {
 
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
+  }
+
+  _drawAchievementPopup() {
+    this._newAchievements = null;
   }
 }
 

@@ -656,6 +656,10 @@ class TwentyFourPoint {
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
   }
+
+  _drawAchievementPopup() {
+    this._newAchievements = null;
+  }
 }
 
 module.exports = TwentyFourPoint;

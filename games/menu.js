@@ -1,3 +1,9 @@
+/**
+ * menu.js - 主菜单 v3.0
+ * 顶部标题 + 游戏网格，底部固定导航栏（设置/成就/排行/商城/我的）
+ */
+const roundRect = require('../utils/round-rect.js');
+
 class Menu {
   constructor(ctx, canvas, systemInfo, switchGame) {
     this.ctx = ctx;
@@ -6,344 +12,512 @@ class Menu {
     this.switchGame = switchGame;
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
-    
-    // 安全区域适配
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
-    
+    this.safeAreaBottom = systemInfo.safeAreaInsets?.bottom || 20;
+
+    const CheckInManager = require('./check-in.js');
+    this.checkin = new CheckInManager();
+    this._showCheckin = false;
+    this._checkinResult = null;
+
+    const sound = require('./sound-manager');
+    this.soundEnabled = sound.enabled;
+
+    // 每日挑战
     const { DailyChallenge } = require('./daily-challenge');
     this.dailyChallenge = new DailyChallenge();
     this._dailyBanner = null;
-    
-    // 右上角"我的"按钮
-    this.profileBtn = {
-      x: this.width - 80,
-      y: this.statusBarHeight + 20,
-      w: 65,
-      h: 35
-    };
-    
-    // 左上角音效开关
-    this.soundBtn = {
-      x: 10,
-      y: this.statusBarHeight + 20,
-      w: 50,
-      h: 35
-    };
-    const sound = require('./sound-manager');
-    this.soundEnabled = sound.enabled;
-    
-    this.games = [
-      { name: 'othello', title: '黑白棋', icon: '⚫', color: '#4A5568' },
-      { name: 'frog-escape', title: '躲避牛蛙', icon: '🐸', color: '#48BB78' },
-      { name: 'akari', title: '数灯', icon: '💡', color: '#ECC94B' },
-      { name: 'sokoban', title: '推箱子', icon: '📦', color: '#ED8936' },
-      { name: 'nurikabe', title: '数墙', icon: '🧱', color: '#718096' },
-      { name: 'tents', title: '帐篷', icon: '⛺', color: '#38A169' },
-      { name: '24point', title: '24点', icon: '🧮', color: '#E53E3E' },
-      { name: 'slither-link', title: '数回', icon: '🔗', color: '#3182CE' },
-      { name: 'nonogram', title: '数织', icon: '🎨', color: '#805AD5' },
-      { name: 'battleship', title: '海战', icon: '🚢', color: '#00B5D8' },
-      { name: 'merge-abc', title: 'ABC合成', icon: '🔤', color: '#D69E2E' }
+
+    // 底部导航栏
+    this._bottomBarH = 60 + this.safeAreaBottom;
+    this._bottomBarY = this.height - this._bottomBarH;
+    this._navItems = [
+      { key: 'settings',     icon: '⚙️', label: '设置' },
+      { key: 'achievements', icon: '🏆', label: '成就' },
+      { key: 'leaderboard',  icon: '📊', label: '排行' },
+      { key: 'prop-shop',    icon: '🛒', label: '商城' },
+      { key: 'profile',      icon: '👤', label: '我的' },
     ];
-    
+    const navW = this.width / this._navItems.length;
+    this._navItems.forEach((item, i) => {
+      item.x = i * navW;
+      item.y = this._bottomBarY;
+      item.w = navW;
+      item.h = this._bottomBarH;
+      item.iconSize = 26;
+    });
+
+    // 游戏列表
+    this.games = [
+      { name: 'one-stroke',    title: '一笔画',    icon: '✏️', color: '#F6AD55' },
+      { name: 'othello',       title: '黑白棋',    icon: '⚫', color: '#4A5568' },
+      { name: 'frog-escape',   title: '青蛙逃生',  icon: '🐸', color: '#48BB78' },
+      { name: 'akari',         title: '灯塔',      icon: '💡', color: '#ECC94B' },
+      { name: 'sokoban',       title: '推箱子',    icon: '📦', color: '#ED8936' },
+      { name: 'nurikabe',      title: '数墙',      icon: '🧱', color: '#718096' },
+      { name: 'tents',         title: '帐篷',      icon: '⛺', color: '#38A169' },
+      { name: '24point',       title: '24点',      icon: '🧮', color: '#E53E3E' },
+      { name: 'slither-link', title: '数回',      icon: '🔗', color: '#3182CE' },
+      { name: 'nonogram',      title: '数织',      icon: '🎨', color: '#805AD5' },
+      { name: 'battleship',    title: '海战',      icon: '🚢', color: '#00B5D8' },
+      { name: 'merge-abc',     title: 'ABC合成',   icon: '🔤', color: '#D69E2E' },
+    ];
+
     this.gameTotalLevels = {
-      'othello': 30, 'akari': 30, 'sokoban': 30, 'nurikabe': 30,
-      'tents': 30, '24point': 50, 'slither-link': 30, 'nonogram': 30,
-      'battleship': 30, 'merge-abc': 10
+      'othello': 30, 'akari': 3000, 'sokoban': 3003, 'nurikabe': 3001,
+      'tents': 3000, '24point': 9999, 'slither-link': 3000, 'nonogram': 3001,
+      'battleship': 3000, 'merge-abc': 9999, 'frog-escape': 9999, 'one-stroke': 3000,
     };
-    
-    // 3列网格布局
-    this.cols = 3;
-    this.padding = 15;
+
+    // 布局计算
+    this.padding = 16;
     this.gridGap = 10;
-    this.headerHeight = 95;
-    this.footerHeight = 20;
-    this.availableHeight = this.height - this.headerHeight - this.footerHeight - this.padding * 2;
+    this.cols = 3;
+    this.headerH = this.statusBarHeight + 52;  // 标题区高度
+    this.bannerH = 50;                          // 每日挑战区
+    this.contentTop = this.headerH + this.bannerH + 10;
+    this.contentBottom = this._bottomBarY - 8;
+    this.contentH = this.contentBottom - this.contentTop;
+    this.rowH = 90;   // 每行高度（卡片+间距）
+    this.rows = Math.ceil(this.games.length / this.cols);
     this.buttonSize = Math.min(
       (this.width - this.padding * 2 - this.gridGap * (this.cols - 1)) / this.cols,
-      this.availableHeight / Math.ceil(this.games.length / this.cols)
+      (this.contentH - this.gridGap * (this.rows - 1)) / this.rows
     );
-    this.rows = Math.ceil(this.games.length / this.cols);
-    this.startY = this.headerHeight + this.padding + (this.availableHeight - (this.rows * this.buttonSize + (this.rows - 1) * this.gridGap)) / 2;
-    
+    const totalGridH = this.rows * this.buttonSize + (this.rows - 1) * this.gridGap;
+    this.startY = this.contentTop + (this.contentH - totalGridH) / 2;
+
     this.animationTime = 0;
     this.bindEvents();
+    this.draw();
   }
-  
+
   bindEvents() {
     this.clickHandler = (e) => {
-      let touch = e.touches ? e.touches[0] : e;
-      let x = touch.clientX;
-      let y = touch.clientY;
-      
-      // 检查音效开关
-      const sBtn = this.soundBtn;
-      if (x >= sBtn.x && x <= sBtn.x + sBtn.w && y >= sBtn.y && y <= sBtn.y + sBtn.h) {
-        const sound = require('./sound-manager');
-const roundRect = require('../utils/round-rect.js');
-        this.soundEnabled = sound.toggle();
-        this.draw();
-        return;
-      }
-      
-      // 检查"我的"按钮
-      const btn = this.profileBtn;
-      if (x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
-        this.switchGame('profile');
-        return;
-      }
-      
-      for (let i = 0; i < this.games.length; i++) {
-        const col = i % this.cols;
-        const row = Math.floor(i / this.cols);
-        const isLastRow = row === Math.floor((this.games.length - 1) / this.cols);
-        const offsetX = (isLastRow && this.games.length % this.cols !== 0)
-          ? (this.cols - (this.games.length % this.cols)) * (this.buttonSize + this.gridGap) / 2
-          : 0;
-        const buttonX = this.padding + col * (this.buttonSize + this.gridGap) + offsetX;
-        const buttonY = this.startY + row * (this.buttonSize + this.gridGap);
-        
-        if (x >= buttonX && x <= buttonX + this.buttonSize &&
-            y >= buttonY && y <= buttonY + this.buttonSize) {
-          const gameName = this.games[i].name;
-          // 黑白棋、躲避牛蛙、合成ABC直接进入游戏，其他游戏跳转到选关页面
-          if (gameName === 'othello' || gameName === 'frog-escape' || gameName === 'merge-abc') {
-            this.switchGame(gameName);
-          } else {
-            this.switchGame('level-select', gameName);
+      const t = e.touches ? e.touches[0] : e;
+      const x = t.clientX, y = t.clientY;
+
+      // 底部导航栏
+      for (const item of this._navItems) {
+        if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
+          if (item.key === 'settings') {
+            // 音效开关（设置按钮单击切换音效）
+            const sound = require('./sound-manager');
+            this.soundEnabled = sound.toggle();
+            this.draw();
+            return;
           }
+          this.switchGame(item.key);
           return;
         }
       }
-      // 检查每日挑战横幅
+
+      // 签到按钮（右上角小图标）
+      if (this._hitCheckinBtn(x, y)) {
+        this._showCheckin = !this._showCheckin;
+        this.draw();
+        return;
+      }
+
+      // 签到弹窗
+      if (this._showCheckin) {
+        const W = this.width, H = this.height;
+        const popW = W * 0.82, popH = 320;
+        const popX = (W - popW) / 2, popY = (H - popH) / 2 - 40;
+        const btnW = 120, btnH = 40;
+        const btnX = (W - btnW) / 2, btnY = popY + popH - 60;
+        if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
+          const result = this.checkin.checkIn();
+          if (result.success) this._checkinResult = result;
+          this.draw();
+          return;
+        }
+        // 外部关闭
+        if (x < popX || x > popX + popW || y < popY || y > popY + popH) {
+          this._showCheckin = false;
+          this._checkinResult = null;
+          this.draw();
+          return;
+        }
+        return;
+      }
+
+      // 每日挑战横幅
       const db = this._dailyBanner;
       if (db && x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
         const dc = this.dailyChallenge.getToday();
-        // 黑白棋、躲避牛蛙、合成ABC直接进入游戏，其他游戏跳转到选关页面
-        if (dc.game === 'othello' || dc.game === 'frog-escape' || dc.game === 'merge-abc') {
-          this.switchGame(dc.game);
-        } else {
-          this.switchGame('level-select', dc.game);
-        }
+        const noLevelSelect = ['othello', 'frog-escape', 'merge-abc'];
+        this.switchGame(noLevelSelect.includes(dc.game) ? dc.game : 'level-select', dc.game);
         return;
+      }
+
+      // 游戏卡片
+      for (let i = 0; i < this.games.length; i++) {
+        const col = i % this.cols;
+        const row = Math.floor(i / this.cols);
+        const bx = this.padding + col * (this.buttonSize + this.gridGap);
+        const by = this.startY + row * (this.buttonSize + this.gridGap);
+        if (x >= bx && x <= bx + this.buttonSize && y >= by && y <= by + this.buttonSize) {
+          const gameName = this.games[i].name;
+          const noLevelSelect = ['othello', 'frog-escape', 'merge-abc'];
+          this.switchGame(noLevelSelect.includes(gameName) ? gameName : 'level-select', gameName);
+          return;
+        }
       }
     };
     this.canvas.addEventListener('click', this.clickHandler);
   }
-  
-  roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y, x + w, y + r, r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x, y + h, x, y + h - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
-    ctx.closePath();
+
+  _hitCheckinBtn(x, y) {
+    const bx = this.width - 44, by = this.statusBarHeight + 14, bw = 36, bh = 36;
+    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
   }
 
   update() {
     this.animationTime += 0.05;
   }
-  
+
   draw() {
-    this.drawBackground();
-    this.drawHeader();
-    this.drawGrid();
-  }
-  
-  drawBackground() {
-    let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#667eea');
-    gradient.addColorStop(1, '#764ba2');
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.width, this.height);
-    
-    // 装饰圆点
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-    for (let i = 0; i < 6; i++) {
-      let x = (i * 70 + this.animationTime * 8) % (this.width + 60) - 30;
-      let y = (i * 120 + this.animationTime * 3) % this.height;
-      this.ctx.beginPath();
-      this.ctx.arc(x, y, 20 + i * 5, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-  }
-  
-  drawHeader() {
-    // 左上角音效开关
-    const sBtn = this.soundBtn;
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this.ctx,sBtn.x, sBtn.y, sBtn.w, sBtn.h, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(this.soundEnabled ? '🔊' : '🔇', sBtn.x + sBtn.w / 2, sBtn.y + sBtn.h / 2 + 5);
-    
-    // 右上角"我的"按钮
-    const btn = this.profileBtn;
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this.ctx,btn.x, btn.y, btn.w, btn.h, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('👤 我的', btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
-    
-    // 标题
-    this.ctx.fillStyle = '#fff';
-    this.ctx.shadowColor = 'rgba(0,0,0,0.3)';
-    this.ctx.shadowBlur = 8;
-    this.ctx.font = 'bold ' + (this.width / 14) + 'px Arial';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText('🎮 指尖谜题', this.padding, 95);
-    this.ctx.shadowBlur = 0;
-    
-    // 分隔线
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.width * 0.15, 110);
-    this.ctx.lineTo(this.width * 0.85, 110);
-    this.ctx.stroke();
-    
-    // 每日挑战横幅
+    const ctx = this.ctx;
+    const W = this.width, H = this.height;
+
+    // 背景
+    ctx.clearRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#EEF2FF');
+    bg.addColorStop(1, '#E8EAF6');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    this._drawHeader();
     this._drawDailyBanner();
+    this._drawGrid();
+    this._drawBottomBar();
+
+    if (this._showCheckin) this._drawCheckinPopup();
   }
-  
+
+  _drawHeader() {
+    const ctx = this.ctx;
+    const W = this.width;
+    const SH = this.statusBarHeight;
+
+    // 毛玻璃顶栏
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(0, 0, W, SH + 50);
+    ctx.strokeStyle = '#E0E3ED';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, SH + 50);
+    ctx.lineTo(W, SH + 50);
+    ctx.stroke();
+
+    // 标题
+    ctx.fillStyle = '#1A1A2E';
+    ctx.font = 'bold 22px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🎮 指尖谜题', this.padding, SH + 34);
+
+    // 签到按钮（右上角）
+    const bx = W - 44, by = SH + 14, bw = 36, bh = 36;
+    const todayChecked = this.checkin.isCheckedInToday();
+    const checkinGradient = ctx.createRadialGradient(bx + bw / 2, by + bh / 2, 0, bx + bw / 2, by + bh / 2, bh / 2);
+    if (todayChecked) {
+      checkinGradient.addColorStop(0, 'rgba(76,175,80,0.35)');
+      checkinGradient.addColorStop(1, 'rgba(76,175,80,0.15)');
+    } else {
+      checkinGradient.addColorStop(0, 'rgba(255,193,7,0.4)');
+      checkinGradient.addColorStop(1, 'rgba(255,193,7,0.2)');
+    }
+    ctx.fillStyle = checkinGradient;
+    ctx.beginPath();
+    ctx.arc(bx + bw / 2, by + bh / 2, bh / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '18px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(todayChecked ? '✅' : '📅', bx + bw / 2, by + bh / 2 + 6);
+
+    // 音效图标（左上角）
+    const sx = 16, sy = SH + 14, sw = 36, sh2 = 36;
+    const soundGradient = ctx.createRadialGradient(sx + sw / 2, sy + sh2 / 2, 0, sx + sw / 2, sy + sh2 / 2, sh2 / 2);
+    if (this.soundEnabled) {
+      soundGradient.addColorStop(0, 'rgba(102,126,234,0.4)');
+      soundGradient.addColorStop(1, 'rgba(102,126,234,0.2)');
+    } else {
+      soundGradient.addColorStop(0, 'rgba(189,195,199,0.4)');
+      soundGradient.addColorStop(1, 'rgba(189,195,199,0.2)');
+    }
+    ctx.fillStyle = soundGradient;
+    ctx.beginPath();
+    ctx.arc(sx + sw / 2, sy + sh2 / 2, sh2 / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '18px -apple-system';
+    ctx.fillText(this.soundEnabled ? '🔊' : '🔇', sx + sw / 2, sy + sh2 / 2 + 6);
+  }
+
   _drawDailyBanner() {
+    const ctx = this.ctx;
+    const W = this.width;
     const dc = this.dailyChallenge.getToday();
-    const bannerW = this.width * 0.9;
-    const bannerH = 44;
-    const bannerX = (this.width - bannerW) / 2;
-    const bannerY = 116;
-    this._dailyBanner = { x: bannerX, y: bannerY, w: bannerW, h: bannerH };
-    
-    this.ctx.fillStyle = dc.completed ? 'rgba(76,175,80,0.15)' : 'rgba(255,193,7,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this.ctx,bannerX, bannerY, bannerW, bannerH, 10);
-    this.ctx.fill();
-    this.ctx.strokeStyle = dc.completed ? 'rgba(76,175,80,0.3)' : 'rgba(255,193,7,0.3)';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-    
-    this.ctx.textAlign = 'left';
-    this.ctx.fillStyle = dc.completed ? '#4CAF50' : '#FFC107';
-    this.ctx.font = 'bold 13px Arial';
-    this.ctx.fillText(dc.completed ? '✅ 今日挑战已完成' : '📅 每日挑战', bannerX + 12, bannerY + 18);
-    
-    this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    this.ctx.font = '12px Arial';
-    this.ctx.fillText(dc.gameTitle + ' 第' + dc.level + '关' + (dc.completed ? '' : '  >'), bannerX + 12, bannerY + 35);
-    
     const streak = this.dailyChallenge.getStreak();
+    const bx = this.padding, by = this.headerH + 6;
+    const bw = W - this.padding * 2, bh = this.bannerH - 6;
+
+    this._dailyBanner = { x: bx, y: by, w: bw, h: bh };
+
+    // 卡片
+    ctx.fillStyle = dc.completed ? 'rgba(76,175,80,0.08)' : 'rgba(102,126,234,0.08)';
+    ctx.beginPath();
+    _rr(ctx, bx, by, bw, bh, 12);
+    ctx.fill();
+
+    // 左侧色条
+    ctx.fillStyle = dc.completed ? '#4CAF50' : '#6677FC';
+    ctx.beginPath();
+    _rr(ctx, bx, by, 4, bh, [12, 0, 0, 12]);
+    ctx.fill();
+
+    // 文案
+    ctx.textAlign = 'left';
+    ctx.fillStyle = dc.completed ? '#2E7D32' : '#444';
+    ctx.font = 'bold 13px -apple-system';
+    ctx.fillText(dc.completed ? '✅ 今日挑战已完成' : '📅 每日挑战', bx + 14, by + 20);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '12px -apple-system';
+    ctx.fillText(dc.gameTitle + ' · 第' + dc.level + '关', bx + 14, by + 38);
+
+    // 右侧连胜
     if (streak > 0) {
-      this.ctx.textAlign = 'right';
-      this.ctx.fillStyle = '#FF6B6B';
-      this.ctx.font = 'bold 12px Arial';
-      this.ctx.fillText('🔥' + streak + '天', bannerX + bannerW - 12, bannerY + 27);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#FF6B6B';
+      ctx.font = 'bold 13px -apple-system';
+      ctx.fillText('🔥 ' + streak + '天', bx + bw - 14, by + 30);
+    } else {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#AAA';
+      ctx.font = '12px -apple-system';
+      ctx.fillText('去挑战 >', bx + bw - 14, by + 30);
     }
   }
-  
-  drawGrid() {
+
+  _drawGrid() {
+    const ctx = this.ctx;
     for (let i = 0; i < this.games.length; i++) {
       const game = this.games[i];
       const col = i % this.cols;
       const row = Math.floor(i / this.cols);
-      // 最后一行居中
-      const isLastRow = (i >= this.games.length - (this.games.length % this.cols || this.cols)) && row === Math.floor((this.games.length - 1) / this.cols);
-      const offsetX = (isLastRow && this.games.length % this.cols !== 0)
-        ? (this.cols - (this.games.length % this.cols)) * (this.buttonSize + this.gridGap) / 2
-        : 0;
-      const buttonX = this.padding + col * (this.buttonSize + this.gridGap) + offsetX;
-      const buttonY = this.startY + row * (this.buttonSize + this.gridGap);
-      
-      // 悬浮动画
-      const hover = Math.sin(this.animationTime + i * 0.5) * 2;
-      const y = buttonY + hover;
-      
-      // 按钮阴影
-      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-      this.ctx.beginPath();
-      roundRect(this.ctx, this.ctx,buttonX + 2, y + 4, this.buttonSize, this.buttonSize, 16);
-      this.ctx.fill();
-      
-      // 按钮主体渐变
-      let gradient = this.ctx.createLinearGradient(buttonX, y, buttonX + this.buttonSize, y + this.buttonSize);
-      gradient.addColorStop(0, this.lightenColor(game.color, 25));
-      gradient.addColorStop(1, game.color);
-      this.ctx.fillStyle = gradient;
-      this.ctx.beginPath();
-      roundRect(this.ctx, this.ctx,buttonX, y, this.buttonSize, this.buttonSize, 16);
-      this.ctx.fill();
-      
-      // 顶部高光条
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-      this.ctx.beginPath();
-      roundRect(this.ctx, this.ctx,buttonX + 4, y + 4, this.buttonSize - 8, 6, 3);
-      this.ctx.fill();
-      
+      const bx = this.padding + col * (this.buttonSize + this.gridGap);
+      const hover = Math.sin(this.animationTime + i * 0.6) * 2;
+      const by = this.startY + row * (this.buttonSize + this.gridGap) + hover;
+      const S = this.buttonSize;
+
+      // 阴影
+      ctx.fillStyle = 'rgba(102,126,234,0.15)';
+      ctx.beginPath();
+      _rr(ctx, bx + 2, by + 3, S, S, 14);
+      ctx.fill();
+
+      // 卡片主体
+      const grad = ctx.createLinearGradient(bx, by, bx + S, by + S);
+      grad.addColorStop(0, this._lighten(game.color, 20));
+      grad.addColorStop(1, game.color);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      _rr(ctx, bx, by, S, S, 14);
+      ctx.fill();
+
+      // 高光
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.beginPath();
+      _rr(ctx, bx + 6, by + 6, S - 12, S * 0.38, 8);
+      ctx.fill();
+
       // 图标
-      const iconSize = this.buttonSize * 0.45;
-      this.ctx.font = iconSize + 'px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(game.icon, buttonX + this.buttonSize / 2, y + this.buttonSize / 2 + 8);
-      
-      // 标题
-      this.ctx.fillStyle = '#fff';
-      this.ctx.font = 'bold ' + (this.buttonSize * 0.2) + 'px Arial';
-      this.ctx.fillText(game.title, buttonX + this.buttonSize / 2, y + this.buttonSize - 25);
-      
-      // 通关进度
+      ctx.font = (S * 0.42) + 'px -apple-system';
+      ctx.textAlign = 'center';
+      ctx.fillText(game.icon, bx + S / 2, by + S / 2 + 8);
+
+      // 名称
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold ' + (S * 0.19) + 'px -apple-system';
+      ctx.fillText(game.title, bx + S / 2, by + S - 24);
+
+      // 进度
       try {
-        const saved = wx.getStorageSync(`progress_${game.name}`);
-        if (saved) {
-          const progress = JSON.parse(saved);
-          const completed = Object.keys(progress.stars).length;
+        const raw = wx.getStorageSync('progress_' + game.name);
+        if (raw) {
+          const prog = JSON.parse(raw);
+          const done = Object.keys(prog.stars || {}).length;
           const total = this.gameTotalLevels[game.name] || 30;
-          if (completed > 0) {
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            this.ctx.font = (this.buttonSize * 0.15) + 'px Arial';
-            this.ctx.fillText(`${completed}/${total}`, buttonX + this.buttonSize / 2, y + this.buttonSize - 8);
-            
+          if (done > 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.font = (S * 0.15) + 'px -apple-system';
+            ctx.fillText(done + '/' + total, bx + S / 2, by + S - 8);
+
             // 进度条
-            const barW = this.buttonSize * 0.7;
-            const barH = 3;
-            const barX = buttonX + (this.buttonSize - barW) / 2;
-            const barY = y + this.buttonSize - 3;
-            const ratio = Math.min(completed / total, 1);
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-            this.ctx.fillRect(barX, barY, barW, barH);
-            this.ctx.fillStyle = '#4CAF50';
-            this.ctx.fillRect(barX, barY, barW * ratio, barH);
+            const bW = S * 0.72, bH = 3;
+            const bX = bx + (S - bW) / 2, bY = by + S - 3;
+            const r = Math.min(done / total, 1);
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.fillRect(bX, bY, bW, bH);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(bX, bY, bW * r, bH);
           }
         }
-      } catch(e) {}
+      } catch (e) {}
     }
   }
-  
-  lightenColor(hex, percent) {
-    let num = parseInt(hex.replace('#', ''), 16);
-    let amt = Math.round(2.55 * percent);
-    let R = (num >> 16) + amt;
-    let G = (num >> 8 & 0x00FF) + amt;
-    let B = (num & 0x0000FF) + amt;
-    return '#' + (0x1000000 + 
-      (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + 
-      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + 
-      (B < 255 ? B < 1 ? 0 : B : 255)
-    ).toString(16).slice(1);
+
+  _drawBottomBar() {
+    const ctx = this.ctx;
+    const W = this.width, H = this.height;
+    const by = this._bottomBarY, bh = this._bottomBarH;
+
+    // 毛玻璃底栏
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillRect(0, by, W, bh);
+    ctx.strokeStyle = '#E0E3ED';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, by);
+    ctx.lineTo(W, by);
+    ctx.stroke();
+
+    const navW = W / this._navItems.length;
+    this._navItems.forEach((item, i) => {
+      const ix = item.x, iy = by + 6, ih = bh - 6;
+      const cx = ix + navW / 2;
+
+      // 图标圆背景
+      ctx.fillStyle = 'rgba(102,126,234,0.08)';
+      ctx.beginPath();
+      ctx.arc(cx, iy + 20, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 图标
+      ctx.font = '22px -apple-system';
+      ctx.textAlign = 'center';
+      ctx.fillText(item.icon, cx, iy + 28);
+
+      // 标签
+      ctx.fillStyle = '#888';
+      ctx.font = '11px -apple-system';
+      ctx.fillText(item.label, cx, by + bh - 8);
+
+      // 更新坐标
+      item.x = ix; item.y = by; item.w = navW; item.h = bh;
+    });
   }
-  
+
+  _drawCheckinPopup() {
+    const ctx = this.ctx;
+    const W = this.width, H = this.height;
+    const popW = W * 0.82, popH = 320;
+    const popX = (W - popW) / 2, popY = (H - popH) / 2 - 20;
+
+    // 遮罩
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, 0, W, H);
+
+    // 弹窗
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    _rr(ctx, popX, popY, popW, popH, 20);
+    ctx.fill();
+
+    // 标题
+    ctx.fillStyle = '#1A1A2E';
+    ctx.font = 'bold 18px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText('📅 每日签到', W / 2, popY + 38);
+
+    // 连续签到
+    const streak = this.checkin.getStreak();
+    ctx.fillStyle = '#FF6B6B';
+    ctx.font = 'bold 14px -apple-system';
+    ctx.fillText('🔥 连续 ' + streak + ' 天', W / 2, popY + 60);
+
+    // 本周
+    const week = this.checkin.getWeekStatus();
+    const dayW = (popW - 40) / 7;
+    const dayStartX = popX + 20;
+    const dayY = popY + 80;
+    const dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+    week.forEach((d, i) => {
+      const dx = dayStartX + i * dayW;
+      ctx.beginPath();
+      ctx.arc(dx + dayW / 2, dayY + 20, 18, 0, Math.PI * 2);
+      ctx.fillStyle = d.checked ? '#4CAF50' : (d.isToday ? '#FFC107' : '#f0f0f0');
+      ctx.fill();
+      ctx.fillStyle = d.checked ? '#fff' : '#999';
+      ctx.font = 'bold 12px -apple-system';
+      ctx.fillText(dayLabels[i], dx + dayW / 2, dayY + 24);
+      ctx.fillStyle = d.checked ? '#4CAF50' : '#bbb';
+      ctx.font = '10px -apple-system';
+      ctx.fillText(d.checked ? '✓' : (d.reward.coins + '💰'), dx + dayW / 2, dayY + 50);
+    });
+
+    // 结果
+    if (this._checkinResult && this._checkinResult.success) {
+      const r = this._checkinResult;
+      ctx.fillStyle = '#4CAF50';
+      ctx.font = 'bold 16px -apple-system';
+      ctx.fillText('✅ 签到成功！', W / 2, popY + 170);
+      ctx.fillStyle = '#555';
+      ctx.font = '14px -apple-system';
+      ctx.fillText('获得 ' + r.reward.coins + ' 💰' + (r.reward.gems > 0 ? ' + ' + r.reward.gems + ' 💎' : ''), W / 2, popY + 195);
+      if (r.bonus) {
+        ctx.fillStyle = '#FF6B6B';
+        ctx.fillText('🎊 ' + r.bonus.label + '：' + r.bonus.coins + ' 💰 + ' + r.bonus.gems + ' 💎', W / 2, popY + 218);
+      }
+    } else if (this.checkin.isCheckedInToday()) {
+      ctx.fillStyle = '#999';
+      ctx.font = '14px -apple-system';
+      ctx.fillText('今日已签到 ✅', W / 2, popY + 185);
+    }
+
+    // 按钮
+    const btnW = 120, btnH = 40;
+    const btnX = (W - btnW) / 2, btnY = popY + popH - 60;
+    const done = this.checkin.isCheckedInToday();
+    ctx.fillStyle = done ? '#E0E0E0' : '#6677FC';
+    ctx.beginPath();
+    _rr(ctx, btnX, btnY, btnW, btnH, 20);
+    ctx.fill();
+    ctx.fillStyle = done ? '#999' : '#fff';
+    ctx.font = 'bold 14px -apple-system';
+    ctx.fillText(done ? '已签到' : '签到', btnX + btnW / 2, btnY + btnH / 2 + 5);
+  }
+
+  _lighten(hex, pct) {
+    let num = parseInt(hex.replace('#', ''), 16);
+    let amt = Math.round(2.55 * pct);
+    let R = Math.min(255, (num >> 16) + amt);
+    let G = Math.min(255, ((num >> 8) & 0xff) + amt);
+    let B = Math.min(255, (num & 0xff) + amt);
+    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  }
+
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
   }
+}
+
+function _rr(ctx, x, y, w, h, r) {
+  if (typeof r === 'number') r = [r, r, r, r];
+  const [tl, tr, br, bl] = r.length === 1 ? [r[0], r[0], r[0], r[0]] : r;
+  ctx.beginPath();
+  ctx.moveTo(x + tl, y);
+  ctx.lineTo(x + w - tr, y);
+  ctx.arcTo(x + w, y, x + w, y + tr, tr);
+  ctx.lineTo(x + w, y + h - br);
+  ctx.arcTo(x + w, y + h, x + w - br, y + h, br);
+  ctx.lineTo(x + bl, y + h);
+  ctx.arcTo(x, y + h, x, y + h - bl, bl);
+  ctx.lineTo(x, y + tl);
+  ctx.arcTo(x, y, x + tl, y, tl);
+  ctx.closePath();
 }
 
 module.exports = Menu;

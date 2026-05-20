@@ -34,7 +34,10 @@
   "libVersion": "3.16.0",
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "file", "value": "README.md" },
+      { "type": "directory", "value": "docs" }
+    ],
     "include": []
   },
   "isGameTourist": false,

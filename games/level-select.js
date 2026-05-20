@@ -5,18 +5,19 @@ const LevelLoader = require('./level-loader');
 const roundRect = require('../utils/round-rect.js');
 
 const GAME_NAMES = {
-  'othello': '黑白棋', 'akari': '数灯', 'sokoban': '推箱子',
+  'one-stroke': '一笔画', 'othello': '黑白棋', 'akari': '灯塔', 'sokoban': '推箱子',
   'nurikabe': '数墙', 'tents': '帐篷', '24point': '24点',
   'slither-link': '数回', 'nonogram': '数织', 'battleship': '海战',
   'merge-abc': 'ABC合成'
 };
 
-const SUPPORT_DIFFICULTY = ['akari', 'tents', 'slither-link'];
+const SUPPORT_DIFFICULTY = ['akari', 'tents', 'slither-link', 'one-stroke'];
 
 const LEVEL_COUNTS = {
   'akari': { easy: 1000, medium: 1000, hard: 1000 },
   'tents': { easy: 1000, medium: 1000, hard: 1000 },
-  'slither-link': { easy: 1000, medium: 1000, hard: 1000 }
+  'slither-link': { easy: 1000, medium: 1000, hard: 1000 },
+  'one-stroke': { easy: 1000, medium: 1000, hard: 1000 }
 };
 
 class LevelSelect {
@@ -76,7 +77,7 @@ class LevelSelect {
   }
 
   _storageKey() {
-    return `progress_${this.gameName}_${this.difficulty}`;
+    return `progress_${this.gameName}`;
   }
 
   _loadProgress() {

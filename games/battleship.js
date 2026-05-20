@@ -1,3 +1,4 @@
+const LevelLoader = require('./level-loader');
 const statsManager = require('./stats-manager.js').getInstance();
 const sound = require('./sound-manager');
 const TutorialOverlay = require('./tutorial-overlay');
@@ -55,13 +56,8 @@ class Battleship {
   
   async loadLevel() {
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
-    // 尝试从 data/ 加载真实关卡
-    const safeLevel = String(this.level).padStart(4, '0');
     try {
-      const data = require(`../data/battleship/easy-${safeLevel}.json`);
-const roundRect = require('../utils/round-rect.js');
-      this._levelData = data
-
+      const data = await LevelLoader.load('battleship', this.level, 'easy');
       if (data && data.grid) {
         this.size = data.size || 8;
         this.cellSize = Math.min(this.width * 0.85 / this.size, 42);
@@ -97,7 +93,7 @@ const roundRect = require('../utils/round-rect.js');
         this.lastHit = null;
         return;
       }
-    } catch (e) { /* 使用内置题 */ }
+    } catch (e) { /* CDN失败，走内置题 */ }
     
     // 内置题目（简化版：随机生成）
     this.grid = [];
@@ -494,6 +490,10 @@ const roundRect = require('../utils/round-rect.js');
     this.ctx.font = '15px Arial';
     this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
     this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
+  }
+
+  _drawAchievementPopup() {
+    this._newAchievements = null;
   }
 
 }

@@ -70,9 +70,29 @@ function loadSubpackage(callback) {
   }
   subpackageLoading = true;
   
+  // PC端兼容：3秒超时，直接尝试 require
+  const timeout = setTimeout(function() {
+    if (!subpackageLoaded && !subpackageLoading) return; // 已完成
+    console.warn('[subpackage] 加载超时，尝试直接require');
+    try {
+      require('./games/menu.js');
+      subpackageLoaded = true;
+      subpackageLoading = false;
+      callback && callback(true);
+      if (pendingGameLoad) {
+        const p = pendingGameLoad;
+        pendingGameLoad = null;
+        loadGame(p.gameName, p.level);
+      }
+    } catch(e) {
+      console.error('[subpackage] 超时后直接require也失败:', e.message);
+    }
+  }, 3000);
+  
   const task = wx.loadSubpackage({
     name: 'games',
     success: function() {
+      clearTimeout(timeout);
       console.log('[subpackage] games 分包加载成功');
       subpackageLoaded = true;
       subpackageLoading = false;
@@ -85,6 +105,7 @@ function loadSubpackage(callback) {
       }
     },
     fail: function(err) {
+      clearTimeout(timeout);
       console.error('[subpackage] games 分包加载失败:', err);
       subpackageLoading = false;
       showErrorOnCanvas(new Error('分包加载失败: ' + (err.errMsg || JSON.stringify(err))));
@@ -124,6 +145,11 @@ function getGameModule(name) {
       case 'battleship':   gameModules[name] = require('./games/battleship.js'); break;
       case 'merge-abc':    gameModules[name] = require('./games/merge-abc.js'); break;
       case 'frog-escape':  gameModules[name] = require('./games/frog-escape.js'); break;
+      case 'one-stroke':   gameModules[name] = require('./games/one-stroke.js'); break;
+      case 'settings':     gameModules[name] = require('./games/settings.js'); break;
+      case 'achievements': gameModules[name] = require('./games/achievements.js'); break;
+      case 'leaderboard':  gameModules[name] = require('./games/leaderboard.js'); break;
+      case 'prop-shop':    gameModules[name] = require('./games/prop-shop.js'); break;
       default:
         console.warn('[getGameModule] 未知游戏:', name);
         gameModules[name] = require('./games/menu.js');
@@ -142,19 +168,56 @@ let ctx = null;
 let currentGame = 'menu';
 let gameInstance = null;
 let loadingShown = false;
+let loadingPhase = 0;
+let loadingTimer = null;
+const loadingMessages = [
+  '正在准备谜题世界...',
+  '加载游戏资源中...',
+  '唤醒沉睡的脑细胞...',
+  '组装游戏组件...',
+  '整理成就系统...',
+  '马上就好啦...'
+];
 
-function showLoading() {
-  if (!ctx || loadingShown) return;
-  loadingShown = true;
-  const w = canvas.width;
-  const h = canvas.height;
+function showLoading(messageIndex) {
+  if (!ctx) return;
+  const w = systemInfo ? systemInfo.windowWidth : 375;
+  const h = systemInfo ? systemInfo.windowHeight : 667;
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, w, h);
+  
+  const msg = loadingMessages[messageIndex % loadingMessages.length];
   ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 20px Arial';
+  ctx.font = 'bold 18px -apple-system,BlinkMacSystemFont,sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('加载中...', w / 2, h / 2);
+  ctx.fillText(msg, w / 2, h / 2);
+  
+  const dots = '.'.repeat((messageIndex % 3) + 1);
+  ctx.fillStyle = '#AAAAAA';
+  ctx.font = '14px -apple-system';
+  ctx.fillText('耐心等待' + dots, w / 2, h / 2 + 30);
+  
   ctx.textAlign = 'left';
+}
+
+function startLoadingAnimation() {
+  if (loadingShown) return;
+  loadingShown = true;
+  
+  const animate = () => {
+    showLoading(loadingPhase);
+    loadingPhase++;
+    loadingTimer = setTimeout(animate, 1500);
+  };
+  
+  animate();
+}
+
+function stopLoadingAnimation() {
+  if (loadingTimer) {
+    clearTimeout(loadingTimer);
+    loadingTimer = null;
+  }
 }
 
 function safeInit() {
@@ -166,8 +229,7 @@ function safeInit() {
     if (!canvas) throw new Error('wx.createCanvas() 返回 null');
     ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('canvas.getContext("2d") 返回 null');
-    canvas.width = systemInfo.windowWidth;
-    canvas.height = systemInfo.windowHeight;
+    // canvas 尺寸由系统自动管理，不手动设置避免PC端异常
 
     // ── canvas.addEventListener polyfill ──
     // 微信小游戏 canvas 没有 addEventListener，需映射到 wx.onTouch*
@@ -192,23 +254,32 @@ function safeInit() {
           pageY: touch.pageY || touch.clientY,
           offsetX: touch.clientX,
           offsetY: touch.clientY,
-          target: canvas
+          target: canvas,
+          preventDefault: function() {},
+          stopPropagation: function() {}
         };
       }
 
       let lastTouch = null;
       wx.onTouchStart(function(res) {
         if (res.touches && res.touches[0]) lastTouch = res.touches[0];
+        if (!res.preventDefault) res.preventDefault = function() {};
+        if (!res.stopPropagation) res.stopPropagation = function() {};
         (_touchListeners['touchstart'] || []).forEach(function(h) {
           try { h(res); } catch(e) { console.error('[polyfill touchstart]', e); }
         });
       });
       wx.onTouchMove(function(res) {
+        if (!res.preventDefault) res.preventDefault = function() {};
+        if (!res.stopPropagation) res.stopPropagation = function() {};
         (_touchListeners['touchmove'] || []).forEach(function(h) {
           try { h(res); } catch(e) { console.error('[polyfill touchmove]', e); }
         });
       });
       wx.onTouchEnd(function(res) {
+        // 确保 res 有 preventDefault/stopPropagation 方法
+        if (!res.preventDefault) res.preventDefault = function() {};
+        if (!res.stopPropagation) res.stopPropagation = function() {};
         (_touchListeners['touchend'] || []).forEach(function(h) {
           try { h(res); } catch(e) { console.error('[polyfill touchend]', e); }
         });
@@ -224,13 +295,16 @@ function safeInit() {
     }
 
     // 显示加载画面，同时加载分包
-    showLoading();
+    startLoadingAnimation();
+    console.log('[init] 开始加载分包...');
     draw(); // 启动渲染循环
 
     loadSubpackage(function(success) {
+      console.log('[init] 分包加载回调, success=', success);
       if (success) {
         loadGame('menu');
       }
+      // 失败时 showErrorOnCanvas 已在 loadSubpackage 内调用
     });
 
     console.log('[init] 初始化完成');
@@ -252,6 +326,9 @@ function loadGame(gameName, level) {
     showErrorOnCanvas(new Error('ctx is undefined'));
     return;
   }
+
+  // 停止加载动画
+  stopLoadingAnimation();
 
   if (gameInstance) {
     try { gameInstance.destroy(); } catch(e) { console.warn('[game] destroy error:', e.message); }
@@ -283,14 +360,24 @@ function switchGame(gameName, level) {
 function draw() {
   try {
     if (gameInstance) {
-      gameInstance.update();
-      gameInstance.draw();
+      if (typeof gameInstance.update === 'function') {
+        gameInstance.update();
+      }
+      if (typeof gameInstance.draw === 'function') {
+        gameInstance.draw();
+      }
     }
   } catch (e) {
     console.error('[Draw]', e.message, e.stack);
     showErrorOnCanvas(e);
   }
-  requestAnimationFrame(draw);
+  // 兼容微信PC端：requestAnimationFrame 可能不存在
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(draw);
+  } else {
+    setTimeout(draw, 16);
+  }
 }
 
+// 兼容微信PC端：canvas 尺寸可能需要用 devicePixelQuery
 safeInit();
