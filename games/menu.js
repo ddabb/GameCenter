@@ -3,6 +3,7 @@
  * 顶部标题 + 游戏网格，底部固定导航栏（设置/成就/排行/商城/我的）
  */
 const roundRect = require('../utils/round-rect.js');
+const sound = require('./sound-manager');
 
 class Menu {
   constructor(ctx, canvas, systemInfo, switchGame) {
@@ -19,9 +20,6 @@ class Menu {
     this.checkin = new CheckInManager();
     this._showCheckin = false;
     this._checkinResult = null;
-
-    const sound = require('./sound-manager');
-    this.soundEnabled = sound.enabled;
 
     // 每日挑战
     const { DailyChallenge } = require('./daily-challenge');
@@ -100,20 +98,22 @@ class Menu {
       // 底部导航栏
       for (const item of this._navItems) {
         if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
-          if (item.key === 'settings') {
-            // 音效开关（设置按钮单击切换音效）
-            const sound = require('./sound-manager');
-            this.soundEnabled = sound.toggle();
-            this.draw();
-            return;
-          }
+          sound.play('click');
           this.switchGame(item.key);
           return;
         }
       }
 
+      // 兑换码按钮（右侧第二个）
+      if (this._hitRedeemBtn(x, y)) {
+        sound.play('click');
+        this.switchGame('redeem-code');
+        return;
+      }
+
       // 签到按钮（右上角小图标）
       if (this._hitCheckinBtn(x, y)) {
+        sound.play('click');
         this._showCheckin = !this._showCheckin;
         this.draw();
         return;
@@ -168,6 +168,11 @@ class Menu {
     this.canvas.addEventListener('click', this.clickHandler);
   }
 
+  _hitRedeemBtn(x, y) {
+    const bx = this.width - 88, by = this.statusBarHeight + 14, bw = 36, bh = 36;
+    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
+  }
+
   _hitCheckinBtn(x, y) {
     const bx = this.width - 44, by = this.statusBarHeight + 14, bw = 36, bh = 36;
     return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
@@ -218,6 +223,19 @@ class Menu {
     ctx.textAlign = 'left';
     ctx.fillText('🎮 指尖谜题', this.padding, SH + 34);
 
+    // 兑换码按钮（右侧第二个）
+    const redeemX = W - 88, redeemY = SH + 14, redeemW = 36, redeemH = 36;
+    const redeemGradient = ctx.createRadialGradient(redeemX + redeemW / 2, redeemY + redeemH / 2, 0, redeemX + redeemW / 2, redeemY + redeemH / 2, redeemH / 2);
+    redeemGradient.addColorStop(0, 'rgba(255,152,0,0.4)');
+    redeemGradient.addColorStop(1, 'rgba(255,152,0,0.2)');
+    ctx.fillStyle = redeemGradient;
+    ctx.beginPath();
+    ctx.arc(redeemX + redeemW / 2, redeemY + redeemH / 2, redeemH / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '18px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎁', redeemX + redeemW / 2, redeemY + redeemH / 2 + 6);
+
     // 签到按钮（右上角）
     const bx = W - 44, by = SH + 14, bw = 36, bh = 36;
     const todayChecked = this.checkin.isCheckedInToday();
@@ -236,23 +254,6 @@ class Menu {
     ctx.font = '18px -apple-system';
     ctx.textAlign = 'center';
     ctx.fillText(todayChecked ? '✅' : '📅', bx + bw / 2, by + bh / 2 + 6);
-
-    // 音效图标（左上角）
-    const sx = 16, sy = SH + 14, sw = 36, sh2 = 36;
-    const soundGradient = ctx.createRadialGradient(sx + sw / 2, sy + sh2 / 2, 0, sx + sw / 2, sy + sh2 / 2, sh2 / 2);
-    if (this.soundEnabled) {
-      soundGradient.addColorStop(0, 'rgba(102,126,234,0.4)');
-      soundGradient.addColorStop(1, 'rgba(102,126,234,0.2)');
-    } else {
-      soundGradient.addColorStop(0, 'rgba(189,195,199,0.4)');
-      soundGradient.addColorStop(1, 'rgba(189,195,199,0.2)');
-    }
-    ctx.fillStyle = soundGradient;
-    ctx.beginPath();
-    ctx.arc(sx + sw / 2, sy + sh2 / 2, sh2 / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = '18px -apple-system';
-    ctx.fillText(this.soundEnabled ? '🔊' : '🔇', sx + sw / 2, sy + sh2 / 2 + 6);
   }
 
   _drawDailyBanner() {
@@ -374,36 +375,51 @@ class Menu {
     const W = this.width, H = this.height;
     const by = this._bottomBarY, bh = this._bottomBarH;
 
-    // 毛玻璃底栏
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    // 渐变底栏背景
+    const bgGradient = ctx.createLinearGradient(0, by, 0, by + bh);
+    bgGradient.addColorStop(0, '#FFFFFF');
+    bgGradient.addColorStop(1, '#F8F9FA');
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, by, W, bh);
-    ctx.strokeStyle = '#E0E3ED';
-    ctx.lineWidth = 1;
+    
+    // 顶部阴影线
+    ctx.strokeStyle = '#E8ECF0';
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, by);
     ctx.lineTo(W, by);
     ctx.stroke();
 
-    const navW = W / this._navItems.length;
-    this._navItems.forEach((item, i) => {
-      const ix = item.x, iy = by + 6, ih = bh - 6;
-      const cx = ix + navW / 2;
+    // 底部阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.04)';
+    ctx.fillRect(0, by, W, 2);
 
-      // 图标圆背景
-      ctx.fillStyle = 'rgba(102,126,234,0.08)';
+    const navW = W / this._navItems.length;
+    const navColors = ['#6677FC', '#F6AD55', '#4CAF50', '#FF6B6B', '#9F7AEA'];
+    
+    this._navItems.forEach((item, i) => {
+      const ix = item.x, iy = by + 8, ih = bh - 8;
+      const cx = ix + navW / 2;
+      const color = navColors[i % navColors.length];
+
+      // 图标圆背景 - 使用更鲜艳的颜色
+      const circleGradient = ctx.createRadialGradient(cx, iy + 18, 0, cx, iy + 18, 18);
+      circleGradient.addColorStop(0, color + '20');
+      circleGradient.addColorStop(1, color + '08');
+      ctx.fillStyle = circleGradient;
       ctx.beginPath();
-      ctx.arc(cx, iy + 20, 20, 0, Math.PI * 2);
+      ctx.arc(cx, iy + 18, 18, 0, Math.PI * 2);
       ctx.fill();
 
-      // 图标
-      ctx.font = '22px -apple-system';
+      // 图标 - 使用更清晰的显示
+      ctx.font = '24px -apple-system';
       ctx.textAlign = 'center';
-      ctx.fillText(item.icon, cx, iy + 28);
+      ctx.fillText(item.icon, cx, iy + 26);
 
-      // 标签
-      ctx.fillStyle = '#888';
-      ctx.font = '11px -apple-system';
-      ctx.fillText(item.label, cx, by + bh - 8);
+      // 标签 - 使用更深的颜色提高对比度
+      ctx.fillStyle = '#333333';
+      ctx.font = 'bold 12px -apple-system';
+      ctx.fillText(item.label, cx, by + bh - 10);
 
       // 更新坐标
       item.x = ix; item.y = by; item.w = navW; item.h = bh;

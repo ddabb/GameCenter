@@ -1,7 +1,9 @@
 /**
-const roundRect = require('../utils/round-rect.js');
  * 隐私政策页面 - Canvas渲染
  */
+const roundRect = require('../utils/round-rect.js');
+const sound = require('./sound-manager');
+
 class PrivacyPolicy {
   constructor(ctx, canvas, systemInfo, switchGame) {
     this.ctx = ctx;

@@ -5,6 +5,7 @@
  * 不跳转，所有内容页内展示
  */
 const roundRect = require('../utils/round-rect.js');
+const sound = require('./sound-manager');
 
 class Profile {
   constructor(ctx, canvas, systemInfo, switchGame) {

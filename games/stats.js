@@ -1,8 +1,9 @@
 /**
-const roundRect = require('../utils/round-rect.js');
  * 数据统计页面 - 展示通关时长、正确率等数据
  */
+const roundRect = require('../utils/round-rect.js');
 const statsManager = require('./stats-manager.js').getInstance();
+const sound = require('./sound-manager');
 
 class Stats {
   constructor(ctx, canvas, systemInfo, switchGame) {

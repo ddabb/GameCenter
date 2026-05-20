@@ -3,6 +3,7 @@
  */
 const LevelLoader = require('./level-loader');
 const roundRect = require('../utils/round-rect.js');
+const sound = require('./sound-manager');
 
 const GAME_NAMES = {
   'one-stroke': '一笔画', 'othello': '黑白棋', 'akari': '灯塔', 'sokoban': '推箱子',

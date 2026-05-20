@@ -174,7 +174,8 @@ class Settings {
   }
 
   _applySetting(key, val) {
-    if (key === 'sound') soundManager.enabled = val;
+    if (key === 'sound') soundManager.setSoundEnabled(val);
+    if (key === 'vibration') soundManager.setVibrationEnabled(val);
     if (key === 'music') {
       // music player toggle
     }

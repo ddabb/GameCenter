@@ -3,6 +3,7 @@
  * 使用金币购买提示、撤销、答案等道具
  */
 const CheckInManager = require('./check-in');
+const sound = require('./sound-manager');
 
 class PropShop {
   constructor(ctx, canvas, systemInfo, switchGame) {

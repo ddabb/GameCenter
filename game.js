@@ -150,6 +150,7 @@ function getGameModule(name) {
       case 'achievements': gameModules[name] = require('./games/achievements.js'); break;
       case 'leaderboard':  gameModules[name] = require('./games/leaderboard.js'); break;
       case 'prop-shop':    gameModules[name] = require('./games/prop-shop.js'); break;
+      case 'redeem-code':  gameModules[name] = require('./games/redeem-code.js').RedeemCodeUI; break;
       default:
         console.warn('[getGameModule] 未知游戏:', name);
         gameModules[name] = require('./games/menu.js');

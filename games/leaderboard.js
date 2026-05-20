@@ -4,6 +4,7 @@
  */
 const AchievementManager = require('./achievement-manager');
 const roundRect = require('../utils/round-rect.js');
+const sound = require('./sound-manager');
 
 class Leaderboard {
   constructor(ctx, canvas, systemInfo, switchGame) {

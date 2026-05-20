@@ -565,7 +565,7 @@ class FrogEscape {
     if (this.flagMode && !cell.revealed) {
       this._toggleFlag(row, col);
       sound.play('flag');
-      wx.vibrateShort({ type: 'medium' });
+      sound.play('success');
       return;
     }
 
@@ -588,13 +588,13 @@ class FrogEscape {
     const boardCell = this._boardData?.[row]?.[col];
     if (boardCell && boardCell.isFrog) {
       this._revealCell(row, col);
-      wx.vibrateShort({ type: 'heavy' });
+      sound.play('fail');
       this._gameOver(false);
       return;
     }
 
     // 安全格
-    wx.vibrateShort({ type: 'light' });
+    sound.play('click');
     this._floodFill(row, col);
     this._checkWin();
     sound.play('click');
@@ -697,7 +697,7 @@ class FrogEscape {
     }
 
     if (exploded) {
-      wx.vibrateShort({ type: 'medium' });
+      sound.play('success');
       this._gameOver(false);
     } else {
       this._checkWin();
@@ -717,8 +717,7 @@ class FrogEscape {
       this.timerInterval = null;
     }
 
-    wx.vibrateLong({});
-    sound.play(won ? 'win' : 'lose');
+    sound.play(won ? 'victory' : 'gameover');
 
     // 显示所有牛蛙
     for (let r = 0; r < this.rows; r++) {
@@ -760,7 +759,7 @@ class FrogEscape {
 
     this._toggleFlag(row, col);
     sound.play('flag');
-    wx.vibrateShort({ type: 'medium' });
+    sound.play('success');
   }
 
   destroy() {
