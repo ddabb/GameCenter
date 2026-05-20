@@ -6,6 +6,7 @@ const statsManager = require('./stats-manager.js').getInstance();
 const Confetti = require('./confetti');
 const sound = require('./sound-manager');
 const TutorialOverlay = require('./tutorial-overlay');
+const roundRect = require('../utils/round-rect.js');
 
 class TwentyFourPoint {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
@@ -285,6 +286,13 @@ class TwentyFourPoint {
         return;
       }
       
+      // 顶部返回按钮
+      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+        sound.play('click');
+        this.switchGame('level-select', this.gameName);
+        return;
+      }
+      
       if (this.victory) {
         if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
           this.level++;
@@ -419,10 +427,14 @@ class TwentyFourPoint {
   
   drawHeader() {
     // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    this.ctx.font = 'bold 18px Arial';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
 
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
@@ -532,7 +544,6 @@ class TwentyFourPoint {
   }
   
   drawBottomBar() {
-    this.drawButton(15, this.height - 55, 70, 40, '← 返回');
     this.drawButton(this.width / 2 - 40, this.height - 55, 80, 40, '答案');
     this.drawButton(this.width - 85, this.height - 55, 70, 40, '新题');
   }
@@ -577,7 +588,7 @@ class TwentyFourPoint {
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     // 面板背景
-    this.roundRect(panelX, panelY, panelW, panelH, 16);
+    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
     this.ctx.fillStyle = '#1e2a4a';
     this.ctx.fill();
     this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -596,7 +607,7 @@ class TwentyFourPoint {
 
     // 下一关按钮
     const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    this.roundRect(btnX, panelY + 100, btnW, btnH, 21);
+    roundRect(this.ctx, btnX, panelY + 100, btnW, btnH, 21);
     this.ctx.fillStyle = '#6BCB77';
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
@@ -605,27 +616,13 @@ class TwentyFourPoint {
     this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
 
     // 返回选关按钮
-    this.roundRect(btnX, panelY + 152, btnW, btnH, 21);
+    roundRect(this.ctx, btnX, panelY + 152, btnW, btnH, 21);
     this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '15px Arial';
     this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
     this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
-  }
-
-  roundRect(x, y, w, h, r) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(x + r, y);
-    this.ctx.lineTo(x + w - r, y);
-    this.ctx.arcTo(x + w, y, x + w, y + r, r);
-    this.ctx.lineTo(x + w, y + h - r);
-    this.ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    this.ctx.lineTo(x + r, y + h);
-    this.ctx.arcTo(x, y + h, x, y + h - r, r);
-    this.ctx.lineTo(x, y + r);
-    this.ctx.arcTo(x, y, x + r, y, r);
-    this.ctx.closePath();
   }
 
   drawVictory() {

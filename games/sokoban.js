@@ -100,6 +100,7 @@ class Sokoban {
     const safeLevel = String(this.level).padStart(4, '0');
     try {
       const data = require(`../data/sokoban/easy-${safeLevel}.json`);
+const roundRect = require('../utils/round-rect.js');
 
       if (data && data.grid) {
         this.size = data.rows || data.grid.length;
@@ -264,7 +265,7 @@ class Sokoban {
         this.draw();
         return;
       }// 顶部返回按钮
-      if (x >= 15 && x <= 95 && y >= 10 && y <= 55) {
+      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
         sound.play('click');
           this.switchGame('level-select', this.gameName);
         return;
@@ -415,10 +416,14 @@ class Sokoban {
   
   drawHeader() {
     // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    this.ctx.font = 'bold 18px Arial';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
 
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 18) + 'px Arial';
@@ -541,7 +546,6 @@ class Sokoban {
     }
     
     // 底部按钮
-    this.drawButton(15, this.height - 55, 70, 40, '← 返回');
     this.drawButton(this.width - 85, this.height - 100, 70, 35, '重置');
     this.drawButton(this.width - 85, this.height - 55, 70, 40, '撤销');
     
@@ -624,7 +628,7 @@ class Sokoban {
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     // 面板背景
-    this.roundRect(panelX, panelY, panelW, panelH, 16);
+    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
     this.ctx.fillStyle = '#1e2a4a';
     this.ctx.fill();
     this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -643,7 +647,7 @@ class Sokoban {
 
     // 下一关按钮
     const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    this.roundRect(btnX, panelY + 100, btnW, btnH, 21);
+    roundRect(this.ctx, btnX, panelY + 100, btnW, btnH, 21);
     this.ctx.fillStyle = '#6BCB77';
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
@@ -652,7 +656,7 @@ class Sokoban {
     this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
 
     // 返回选关按钮
-    this.roundRect(btnX, panelY + 152, btnW, btnH, 21);
+    roundRect(this.ctx, btnX, panelY + 152, btnW, btnH, 21);
     this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';

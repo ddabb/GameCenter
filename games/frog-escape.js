@@ -3,22 +3,6 @@
 const sound = require('./sound-manager.js');
 const TutorialOverlay = require('./tutorial-overlay.js');
 
-// 圆角矩形 helper
-function roundRect(ctx, x, y, w, h, r) {
-  if (typeof r === 'number') r = [r, r, r, r];
-  ctx.beginPath();
-  ctx.moveTo(x + r[0], y);
-  ctx.lineTo(x + w - r[1], y);
-  ctx.arcTo(x + w, y, x + w, y + r[1], r[1]);
-  ctx.lineTo(x + w, y + h - r[2]);
-  ctx.arcTo(x + w, y + h, x + w - r[2], y + h, r[2]);
-  ctx.lineTo(x + r[3], y + h);
-  ctx.arcTo(x, y + h, x, y + h - r[3], r[3]);
-  ctx.lineTo(x, y + r[0]);
-  ctx.arcTo(x, y, x + r[0], y, r[0]);
-  ctx.closePath();
-}
-
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/minesweeper';
 const RECORDS_KEY = 'frog_escape_records';
 
@@ -292,7 +276,7 @@ class FrogEscape {
 
   _drawBackButton() {
     const ctx = this.ctx;
-    const btnX = 15, btnY = 50, btnW = 70, btnH = 32;
+    const btnX = 15, btnY = this.statusBarHeight + 8, btnW = 70, btnH = 32;
 
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.beginPath();

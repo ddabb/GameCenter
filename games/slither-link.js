@@ -53,6 +53,7 @@ class SlitherLink {
     const safeLevel = String(this.level).padStart(4, '0');
     try {
       const data = require(`../data/slither-link/easy/easy-${safeLevel}.json`);
+const roundRect = require('../utils/round-rect.js');
 
       if (data && data.grid) {
         this.size = data.size || 5;
@@ -104,7 +105,7 @@ class SlitherLink {
         this.draw();
         return;
       }// 返回按钮（顶部左侧）
-      if (x < 60 && y < 80) {
+      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
         sound.play('click');
           this.switchGame('level-select', this.gameName);
         return;
@@ -233,7 +234,7 @@ class SlitherLink {
     this.ctx.fillStyle = '#fff';
     this.ctx.strokeStyle = '#FFD700';
     this.ctx.lineWidth = 3;
-    this.roundRect(panelX, panelY, panelW, panelH, 16);
+    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
     this.ctx.fill();
     this.ctx.stroke();
     
@@ -253,7 +254,7 @@ class SlitherLink {
     
     // 下一关按钮
     this.ctx.fillStyle = '#4CAF50';
-    this.roundRect(btnX, btnY, btnW, btnH, 10);
+    roundRect(this.ctx, btnX, btnY, btnW, btnH, 10);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 22) + 'px Arial';
@@ -261,7 +262,7 @@ class SlitherLink {
     
     // 返回选关按钮
     this.ctx.fillStyle = '#555';
-    this.roundRect(btnX, btnY + btnH + 12, btnW, btnH, 10);
+    roundRect(this.ctx, btnX, btnY + btnH + 12, btnW, btnH, 10);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = (this.width / 22) + 'px Arial';
@@ -273,7 +274,7 @@ class SlitherLink {
     // 分享按钮
     const shareBtnY = btnY + (btnH + 12) * 2;
     this.ctx.fillStyle = '#1976D2';
-    this.roundRect(btnX, shareBtnY, btnW, 40, 10);
+    roundRect(this.ctx, btnX, shareBtnY, btnW, 40, 10);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = (this.width / 24) + 'px Arial';
@@ -282,21 +283,7 @@ class SlitherLink {
     
     this._victoryPanel = { x: panelX, y: panelY, w: panelW, h: panelH };
   }
-  
-  roundRect(x, y, w, h, r) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(x + r, y);
-    this.ctx.lineTo(x + w - r, y);
-    this.ctx.arcTo(x + w, y, x + w, y + r, r);
-    this.ctx.lineTo(x + w, y + h - r);
-    this.ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    this.ctx.lineTo(x + r, y + h);
-    this.ctx.arcTo(x, y + h, x, y + h - r, r);
-    this.ctx.lineTo(x, y + r);
-    this.ctx.arcTo(x, y, x + r, y, r);
-    this.ctx.closePath();
-  }
-  
+    
   update() {
     this.animationTime += 0.08;
   }
@@ -327,6 +314,16 @@ class SlitherLink {
   }
   
   drawHeader() {
+    // 左上角返回按钮
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
+
     this.ctx.fillStyle = '#fff';
     this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
     this.ctx.textAlign = 'center';
@@ -412,7 +409,6 @@ class SlitherLink {
   }
   
   drawBottomBar() {
-    this.drawButton(15, this.height - 55, 70, 40, '← 返回');
     this.drawButton(this.width - 85, this.height - 55, 70, 40, '重置');
   }
   

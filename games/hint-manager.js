@@ -1,4 +1,5 @@
 /**
+const roundRect = require('../utils/round-rect.js');
  * hint-manager.js — 通用提示管理器
  * 
  * 策略：

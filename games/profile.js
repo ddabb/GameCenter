@@ -1,4 +1,5 @@
 /**
+const roundRect = require('../utils/round-rect.js');
  * 用户信息页面 - 显示游戏进度、星级统计
  */
 class Profile {

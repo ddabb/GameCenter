@@ -1,4 +1,5 @@
 /**
+const roundRect = require('../utils/round-rect.js');
  * 数据统计页面 - 展示通关时长、正确率等数据
  */
 const statsManager = require('./stats-manager.js').getInstance();

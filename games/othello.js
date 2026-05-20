@@ -1,6 +1,7 @@
 const statsManager = require('./stats-manager.js').getInstance();
 const Confetti = require('./confetti');
 const sound = require('./sound-manager');
+const roundRect = require('../utils/round-rect.js');
 const TutorialOverlay = require('./tutorial-overlay')
 const UndoManager = require('./undo-manager')
 const { AchievementManager } = require('./achievement-manager')
@@ -48,6 +49,8 @@ class Othello {
     this.showValidHints = true;
     this.validMoves = [];
     
+    this.skipMessage = null;
+    this.skipMessageTimer = 0;
     this.initBoard();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
@@ -101,9 +104,7 @@ class Othello {
       let x = touch.clientX;
       let y = touch.clientY;
       // 顶部返回按钮（左上角）
-      let btnY = this.statusBarHeight + 15;
-      let btnH = 30;
-      if (x >= 15 && x <= 95 && y >= btnY && y <= btnY + btnH) {
+      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
         sound.play('click');
           this.switchGame('menu');
         return;
@@ -170,7 +171,9 @@ class Othello {
           this.lastMove = {row, col};
           if (this.undoMgr) this.undoMgr.save({ board: this.board.map(r => [...r]), currentPlayer: this.currentPlayer });
           this.placePiece(row, col);
-          if (!this.gameOver) {
+          // placePiece内部checkGameOver处理切换/跳过
+          // 如果切换到了白棋，触发AI
+          if (!this.gameOver && this.currentPlayer === this.WHITE) {
             this.aiThinking = true;
             setTimeout(() => this.aiMove(), 300);
           }
@@ -249,41 +252,64 @@ class Othello {
   }
   
   checkGameOver() {
-    let blackCanMove = false;
-    let whiteCanMove = false;
-    
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        if (this.board[r][c] === 0) {
-          let saved = this.currentPlayer;
-          
-          this.currentPlayer = this.BLACK;
-          if (this.canPlace(r, c)) blackCanMove = true;
-          
-          this.currentPlayer = this.WHITE;
-          if (this.canPlace(r, c)) whiteCanMove = true;
-          
-          this.currentPlayer = saved;
-        }
-      }
-    }
+    let blackCanMove = this._hasValidMoves(this.BLACK);
+    let whiteCanMove = this._hasValidMoves(this.WHITE);
     
     if (!blackCanMove && !whiteCanMove) {
+      // 双方都无法落子，游戏结束
       this.gameOver = true;
       this.confetti.start();
       sound.play('victory');
       this.saveGameProgress(); statsManager.endGame(true);
       this.winner = this.blackCount > this.whiteCount ? this.BLACK :
                    this.whiteCount > this.blackCount ? this.WHITE : null;
+      return;
+    }
+    
+    let nextPlayer = this.currentPlayer === this.BLACK ? this.WHITE : this.BLACK;
+    let nextCanMove = (nextPlayer === this.BLACK) ? blackCanMove : whiteCanMove;
+    
+    if (nextCanMove) {
+      // 对方可以下，正常切换
+      this.currentPlayer = nextPlayer;
+      this.updateValidMoves();
     } else {
-      if (!blackCanMove && this.currentPlayer === this.BLACK) {
+      // 对方无法落子，跳过，当前玩家继续
+      let skipName = nextPlayer === this.BLACK ? '黑棋' : '白棋';
+      this.skipMessage = skipName + '无法落子，跳过';
+      this.skipMessageTimer = 60; // 显示60帧约2秒
+      // currentPlayer不变，继续当前玩家
+      this.updateValidMoves();
+      // 如果是AI被跳过（白棋无子可下），AI不需再走，玩家直接继续
+      // 如果是玩家被跳过（黑棋无子可下），自动触发AI走
+      if (this.currentPlayer === this.BLACK && !blackCanMove) {
+        // 当前是黑棋回合但黑棋无子可下（不会发生，因为上面已判断nextCanMove=false意味着对方不行）
+        // 实际不会走到这里，但保险起见
         this.currentPlayer = this.WHITE;
         this.updateValidMoves();
-      } else if (!whiteCanMove && this.currentPlayer === this.WHITE) {
+        this.aiThinking = true;
+        setTimeout(() => this.aiMove(), 300);
+      } else if (this.currentPlayer === this.WHITE && !whiteCanMove) {
+        // AI回合但白棋无子可下，跳回玩家
         this.currentPlayer = this.BLACK;
         this.updateValidMoves();
       }
     }
+  }
+  
+  _hasValidMoves(player) {
+    let saved = this.currentPlayer;
+    this.currentPlayer = player;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        if (this.board[r][c] === 0 && this.canPlace(r, c)) {
+          this.currentPlayer = saved;
+          return true;
+        }
+      }
+    }
+    this.currentPlayer = saved;
+    return false;
   }
   
   aiMove() {
@@ -323,7 +349,16 @@ class Othello {
       this.lastMove = bestMove;
       this.currentPlayer = this.WHITE;
       this.placePiece(bestMove.row, bestMove.col);
+      // placePiece 内部 checkGameOver 已处理切换/跳过
+      // 如果当前回合还在白棋（黑棋被跳过），继续AI走
+      if (!this.gameOver && this.currentPlayer === this.WHITE) {
+        this.aiThinking = true;
+        setTimeout(() => this.aiMove(), 300);
+      }
+    } else {
+      // AI无子可下，跳过
       this.currentPlayer = this.BLACK;
+      this.updateValidMoves();
     }
     
     this.aiThinking = false;
@@ -515,10 +550,14 @@ class Othello {
   
   drawHeader() {
     // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    this.ctx.font = 'bold 16px Arial';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText('← 返回', 15, this.statusBarHeight + 28);
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
 
     // 标题
     this.ctx.fillStyle = '#fff';
@@ -551,6 +590,125 @@ class Othello {
       this.ctx.fillText(turnText, this.width / 2, infoY + scoreH/2 + 5);
     }
 
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      let msgW = 180;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.font = '13px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      let msgW = 180;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.font = '13px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      this.ctx.font = '13px Arial';
+      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      this.ctx.font = '13px Arial';
+      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      this.ctx.font = '13px Arial';
+      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.font = '13px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      this.ctx.font = '13px Arial';
+      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.font = '13px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+      this.skipMessageTimer--;
+      if (this.skipMessageTimer <= 0) this.skipMessage = null;
+    }
+    
+    // 跳过提示
+    if (this.skipMessage && this.skipMessageTimer > 0) {
+      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      this.ctx.font = '13px Arial';
+      this.ctx.textAlign = 'center';
+      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
+      let msgX = (this.width - msgW) / 2;
+      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#FFC107';
+      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
+    }
+    
     // 右侧白棋
     let whiteActive = this.currentPlayer === this.WHITE && !this.gameOver;
     this.ctx.fillStyle = whiteActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
@@ -677,7 +835,7 @@ class Othello {
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     // 面板背景
-    this.roundRect(panelX, panelY, panelW, panelH, 16);
+    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
     this.ctx.fillStyle = '#1e2a4a';
     this.ctx.fill();
     this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -711,7 +869,7 @@ class Othello {
 
     // 下一关按钮
     const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    this.roundRect(btnX, panelY + 130, btnW, btnH, 21);
+    roundRect(this.ctx, btnX, panelY + 130, btnW, btnH, 21);
     this.ctx.fillStyle = '#6BCB77';
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
@@ -720,7 +878,7 @@ class Othello {
     this._nextBtn = { x: btnX, y: panelY + 130, w: btnW, h: btnH };
 
     // 返回选关按钮
-    this.roundRect(btnX, panelY + 182, btnW, btnH, 21);
+    roundRect(this.ctx, btnX, panelY + 182, btnW, btnH, 21);
     this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
@@ -729,19 +887,7 @@ class Othello {
     this._backBtn = { x: btnX, y: panelY + 182, w: btnW, h: btnH };
   }
 
-  roundRect(x, y, w, h, r) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(x + r, y);
-    this.ctx.lineTo(x + w - r, y);
-    this.ctx.arcTo(x + w, y, x + w, y + r, r);
-    this.ctx.lineTo(x + w, y + h - r);
-    this.ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    this.ctx.lineTo(x + r, y + h);
-    this.ctx.arcTo(x, y + h, x, y + h - r, r);
-    this.ctx.lineTo(x, y + r);
-    this.ctx.arcTo(x, y, x + r, y, r);
-    this.ctx.closePath();
-  }
+
 
   drawGameOver() {
     if (!this._nextBtn || !this._backBtn) {

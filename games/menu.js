@@ -33,17 +33,17 @@ class Menu {
     this.soundEnabled = sound.enabled;
     
     this.games = [
-      { name: 'othello', title: '黑白棋', icon: '⚫', color: '#2D5A27' },
-      { name: 'frog-escape', title: '躲避牛蛙', icon: '🐸', color: '#27ae60' },
-      { name: 'akari', title: '数灯', icon: '💡', color: '#FFB800' },
-      { name: 'sokoban', title: '推箱子', icon: '📦', color: '#8B4513' },
-      { name: 'nurikabe', title: '数墙', icon: '🧱', color: '#607D8B' },
-      { name: 'tents', title: '帐篷', icon: '⛺', color: '#4CAF50' },
-      { name: '24point', title: '24点', icon: '🧮', color: '#FF5722' },
-      { name: 'slither-link', title: '数回', icon: '🔗', color: '#2196F3' },
-      { name: 'nonogram', title: '数织', icon: '🎨', color: '#9C27B0' },
-      { name: 'battleship', title: '海战', icon: '🚢', color: '#00BCD4' },
-      { name: 'merge-abc', title: 'ABC合成', icon: '🔤', color: '#f2b179' }
+      { name: 'othello', title: '黑白棋', icon: '⚫', color: '#4A5568' },
+      { name: 'frog-escape', title: '躲避牛蛙', icon: '🐸', color: '#48BB78' },
+      { name: 'akari', title: '数灯', icon: '💡', color: '#ECC94B' },
+      { name: 'sokoban', title: '推箱子', icon: '📦', color: '#ED8936' },
+      { name: 'nurikabe', title: '数墙', icon: '🧱', color: '#718096' },
+      { name: 'tents', title: '帐篷', icon: '⛺', color: '#38A169' },
+      { name: '24point', title: '24点', icon: '🧮', color: '#E53E3E' },
+      { name: 'slither-link', title: '数回', icon: '🔗', color: '#3182CE' },
+      { name: 'nonogram', title: '数织', icon: '🎨', color: '#805AD5' },
+      { name: 'battleship', title: '海战', icon: '🚢', color: '#00B5D8' },
+      { name: 'merge-abc', title: 'ABC合成', icon: '🔤', color: '#D69E2E' }
     ];
     
     this.gameTotalLevels = {
@@ -80,6 +80,7 @@ class Menu {
       const sBtn = this.soundBtn;
       if (x >= sBtn.x && x <= sBtn.x + sBtn.w && y >= sBtn.y && y <= sBtn.y + sBtn.h) {
         const sound = require('./sound-manager');
+const roundRect = require('../utils/round-rect.js');
         this.soundEnabled = sound.toggle();
         this.draw();
         return;
@@ -156,20 +157,19 @@ class Menu {
   
   drawBackground() {
     let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(1, '#16213e');
+    gradient.addColorStop(0, '#667eea');
+    gradient.addColorStop(1, '#764ba2');
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
     
-    // 装饰线
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-    this.ctx.lineWidth = 1;
-    for (let i = 0; i < 10; i++) {
-      let y = (i * 80 + this.animationTime * 5) % this.height;
+    // 装饰圆点
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    for (let i = 0; i < 6; i++) {
+      let x = (i * 70 + this.animationTime * 8) % (this.width + 60) - 30;
+      let y = (i * 120 + this.animationTime * 3) % this.height;
       this.ctx.beginPath();
-      this.ctx.moveTo(0, y);
-      this.ctx.lineTo(this.width, y);
-      this.ctx.stroke();
+      this.ctx.arc(x, y, 20 + i * 5, 0, Math.PI * 2);
+      this.ctx.fill();
     }
   }
   
@@ -178,7 +178,7 @@ class Menu {
     const sBtn = this.soundBtn;
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    this.roundRect(this.ctx,sBtn.x, sBtn.y, sBtn.w, sBtn.h, 8);
+    roundRect(this.ctx, this.ctx,sBtn.x, sBtn.y, sBtn.w, sBtn.h, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -189,7 +189,7 @@ class Menu {
     const btn = this.profileBtn;
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.beginPath();
-    this.roundRect(this.ctx,btn.x, btn.y, btn.w, btn.h, 8);
+    roundRect(this.ctx, this.ctx,btn.x, btn.y, btn.w, btn.h, 8);
     this.ctx.fill();
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '14px Arial';
@@ -198,12 +198,15 @@ class Menu {
     
     // 标题
     this.ctx.fillStyle = '#fff';
+    this.ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    this.ctx.shadowBlur = 8;
     this.ctx.font = 'bold ' + (this.width / 14) + 'px Arial';
     this.ctx.textAlign = 'left';
     this.ctx.fillText('🎮 指尖谜题', this.padding, 95);
+    this.ctx.shadowBlur = 0;
     
     // 分隔线
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
     this.ctx.moveTo(this.width * 0.15, 110);
@@ -224,7 +227,7 @@ class Menu {
     
     this.ctx.fillStyle = dc.completed ? 'rgba(76,175,80,0.15)' : 'rgba(255,193,7,0.15)';
     this.ctx.beginPath();
-    this.roundRect(this.ctx,bannerX, bannerY, bannerW, bannerH, 10);
+    roundRect(this.ctx, this.ctx,bannerX, bannerY, bannerW, bannerH, 10);
     this.ctx.fill();
     this.ctx.strokeStyle = dc.completed ? 'rgba(76,175,80,0.3)' : 'rgba(255,193,7,0.3)';
     this.ctx.lineWidth = 1;
@@ -268,22 +271,22 @@ class Menu {
       // 按钮阴影
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       this.ctx.beginPath();
-      this.roundRect(this.ctx,buttonX + 2, y + 4, this.buttonSize, this.buttonSize, 16);
+      roundRect(this.ctx, this.ctx,buttonX + 2, y + 4, this.buttonSize, this.buttonSize, 16);
       this.ctx.fill();
       
       // 按钮主体渐变
-      let gradient = this.ctx.createLinearGradient(buttonX, y, buttonX, y + this.buttonSize);
-      gradient.addColorStop(0, this.lightenColor(game.color, 15));
+      let gradient = this.ctx.createLinearGradient(buttonX, y, buttonX + this.buttonSize, y + this.buttonSize);
+      gradient.addColorStop(0, this.lightenColor(game.color, 25));
       gradient.addColorStop(1, game.color);
       this.ctx.fillStyle = gradient;
       this.ctx.beginPath();
-      this.roundRect(this.ctx,buttonX, y, this.buttonSize, this.buttonSize, 16);
+      roundRect(this.ctx, this.ctx,buttonX, y, this.buttonSize, this.buttonSize, 16);
       this.ctx.fill();
       
       // 顶部高光条
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
       this.ctx.beginPath();
-      this.roundRect(this.ctx,buttonX + 4, y + 4, this.buttonSize - 8, 6, 3);
+      roundRect(this.ctx, this.ctx,buttonX + 4, y + 4, this.buttonSize - 8, 6, 3);
       this.ctx.fill();
       
       // 图标

@@ -1,4 +1,5 @@
 /**
+const roundRect = require('../utils/round-rect.js');
  * 隐私政策页面 - Canvas渲染
  */
 class PrivacyPolicy {

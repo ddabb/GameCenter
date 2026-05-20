@@ -1,4 +1,5 @@
 /**
+const roundRect = require('../utils/round-rect.js');
  * tutorial-overlay.js — 通用新手引导浮层
  * 首次进入游戏时显示操作提示，点击"知道了"关闭后不再显示
  * 

@@ -8,6 +8,7 @@ const LevelLoader = require('./level-loader');
 const TutorialOverlay = require('./tutorial-overlay');
 const Confetti = require('./confetti');
 const sound = require('./sound-manager');
+const roundRect = require('../utils/round-rect.js');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
@@ -117,7 +118,7 @@ class Akari {
       }
 
       // 返回按钮
-      if (y < 70 && x < 100) {
+      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
         this.switchGame('level-select', this.gameName);
         return;
       }
@@ -172,7 +173,15 @@ class Akari {
     this.ctx.fillStyle = '#fff';
     this.ctx.font = '13px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 36);
+    // 左上角返回按钮
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
 
     this.ctx.beginPath();
     roundRect(this.ctx,this.width - 90, 10, 80, 40, 8);

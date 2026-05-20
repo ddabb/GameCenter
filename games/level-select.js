@@ -2,6 +2,7 @@
  * level-select.js - 选关页面（Canvas版，支持难度分级）
  */
 const LevelLoader = require('./level-loader');
+const roundRect = require('../utils/round-rect.js');
 
 const GAME_NAMES = {
   'othello': '黑白棋', 'akari': '数灯', 'sokoban': '推箱子',

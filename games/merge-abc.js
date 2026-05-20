@@ -5,6 +5,7 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
+const roundRect = require('../utils/round-rect.js');
 // games/merge-abc.js
 // ABC合成记 - 字母合并游戏(2048风格)
 
@@ -185,7 +186,7 @@ class MergeABC {
       let absDy = Math.abs(dy);
 
       // 顶部返回按钮（考虑状态栏高度）
-      if (endX >= 15 && endX <= 95 && endY >= this.statusBarHeight + 10 && endY <= this.statusBarHeight + 55) {
+      if (endX >= 15 && endX <= 85 && endY >= this.statusBarHeight + 8 && endY <= this.statusBarHeight + 40) {
         sound.play('click');
         this.switchGame('menu');
         return;
@@ -232,7 +233,7 @@ class MergeABC {
     c.fillRect(0, 0, w, h);
 
     // 面板背景
-    this.roundRect(c, panelX, panelY, panelW, panelH, 16);
+    roundRect(this.ctx, c, panelX, panelY, panelW, panelH, 16);
     c.fillStyle = '#1e2a4a';
     c.fill();
     c.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -251,7 +252,7 @@ class MergeABC {
 
     // 下一关按钮
     const btnW = 180, btnH = 42, btnX = (w - btnW) / 2;
-    this.roundRect(c, btnX, panelY + 100, btnW, btnH, 21);
+    roundRect(this.ctx, c, btnX, panelY + 100, btnW, btnH, 21);
     c.fillStyle = '#6BCB77';
     c.fill();
     c.fillStyle = '#fff';
@@ -260,7 +261,7 @@ class MergeABC {
     this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
 
     // 返回选关按钮
-    this.roundRect(c, btnX, panelY + 152, btnW, btnH, 21);
+    roundRect(this.ctx, c, btnX, panelY + 152, btnW, btnH, 21);
     c.fillStyle = 'rgba(255,255,255,0.15)';
     c.fill();
     c.fillStyle = '#fff';
@@ -508,10 +509,14 @@ class MergeABC {
     ctx.fillRect(0, 0, width, this.height);
 
     // 顶部返回按钮（考虑状态栏高度）
-    ctx.fillStyle = '#776e65';
-    ctx.font = 'bold 18px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('← 返回', 15, this.statusBarHeight + 38);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    roundRect(ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
 
     // 标题
     ctx.fillStyle = '#776e65';

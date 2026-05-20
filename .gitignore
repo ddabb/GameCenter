@@ -2,3 +2,42 @@
 .codebuddy/
 node_modules/
 qr_preview.png
+
+# 开发临时文件
+patch-*.js
+fix-*.js
+check-*.js
+find-*.js
+*_fix*.js
+*_scan*.js
+*_check*.js
+*_dump*.js
+
+# 工具脚本（非项目运行必需）
+*.bat
+*.ps1
+kill-ide.bat
+copy-data.ps1
+gen-icon.ps1
+
+# 说明文档（非运行必需）
+*.md
+!README.md
+
+# 服务端（抖音云，微信小游戏不需要）
+server.js
+cloud-config.js
+cloud-service.js
+
+# 抖音残留
+check-tt.js
+find-tt.js
+
+# 小程序残留（小游戏不需要）
+app.js
+app.json
+app.wxss
+pages/
+
+# 测试输出
+test-reports/
