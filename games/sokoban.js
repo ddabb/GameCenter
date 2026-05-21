@@ -6,6 +6,10 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
+
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 class Sokoban {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
     console.log(`[Sokoban] 初始化游戏, 关卡: ${level}`);
@@ -239,13 +243,12 @@ class Sokoban {
     this.clickHandler = (e) => {
       let touch = e.touches ? e.touches[0] : e;
       let x = touch.clientX;
-      let y = touch.clientY;// 撤销按钮检测
-      if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
-        const state = this.undoMgr.undo();
-        if (state) {
-          this.grid = state.grid;
-          this.draw();
-        }
+      let y = touch.clientY;
+      
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
       
@@ -353,22 +356,33 @@ class Sokoban {
   }
   
   draw() {
-    this.drawBackground();
-      
-    this.drawDifficultyBar();
-    this.drawHeader();
+    this.ctx.fillStyle = '#0a1628';
+    this.ctx.fillRect(0, 0, this.width, this.height);
     this.drawBoard();
-    this.drawControls();
+    // 使用共享组件
+    this.headerBar.draw({
+      title: '推箱子',
+      info: '第 ' + this.level + ' 关',
+      info2: '步数: ' + this.moves
+    });
+    const buttons = [];
+    if (this.undoMgr && this.undoMgr.canUndo()) {
+      buttons.push({ id: 'undo', text: '撤销' });
+    }
+    buttons.push({ id: 'restart', text: '重开' });
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
     
     if (this.victory) {
-      this.drawVictory();
+      this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
     }
     
-    // 规则弹窗
-    if (this.tutorial.shouldShow()) {
-      this.tutorial.draw();
-    }
+    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
   }
+
+
   
   drawBackground() {
     let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
@@ -409,27 +423,7 @@ class Sokoban {
       this.ctx.fillText(diff.label, x + w/2, y + 6);
     }
   }
-  
-  drawHeader() {
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 18) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('📦 推箱子', this.width / 2, this.statusBarHeight + 100);
-    
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    this.ctx.font = (this.width / 28) + 'px Arial';
-    this.ctx.fillText('⏱️ ' + this.moves + ' 步', this.width / 2, this.statusBarHeight + 120);
-  }
+  
   
   drawBoard() {
     if (!this.grid || !this.grid.length) return;
@@ -512,6 +506,35 @@ class Sokoban {
     this.ctx.textAlign = 'center';
     this.ctx.fillText('🧑', px + this.cellSize/2, py + this.cellSize/2 + this.cellSize * 0.15);
   }
+
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const state = this.undoMgr.undo();
+          if (state) {
+            this.grid = state.grid;
+            this.player = state.player;
+            this.boxes = state.boxes;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.initLevel();
+        this.undoMgr.clear();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
+    }
+  }
   
   drawControls() {
     // 方向键
@@ -568,14 +591,7 @@ class Sokoban {
     this.ctx.textAlign = 'center';
     this.ctx.fillText(text, x + w/2, y + h/2 + 5);
   }
-  
-  drawVictory() {
-    if (!this._nextBtn || !this._backBtn) {
-      this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-    }
-  }
+  
   
 
   saveGameProgress() {
@@ -613,53 +629,7 @@ class Sokoban {
     this.ctx.arcTo(x, y, x + r, y, r);
     this.ctx.closePath();
   }
-
-  showBackButton() {
-    const panelW = 260, panelH = 200;
-    const panelX = (this.width - panelW) / 2;
-    const panelY = (this.height - panelH) / 2;
-
-    // 半透明遮罩
-    this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-
-    // 面板背景
-    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
-    this.ctx.fillStyle = '#1e2a4a';
-    this.ctx.fill();
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-
-    // 标题
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 恭喜通关！', this.width / 2, panelY + 50);
-
-    this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('关卡 ' + this.level, this.width / 2, panelY + 80);
-
-    // 下一关按钮
-    const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    roundRect(this.ctx, btnX, panelY + 100, btnW, btnH, 21);
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 17px Arial';
-    this.ctx.fillText('下一关', this.width / 2, panelY + 126);
-    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    roundRect(this.ctx, btnX, panelY + 152, btnW, btnH, 21);
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
-    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
-  }
+
 
   _drawAchievementPopup() {
     this._newAchievements = null;

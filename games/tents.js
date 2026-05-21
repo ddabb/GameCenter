@@ -6,6 +6,9 @@ const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
 const roundRect = require('../utils/round-rect.js');
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 
 class Tents {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
@@ -33,6 +36,14 @@ class Tents {
     this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this._ruleBtn = { x: this.width - 50, y: this.statusBarHeight + 14, w: 40, h: 40 };
+
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
 
     statsManager.startGame(this.gameName, this.level);
     this.loadLevel();
@@ -150,7 +161,7 @@ class Tents {
       }
 
       // 返回
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 42) {
+      if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
         this.switchGame('level-select', this.gameName);
         return;
@@ -166,19 +177,22 @@ class Tents {
 
       // 胜利面板
       if (this.victory) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w &&
-            y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
+        const result = this.victoryPanel.handleClick(x, y);
+        if (result === 'next') {
           this.level++;
           this.loadLevel();
           sound.play('click');
+          this.victoryPanel.reset();
           return;
         }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w &&
-            y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
+        if (result === 'back') {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
           return;
         }
+        this.victoryPanel.setSubtitle('关卡 ' + this.level);
+        this.victoryPanel.setAchievements(this._newAchievements);
+        this.victoryPanel.draw();
         return;
       }
 
@@ -204,12 +218,29 @@ class Tents {
 
   draw() {
     this.drawBackground();
-    this.drawHeader();
+    this.headerBar.draw({ title: '⛺ 帐篷', info: '关卡 ' + this.level });
     this.drawBoard();
-    this.drawBottomBar();
+    this.bottomBar.setButtons([
+      { id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr && this.undoMgr.canUndo() }
+    ]);
+    this.bottomBar.draw();
+    this._undoBtn = this.bottomBar.handleClick ? { x: this.width - 90, y: this.height - 55, w: 75, h: 40 } : null;
+
+    // 规则按钮（右上角）
+    const rb = this._ruleBtn;
+    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, rb.x, rb.y, rb.w, rb.h, 20);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 20px -apple-system';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('?', rb.x + rb.w / 2, rb.y + rb.h / 2 + 7);
 
     if (this.victory) {
-      this.drawVictory();
+      this.victoryPanel.setSubtitle('关卡 ' + this.level);
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
     }
 
     if (this.tutorial && this.tutorial.shouldShow()) {
@@ -252,43 +283,6 @@ class Tents {
       ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
       ctx.fill();
     }
-  }
-
-  drawHeader() {
-    const ctx = this.ctx;
-    const SH = this.statusBarHeight;
-
-    // 返回按钮
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, 15, SH + 8, 70, 32, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('← 返回', 50, SH + 29);
-
-    // 标题
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 20px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('⛺ 帐篷', this.width / 2, SH + 56);
-
-    // 关卡号
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '13px -apple-system';
-    ctx.fillText('关卡 ' + this.level, this.width / 2, SH + 78);
-
-    // 规则按钮（右上角）
-    const rb = this._ruleBtn;
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, rb.x, rb.y, rb.w, rb.h, 20);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 20px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('?', rb.x + rb.w / 2, rb.y + rb.h / 2 + 7);
   }
 
   drawBoard() {
@@ -391,77 +385,6 @@ class Tents {
         ctx.strokeRect(x, y, this.cellSize, this.cellSize);
       }
     }
-  }
-
-  drawBottomBar() {
-    this._undoBtn = { x: this.width - 90, y: this.height - 55, w: 75, h: 40 };
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, this._undoBtn.x, this._undoBtn.y, this._undoBtn.w, this._undoBtn.h, 20);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('↩️ 撤销', this._undoBtn.x + this._undoBtn.w / 2, this._undoBtn.y + this._undoBtn.h / 2 + 5);
-  }
-
-  drawVictory() {
-    if (!this._nextBtn || !this._backBtn) {
-      this.showBackButton();
-    }
-    this.confetti.draw();
-    if (this._newAchievements && this._newAchievements.length > 0) {
-      this._drawAchievementPopup();
-    }
-  }
-
-  showBackButton() {
-    const ctx = this.ctx;
-    const panelW = 260, panelH = 200;
-    const panelX = (this.width - panelW) / 2;
-    const panelY = (this.height - panelH) / 2;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, 0, this.width, this.height);
-
-    ctx.fillStyle = '#1E2A4A';
-    ctx.beginPath();
-    roundRect(ctx, panelX, panelY, panelW, panelH, 16);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.fillStyle = '#6BCB77';
-    ctx.font = 'bold 22px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('🎉 恭喜通关！', this.width / 2, panelY + 50);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '15px -apple-system';
-    ctx.fillText('关卡 ' + this.level, this.width / 2, panelY + 80);
-
-    const btnW = 180, btnH = 42;
-    const btnX = (this.width - btnW) / 2;
-
-    ctx.fillStyle = '#6BCB77';
-    ctx.beginPath();
-    roundRect(ctx, btnX, panelY + 100, btnW, btnH, 21);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 16px -apple-system';
-    ctx.fillText('下一关', btnX + btnW / 2, panelY + 100 + btnH / 2 + 6);
-    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
-
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.beginPath();
-    roundRect(ctx, btnX, panelY + 152, btnW, btnH, 21);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '15px -apple-system';
-    ctx.fillText('返回选关', btnX + btnW / 2, panelY + 152 + btnH / 2 + 6);
-    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
   }
 
   _drawAchievementPopup() {

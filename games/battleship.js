@@ -7,6 +7,9 @@ const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
 const { HintManager } = require('./hint-manager');
 const Confetti = require('./confetti');
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 /**
  * 战舰 (Battleship) - 小游戏版
  * 规则：猜测敌方战舰位置，击沉所有战舰获胜
@@ -43,6 +46,15 @@ class Battleship {
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = new AchievementManager();
+
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      title: '🎉 恭喜通关！',
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
 
 
 
@@ -189,38 +201,37 @@ class Battleship {
         this.draw();
         return;
       }// 顶部返回按钮
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
-          this.switchGame('level-select', this.gameName);
+        this.switchGame('level-select', this.gameName);
         return;
       }
       
       // 通关面板
       if (this.victory) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
+        const result = this.victoryPanel.handleClick(x, y);
+        if (result === 'next') {
           this.level++;
           this.loadLevel();
           sound.play('click');
-          this._nextBtn = null;
-          this._backBtn = null;
+          this.victoryPanel.reset();
           this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
           return;
         }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
+        if (result === 'back') {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
           return;
         }
-        if (!this._nextBtn || !this._backBtn) {
-          this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-        }
+        this.victoryPanel.setSubtitle('关卡 ' + this.level);
+        this.victoryPanel.setAchievements(this._newAchievements);
+        this.victoryPanel.draw();
         return;
       }
       
-      // 重置按钮
-      if (x > this.width - 80 && y > this.height - 60) {
+      // 底部工具栏
+      const bottomAction = this.bottomBar.handleClick(x, y);
+      if (bottomAction === 'reset') {
         this.loadLevel();
         return;
       }
@@ -268,10 +279,15 @@ class Battleship {
   
   draw() {
     this.drawBackground();
-      
-    this.drawHeader();
+    
+    this.headerBar.draw({
+      title: '🚢 海战游戏',
+      info: '点击格子寻找战舰',
+      info2: `关卡 ${this.level}  |  开火 ${this.shots}  |  命中 ${this.hits}/${this.totalShipCells}`
+    });
     this.drawBoard();
-    this.drawBottomBar();
+    this.bottomBar.setButtons([{ id: 'reset', text: '🔄 新局' }]);
+    this.bottomBar.draw();
     
     // 规则按钮（右上角）
     this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
@@ -285,7 +301,9 @@ class Battleship {
     this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
     
     if (this.victory) {
-      this.drawVictory();
+      this.victoryPanel.setSubtitle('关卡 ' + this.level);
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
     }
     
     // 规则弹窗
@@ -314,31 +332,6 @@ class Battleship {
       }
       this.ctx.stroke();
     }
-  }
-  
-  drawHeader() {
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🚢 海战游戏', this.width / 2, 40);
-    
-    this.ctx.font = (this.width / 30) + 'px Arial';
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    this.ctx.fillText('点击格子寻找战舰', this.width / 2, 70);
-    
-    // 统计信息
-    this.ctx.fillStyle = '#41B2E0';
-    this.ctx.fillText(`关卡 ${this.level}  |  开火 ${this.shots}  |  命中 ${this.hits}/${this.totalShipCells}`, this.width / 2, 95);
   }
   
   drawBoard() {
@@ -398,31 +391,6 @@ class Battleship {
     }
   }
   
-  drawBottomBar() {
-    this.drawButton(this.width - 85, this.height - 55, 70, 40, '新局');
-  }
-  
-  drawButton(x, y, w, h, text) {
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,x, y, w, h, 20);
-    this.ctx.fill();
-    
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = (this.width / 32) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(text, x + w / 2, y + 26);
-  }
-  
-  drawVictory() {
-    if (!this._nextBtn || !this._backBtn) {
-      this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-    }
-  }
-  
-
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
@@ -444,52 +412,6 @@ class Battleship {
 
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
-  }
-  showBackButton() {
-    const panelW = 260, panelH = 200;
-    const panelX = (this.width - panelW) / 2;
-    const panelY = (this.height - panelH) / 2;
-
-    // 半透明遮罩
-    this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-
-    // 面板背景
-    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
-    this.ctx.fillStyle = '#1e2a4a';
-    this.ctx.fill();
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-
-    // 标题
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 恭喜通关！', this.width / 2, panelY + 50);
-
-    this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('关卡 ' + this.level, this.width / 2, panelY + 80);
-
-    // 下一关按钮
-    const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    roundRect(this.ctx, btnX, panelY + 100, btnW, btnH, 21);
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 17px Arial';
-    this.ctx.fillText('下一关', this.width / 2, panelY + 126);
-    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    roundRect(this.ctx, btnX, panelY + 152, btnW, btnH, 21);
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
-    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
   }
 
   _drawAchievementPopup() {

@@ -2,6 +2,9 @@
 // 扫雷换皮：🐸牛蛙要躲避 | 💧水花=安全 | 数字=周围牛蛙数
 const sound = require('./sound-manager.js');
 const TutorialOverlay = require('./tutorial-overlay.js');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
+const VictoryPanel = require('./components/victory-panel');
 
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/minesweeper';
 const RECORDS_KEY = 'frog_escape_records';
@@ -62,6 +65,14 @@ class FrogEscape {
 
     this.loadRecord();
     this.startGame('easy');  // 初始化游戏
+
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
     this.bindEvents();
   }
 
@@ -266,14 +277,18 @@ class FrogEscape {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // 顶部返回按钮
-    this._drawBackButton();
+    // 使用共享组件
+    this.headerBar.draw({
+      title: '躲避牛蛙',
+      info: '剩余: ' + (this.totalMines - this.flaggedCount),
+      info2: '时间: ' + this.formatTime(this.time)
+    });
 
-    // 状态栏
-    this._drawStatusBar();
-
-    // 工具栏
-    this._drawToolbar();
+    const buttons = [];
+    buttons.push({ id: 'flag', text: this.flagMode ? '🚩 标记中' : '🚩 标记' });
+    buttons.push({ id: 'restart', text: '🔄 重开' });
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
 
     // 棋盘
     this._drawBoard();
@@ -283,10 +298,10 @@ class FrogEscape {
       ctx.fillStyle = 'rgba(255,215,0,0.8)';
       ctx.font = '14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(`🏆 最短时间: ${this.formatTime(this.bestTime)}`, this.width / 2, this.height - 30);
+      ctx.fillText('🏆 最短时间: ' + this.formatTime(this.bestTime), this.width / 2, this.height - 30);
     }
 
-    // 规则按钮
+    // 规则按钮（保留，因为是小图标）
     this._drawRuleButton();
 
     // 规则弹窗
@@ -295,101 +310,17 @@ class FrogEscape {
     }
 
     // 胜利/失败面板
-    if (this.gameOver) {
-      this._drawResultPanel();
+    if (this.gameOver || this.won) {
+      this.victoryPanel.setSubtitle(this.won ? '胜利！' : '失败！');
+      this.victoryPanel.setAchievements(this._newAchievements || []);
+      this.victoryPanel.draw();
     }
   }
 
-  _drawBackButton() {
-    const ctx = this.ctx;
-    const btnX = 15, btnY = this.statusBarHeight + 8, btnW = 70, btnH = 32;
 
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, btnX, btnY, btnW, btnH, 8);
-    ctx.fill();
 
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('← 返回', btnX + btnW / 2, btnY + 21);
 
-    this._backBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
-  }
 
-  _drawStatusBar() {
-    const ctx = this.ctx;
-    const y = 95;
-
-    // 剩余牛蛙数
-    ctx.fillStyle = '#fff';
-    ctx.font = '20px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('🐸', 20, y);
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(`${this.totalMines - this.flaggedCount}`, 50, y);
-
-    // 计时器
-    ctx.textAlign = 'right';
-    ctx.font = '20px Arial';
-    ctx.fillText('⏱', this.width - 50, y);
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(this.formatTime(this.time), this.width - 20, y);
-
-    // 难度按钮
-    const diffInfo = DIFFICULTIES.find(d => d.key === this.difficulty);
-    const diffBtnW = 160, diffBtnH = 28;
-    const diffBtnX = (this.width - diffBtnW) / 2, diffBtnY = y - 20;
-
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.beginPath();
-    roundRect(ctx, diffBtnX, diffBtnY, diffBtnW, diffBtnH, 14);
-    ctx.fill();
-
-    ctx.fillStyle = '#fff';
-    ctx.font = '13px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(diffInfo.label, this.width / 2, diffBtnY + 18);
-
-    this._diffBtn = { x: diffBtnX, y: diffBtnY, w: diffBtnW, h: diffBtnH };
-  }
-
-  _drawToolbar() {
-    const ctx = this.ctx;
-    const y = 130;
-    const btnW = 90, btnH = 32, gap = 15;
-    const totalW = btnW * 3 + gap * 2;
-    const startX = (this.width - totalW) / 2;
-
-    // 标记模式按钮
-    ctx.fillStyle = this.flagMode ? '#4CAF50' : 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, startX, y, btnW, btnH, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('🚩 标记', startX + btnW / 2, y + 21);
-    this._flagBtn = { x: startX, y: y, w: btnW, h: btnH };
-
-    // 音效按钮（简化版，不画）
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, startX + btnW + gap, y, btnW, btnH, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillText('🔊 音效', startX + btnW + gap + btnW / 2, y + 21);
-    this._soundBtn = { x: startX + btnW + gap, y: y, w: btnW, h: btnH };
-
-    // 帮助按钮
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, startX + (btnW + gap) * 2, y, btnW, btnH, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillText('❓ 帮助', startX + (btnW + gap) * 2 + btnW / 2, y + 21);
-    this._helpBtn = { x: startX + (btnW + gap) * 2, y: y, w: btnW, h: btnH };
-  }
 
   _drawBoard() {
     const ctx = this.ctx;
@@ -454,59 +385,6 @@ class FrogEscape {
     this._ruleBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
-  _drawResultPanel() {
-    const ctx = this.ctx;
-    const W = this.width, H = this.height;
-
-    // 遮罩
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, 0, W, H);
-
-    // 面板
-    const panelW = 280, panelH = 260;
-    const panelX = (W - panelW) / 2, panelY = (H - panelH) / 2;
-
-    ctx.fillStyle = '#2c3e50';
-    ctx.beginPath();
-    roundRect(ctx, panelX, panelY, panelW, panelH, 16);
-    ctx.fill();
-
-    // 图标
-    ctx.font = '48px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(this.won ? '🏆' : '🐸', W / 2, panelY + 60);
-
-    // 标题
-    ctx.fillStyle = this.won ? '#6BCB77' : '#e74c3c';
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText(this.won ? '成功逃脱！' : '踩到牛蛙了！', W / 2, panelY + 100);
-
-    // 用时
-    if (this.won) {
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '16px Arial';
-      ctx.fillText(`用时 ${this.formatTime(this.time)}`, W / 2, panelY + 135);
-    } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = '14px Arial';
-      ctx.fillText('老婆看到会骂人的吧… 😂', W / 2, panelY + 135);
-    }
-
-    // 再来一局按钮
-    const btnW = 180, btnH = 44;
-    const btnX = (W - btnW) / 2, btnY = panelY + panelH - 70;
-
-    ctx.fillStyle = '#4CAF50';
-    ctx.beginPath();
-    roundRect(ctx, btnX, btnY, btnW, btnH, 22);
-    ctx.fill();
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 17px Arial';
-    ctx.fillText('🔄 再来一局', W / 2, btnY + 28);
-
-    this._resultBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
-  }
 
   bindEvents() {
     this.clickHandler = (e) => {
@@ -522,11 +400,8 @@ class FrogEscape {
       }
 
       // 游戏结束时只处理结果按钮
-      if (this.gameOver) {
-        if (this._resultBtn && this._hitTest(this._resultBtn, x, y)) {
-          sound.play('click');
-          this.startGame(this.difficulty);
-        }
+      if (this.gameOver || this.won) {
+        if (this.victoryPanel.handleClick(x, y)) return;
         return;
       }
 
@@ -542,6 +417,13 @@ class FrogEscape {
       if (this._ruleBtn && this._hitTest(this._ruleBtn, x, y)) {
         sound.play('click');
         this.tutorial.show();
+        return;
+      }
+
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
 
@@ -786,6 +668,34 @@ class FrogEscape {
     this._toggleFlag(row, col);
     sound.play('flag');
     sound.play('success');
+  }
+
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const state = this.undoMgr.undo();
+          if (state) {
+            this.grid = state.grid;
+            this.revealed = state.revealed;
+            this.flags = state.flags;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.startGame(this.difficulty);
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
+    }
   }
 
   destroy() {

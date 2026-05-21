@@ -5,6 +5,10 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
+
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 const roundRect = require('../utils/round-rect.js');
 // games/merge-abc.js
 // ABC合成记 - 字母合并游戏(2048风格)
@@ -139,13 +143,10 @@ class MergeABC {
         return;
       }
       
-      // 撤销按钮检测
-      if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
-        const state = this.undoMgr.undo();
-        if (state) {
-          this.grid = state.grid;
-          this.draw();
-        }
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
       
@@ -217,58 +218,7 @@ class MergeABC {
   }
 
 
-
-  showBackButton(ctx, width) {
-    // 兼容调用：merge-abc 传 (ctx, width)，其他游戏不传（用 this.ctx / this.width）
-    const c = ctx || this.ctx;
-    const w = width || this.width;
-    const h = this.height;
-
-    const panelW = 260, panelH = 200;
-    const panelX = (w - panelW) / 2;
-    const panelY = (h - panelH) / 2;
-
-    // 半透明遮罩
-    c.fillStyle = 'rgba(0,0,0,0.6)';
-    c.fillRect(0, 0, w, h);
-
-    // 面板背景
-    roundRect(this.ctx, c, panelX, panelY, panelW, panelH, 16);
-    c.fillStyle = '#1e2a4a';
-    c.fill();
-    c.strokeStyle = 'rgba(255,255,255,0.2)';
-    c.lineWidth = 1;
-    c.stroke();
-
-    // 标题
-    c.fillStyle = '#6BCB77';
-    c.font = 'bold 22px Arial';
-    c.textAlign = 'center';
-    c.fillText('🎉 恭喜通关!', w / 2, panelY + 50);
-
-    c.fillStyle = 'rgba(255,255,255,0.7)';
-    c.font = '15px Arial';
-    c.fillText('关卡 ' + this.level, w / 2, panelY + 80);
-
-    // 下一关按钮
-    const btnW = 180, btnH = 42, btnX = (w - btnW) / 2;
-    roundRect(this.ctx, c, btnX, panelY + 100, btnW, btnH, 21);
-    c.fillStyle = '#6BCB77';
-    c.fill();
-    c.fillStyle = '#fff';
-    c.font = 'bold 17px Arial';
-    c.fillText('下一关', w / 2, panelY + 126);
-    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    roundRect(this.ctx, c, btnX, panelY + 152, btnW, btnH, 21);
-    c.fillStyle = 'rgba(255,255,255,0.15)';
-    c.fill();
-    c.fillStyle = '#fff';
-    c.font = '15px Arial';
-    c.fillText('返回选关', w / 2, panelY + 178);
-    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
-  }
+
 
 
 
@@ -500,137 +450,95 @@ class MergeABC {
     this._animationTime += 16;
   }
 
-  draw() {
+  drawBoard() {
     const ctx = this.ctx;
-    const width = this.width;
-
-    // 背景
-    ctx.fillStyle = '#faf8ef';
-    ctx.fillRect(0, 0, width, this.height);
-
-    // 顶部返回按钮（考虑状态栏高度）
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
+    const padding = 10;
+    const tileSize = (this.width - padding * 5) / 4;
+    const boardY = this.statusBarHeight + 60;
+    
+    ctx.fillStyle = '#1a1a2e';
+    this.roundRect(ctx, padding, boardY, this.width - padding * 2, this.width - padding * 2, 8);
     ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
-
-    // 标题
-    ctx.fillStyle = '#776e65';
-    ctx.font = `bold ${width / 14}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('🔤 ABC合成记', width / 2, this.statusBarHeight + 50);
-
-    // 副标题
-    ctx.fillStyle = '#9e948a';
-    ctx.font = `${width / 32}px sans-serif`;
-    ctx.fillText('相同字母合并,升级到Z!', width / 2, this.statusBarHeight + 75);
-
-    // 分数栏
-    const barY = this.statusBarHeight + 95;
-    const barH = 44;
-    const halfW = (width - this.padding * 2 - 10) / 2;
-
-    ctx.fillStyle = '#bbada0';
-    roundRect(this.ctx, this.padding, barY, halfW, barH, 10);
-    ctx.fill();
-    ctx.fillStyle = '#eee4da';
-    ctx.font = `${width / 32}px sans-serif`;
-    ctx.fillText('分数', this.padding + 16, barY + 16);
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${width / 18}px sans-serif`;
-    ctx.fillText(this._score, this.padding + 16, barY + 36);
-
-    ctx.fillStyle = '#bbada0';
-    roundRect(this.ctx, this.padding + halfW + 10, barY, halfW, barH, 10);
-    ctx.fill();
-    ctx.fillStyle = '#eee4da';
-    ctx.font = `${width / 32}px sans-serif`;
-    ctx.fillText('最高', this.padding + halfW + 26, barY + 16);
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${width / 18}px sans-serif`;
-    ctx.fillText(this._bestScore, this.padding + halfW + 26, barY + 36);
-
-    // 棋盘背景
-    const boardX = this.padding;
-    const boardY = this.boardOffsetY;
-    const boardInnerW = this.cellSize * 4 + this.gridGap * 3 + this.boardPadding * 2;
-    ctx.fillStyle = '#bbada0';
-    roundRect(this.ctx, boardX, boardY, boardInnerW, boardInnerW, 12);
-    ctx.fill();
-
-    // 绘制格子
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 4; col++) {
-        const idx = row * 4 + col;
-        const tile = this._board[idx];
-        const cellX = boardX + this.boardPadding + col * (this.cellSize + this.gridGap);
-        const cellY = boardY + this.boardPadding + row * (this.cellSize + this.gridGap);
-
-        if (tile === '') {
-          // 空格
-          ctx.fillStyle = 'rgba(238,228,218,0.35)';
-          roundRect(this.ctx, cellX, cellY, this.cellSize, this.cellSize, 8);
-          ctx.fill();
-        } else {
-          // 方块
-          const c = COLORS[tile] || { bg: '#f9d423', color: '#fff' };
-          ctx.fillStyle = c.bg;
-          roundRect(this.ctx, cellX, cellY, this.cellSize, this.cellSize, 8);
-          ctx.fill();
-
-          // 字母
-          let fontSize = this.cellSize * 0.5;
-          if (tile >= 'G' && tile <= 'K') fontSize = this.cellSize * 0.42;
-          if (tile >= 'L' && tile <= 'N') fontSize = this.cellSize * 0.38;
-          if (tile >= 'O') fontSize = this.cellSize * 0.34;
-
-          ctx.fillStyle = c.color;
-          ctx.font = `bold ${fontSize}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(tile, cellX + this.cellSize / 2, cellY + this.cellSize / 2);
-          ctx.textBaseline = 'alphabetic';
-        }
+    
+    for (let i = 0; i < 16; i++) {
+      const row = Math.floor(i / 4);
+      const col = i % 4;
+      const x = padding + col * (tileSize + padding);
+      const y = boardY + row * (tileSize + padding);
+      
+      const tile = this._board[i];
+      if (tile) {
+        const colors = {
+          'A': '#FF6B6B', 'B': '#4ECDC4', 'C': '#45B7D1', 'D': '#96CEB4',
+          'E': '#FFEAA7', 'F': '#DDA0DD', 'G': '#98D8C8', 'H': '#F7DC6F',
+          'I': '#BB8FCE', 'J': '#85C1E9', 'K': '#F8B500', 'L': '#00CED1'
+        };
+        ctx.fillStyle = colors[tile] || '#777';
+        this.roundRect(ctx, x, y, tileSize, tileSize, 6);
+        ctx.fill();
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${tileSize * 0.4}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tile, x + tileSize / 2, y + tileSize / 2);
       }
     }
+    ctx.textAlign = 'left';
+  }
 
-    // 按钮
-    const btnY = this.btnY;
-    const btnFontSize = this.btnWidth / 8;
+  draw() {
+    this.ctx.fillStyle = '#0a1628';
+    this.ctx.fillRect(0, 0, this.width, this.height);
+    this.drawBoard();
+    // 使用共享组件
+    this.headerBar.draw({
+      title: 'ABC 合成记',
+      info: '第 ' + this.level + ' 关',
+      info2: '目标: ' + (this.targetLetter || '?')
+    });
+    const buttons = [];
+    if (this.undoMgr && this.undoMgr.canUndo()) {
+      buttons.push({ id: 'undo', text: '撤销' });
+    }
+    buttons.push({ id: 'restart', text: '重开' });
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
+    
+    if (this.victory) {
+      this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
+    }
+    
+    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
+  }
 
-    // 重玩按钮
-    ctx.fillStyle = '#8f7a66';
-    roundRect(this.ctx, this.padding, btnY, this.btnWidth, this.btnHeight, 8);
-    ctx.fill();
-    ctx.fillStyle = '#f9f6f2';
-    ctx.font = `bold ${btnFontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('🔄 新游戏', this.padding + this.btnWidth / 2, btnY + this.btnHeight / 2 + btnFontSize / 3);
 
-    // 撤销按钮
-    ctx.fillStyle = '#cdc1b4';
-    roundRect(this.ctx, this.padding + this.btnWidth + 15, btnY, this.btnWidth, this.btnHeight, 8);
-    ctx.fill();
-    ctx.fillStyle = '#776e65';
-    ctx.font = `bold ${btnFontSize}px sans-serif`;
-    ctx.fillText('↩️ 撤销 (' + this._history.length + ')', this.padding + this.btnWidth + 15 + this.btnWidth / 2, btnY + this.btnHeight / 2 + btnFontSize / 3);
 
-    // 提示
-    const tipsY = btnY + this.btnHeight + 18;
-    ctx.fillStyle = '#9e948a';
-    ctx.font = `${width / 32}px sans-serif`;
-    ctx.fillText('滑动屏幕控制方向', width / 2, tipsY);
-    ctx.fillText('相同字母合成下一字母', width / 2, tipsY + 22);
-
-    // 游戏结束弹窗
-    if (this._showModal) {
-      if (!this._nextBtn || !this._backBtn) {
-        this.showBackButton(ctx, width);
-      }
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const state = this.undoMgr.undo();
+          if (state) {
+            this._board = state.board;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.restart();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
     }
   }
 

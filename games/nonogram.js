@@ -7,6 +7,9 @@ const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
 const { HintManager } = require('./hint-manager');
 const Confetti = require('./confetti');
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 /**
  * 数织 (Nonogram) - 小游戏版
  * 规则：根据行列提示填充格子，完成图案
@@ -49,6 +52,14 @@ class Nonogram {
     this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
+    
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
   }
   
   async loadLevel() {
@@ -99,7 +110,7 @@ class Nonogram {
       let x = touch.clientX;
       let y = touch.clientY;
       // 规则按钮（右上角）
-    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
+    
     this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
     this.ctx.beginPath();
     roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
@@ -123,75 +134,12 @@ class Nonogram {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
           return;
-        }
-        if (!this._nextBtn || !this._backBtn) {
-          this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-        }
+        }
         return;
-      }// 撤销按钮检测
-      if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
-        const state = this.undoMgr.undo();
-        if (state) {
-          this.grid = state.grid;
-          this.draw();
-        }
-        return;
-      }
-      
-      // 提示按钮检测
-      if (this._hintBtn && x >= this._hintBtn.x && x <= this._hintBtn.x + this._hintBtn.w && y >= this._hintBtn.y && y <= this._hintBtn.y + this._hintBtn.h) {
-        if (this._levelData && this.hintMgr) {
-          const answerData = this._levelData.answer;
-          const hint = this.hintMgr.getHint('nonogram', answerData, this.grid);
-          if (hint) {
-            this.grid[hint.row][hint.col] = hint.value;
-            this.draw();
-          }
-        }
-        return;
-      }
-      
-      if (this.tutorial && this.tutorial.shouldShow() && this.tutorial.hitTest(x, y)) {
-        this.tutorial.dismiss();
-        this.draw();
-        return;
-      }// 顶部返回按钮（左上角）
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
-        sound.play('click');
-          this.switchGame('level-select', this.gameName);
-        return;
-      }
-
-      // 规则按钮
-      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
-        this.tutorial.show();
-        this.draw();
-        return;
-      }
-
-      // 通关面板
-      if (this.victory) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
-          this.level++;
-          this.loadLevel();
-          sound.play('click');
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
-          return;
-        }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
-          sound.play('click');
-          this.switchGame('level-select', this.gameName);
-          return;
-        }
-        if (!this._nextBtn || !this._backBtn) {
-          this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-        }
+      }// 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
 
@@ -232,13 +180,37 @@ class Nonogram {
   draw() {
     this.drawBackground();
       
-    this.drawHeader();
+    // 顶部栏（使用共享组件）
+    this.headerBar.draw({ title: '🎨 数织', info: `关卡 ${this.level}` });
+    
+    // 规则按钮（右上角）
+        this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 22px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
+    
     this.drawHints();
     this.drawBoard();
-    this.drawBottomBar();
+    
+    // 底部工具栏
+    const buttons = [{ id: 'reset', text: '🔄 重置', enabled: true }];
+    if (this.undoMgr && this.undoMgr.canUndo()) {
+      buttons.unshift({ id: 'undo', text: '↩️ 撤销', enabled: true });
+    }
+    if (this.hintMgr && this._levelData) {
+      buttons.push({ id: 'hint', text: '💡 提示', enabled: true });
+    }
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
     
     if (this.victory) {
-      this.drawVictory();
+      this.victoryPanel.setSubtitle(`第 ${this.level} 关`);
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
     }
 
     // 规则弹窗
@@ -254,29 +226,7 @@ class Nonogram {
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
-  
-  drawHeader() {
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎨 数织游戏', this.width / 2, 40);
-    
-    this.ctx.font = (this.width / 30) + 'px Arial';
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    this.ctx.fillText('根据提示填充格子', this.width / 2, 70);
-    
-    this.ctx.fillText('关卡 ' + this.level, this.width / 2, 95);
-  }
+  
   
   drawHints() {
     // 绘制列提示
@@ -329,11 +279,34 @@ class Nonogram {
       }
     }
   }
-  
-  drawBottomBar() {
-    this.drawButton(this.width - 85, this.height - 55, 70, 40, '重置');
+
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const prev = this.undoMgr.undo();
+          if (prev) {
+            this.grid = prev.grid;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.initGrid();
+        this.undoMgr.clear();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
+    }
   }
-  
+
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
     this.ctx.beginPath();
@@ -345,61 +318,8 @@ class Nonogram {
     this.ctx.textAlign = 'center';
     this.ctx.fillText(text, x + w / 2, y + 26);
   }
-  
-  showBackButton() {
-    const panelW = 260, panelH = 200;
-    const panelX = (this.width - panelW) / 2;
-    const panelY = (this.height - panelH) / 2;
-
-    // 半透明遮罩
-    this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-
-    // 面板背景
-    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
-    this.ctx.fillStyle = '#1e2a4a';
-    this.ctx.fill();
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-
-    // 标题
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 恭喜通关！', this.width / 2, panelY + 50);
-
-    this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('关卡 ' + this.level, this.width / 2, panelY + 80);
-
-    // 下一关按钮
-    const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    roundRect(this.ctx, btnX, panelY + 100, btnW, btnH, 21);
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 17px Arial';
-    this.ctx.fillText('下一关', this.width / 2, panelY + 126);
-    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    roundRect(this.ctx, btnX, panelY + 152, btnW, btnH, 21);
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
-    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
-  }
-
-  drawVictory() {
-    if (!this._nextBtn || !this._backBtn) {
-      this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-    }
-  }
+  
+
   
 
   saveGameProgress() {

@@ -1,4 +1,8 @@
 /**
+
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
  * 24点速算 - 小游戏版
  * 规则：用四个数字和加减乘除运算得到24
  */
@@ -36,6 +40,14 @@ class TwentyFourPoint {
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     
     this.generateNewGame();
+
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
     this.bindEvents();
   }
   
@@ -286,28 +298,22 @@ class TwentyFourPoint {
         return;
       }
       
-      // 顶部返回按钮
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      // 顶部返回按钮（使用共享组件）
+      if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
-        this.switchGame('level-select', this.gameName);
+        this.switchGame('menu');
         return;
       }
       
       if (this.victory) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
-          this.level++;
-          this.victory = false;
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop();
-          this.generateNewGame();
-          return;
-        }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
-          sound.play('click');
-          this.switchGame('level-select', this.gameName);
-          return;
-        }
+        if (this.victoryPanel.handleClick(x, y)) return;
+        return;
+      }
+      
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
       
@@ -384,38 +390,72 @@ class TwentyFourPoint {
     this.animationTime += 0.08;
   }
   
-  draw() {
+  drawBoard() {
     this.drawBackground();
-    this.drawHeader();
     this.drawNumberCards();
     this.drawOperators();
     this.drawExpression();
-    this.drawBottomBar();
-    
-    // 规则按钮（右上角）
-    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
-    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
-    
-    if (this.showResult) {
-      this.drawResult();
-    }
+    this.drawResult();
+  }
 
-    if (this.victory) {
-      this.drawVictory();
-    }
-    
-    // 规则弹窗
-    if (this.tutorial.shouldShow()) {
-      this.tutorial.draw();
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const prev = this.undoMgr.undo();
+          if (prev) {
+            this.expression = prev.expression;
+            this.selectedCards = prev.selectedCards;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.generateNewGame();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
     }
   }
+
+  draw() {
+    this.ctx.fillStyle = '#0a1628';
+    this.ctx.fillRect(0, 0, this.width, this.height);
+    this.drawBoard();
+    // 使用共享组件
+    this.headerBar.draw({
+      title: '24点',
+      info: '第 ' + this.level + ' 关',
+      info2: '难度: ' + (this.difficulty || 'easy')
+    });
+    const buttons = [];
+    if (this.undoMgr && this.undoMgr.canUndo()) {
+      buttons.push({ id: 'undo', text: '撤销' });
+    }
+    buttons.push({ id: 'restart', text: '重开' });
+    if (this.hintMgr) {
+      buttons.push({ id: 'hint', text: '提示' });
+    }
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
+    
+    if (this.victory) {
+      this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
+    }
+    
+    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
+  }
+
+
   
   drawBackground() {
     let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
@@ -425,28 +465,6 @@ class TwentyFourPoint {
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
   
-  drawHeader() {
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🧮 24点速算', this.width / 2, this.statusBarHeight + 40);
-    
-    this.ctx.font = (this.width / 32) + 'px Arial';
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    this.ctx.fillText('用四个数字计算出24', this.width / 2, this.statusBarHeight + 70);
-    
-    this.ctx.fillText('第 ' + this.level + ' 关', this.width / 2, this.statusBarHeight + 95);
-  }
   
   drawNumberCards() {
     const cardW = 70;
@@ -543,10 +561,6 @@ class TwentyFourPoint {
     this.ctx.fillText('✓', this.width / 2 + 35, btnY + 27);
   }
   
-  drawBottomBar() {
-    this.drawButton(this.width / 2 - 40, this.height - 55, 80, 40, '答案');
-    this.drawButton(this.width - 85, this.height - 55, 70, 40, '新题');
-  }
   
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -578,60 +592,7 @@ class TwentyFourPoint {
   
   
 
-  showBackButton() {
-    const panelW = 260, panelH = 200;
-    const panelX = (this.width - panelW) / 2;
-    const panelY = (this.height - panelH) / 2;
 
-    // 半透明遮罩
-    this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-
-    // 面板背景
-    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
-    this.ctx.fillStyle = '#1e2a4a';
-    this.ctx.fill();
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-
-    // 标题
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 恭喜通关！', this.width / 2, panelY + 50);
-
-    this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('关卡 ' + this.level, this.width / 2, panelY + 80);
-
-    // 下一关按钮
-    const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    roundRect(this.ctx, btnX, panelY + 100, btnW, btnH, 21);
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 17px Arial';
-    this.ctx.fillText('下一关', this.width / 2, panelY + 126);
-    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    roundRect(this.ctx, btnX, panelY + 152, btnW, btnH, 21);
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
-    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
-  }
-
-  drawVictory() {
-    if (!this._nextBtn || !this._backBtn) {
-      this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-    }
-  }
 
 
   saveGameProgress() {

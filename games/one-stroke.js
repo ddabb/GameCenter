@@ -5,8 +5,12 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
-const roundRect = require('../utils/round-rect.js');
 const statsManager = require('./stats-manager.js').getInstance();
+
+// 共享 UI 组件
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
+const VictoryPanel = require('./components/victory-panel');
 
 // ========== GridPathFinder 简化版（内嵌，无需外部依赖） ==========
 class GridPathFinder {
@@ -133,6 +137,14 @@ class OneStroke {
     this._answerAnimIndex = -1;
 
     statsManager.startGame(this.gameName, this.level);
+
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
     this.bindEvents();
     this.loadLevel();
   }
@@ -242,89 +254,68 @@ class OneStroke {
   }
 
   // ========== 绘制 ==========
+  drawBoard() {
+    this._drawGrid(this.ctx);
+    if (this.answerPath && this._showAnswer) {
+      this._drawAnswerPath(this.ctx);
+    }
+  }
+
   draw() {
-    if (this.victory) { this._drawVictory(); return; }
-    const ctx = this.ctx;
-    // 背景
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, this.width, this.height);
-
-    // 顶栏背景
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    ctx.fillRect(0, 0, this.width, this.statusBarHeight + 90);
-
-    // 返回按钮
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('← 返回', 50, this.statusBarHeight + 24);
-
-    // 重开按钮
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, this.width - 90, this.statusBarHeight + 8, 75, 32, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '13px Arial';
-    ctx.fillText('🔄 重开', this.width - 52, this.statusBarHeight + 24);
-
-    // 标题
-    ctx.fillStyle = '#FFB800';
-    ctx.font = 'bold 17px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('✏️ 一笔画', this.width / 2, this.statusBarHeight + 28);
-
-    // 难度 & 关卡信息
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '12px Arial';
-    ctx.fillText(`难度: ${this._diffLabel(this.difficulty)}  |  第${this.level}关  |  ${this._formatTime(this.time)}`, this.width / 2, this.statusBarHeight + 50);
-
-    // 提示文字
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '11px Arial';
-    ctx.fillText(`需经过 ${this.totalValid} 个格子  |  已完成 ${this.path.length}`, this.width / 2, this.statusBarHeight + 72);
-
-    // 绘制网格
-    this._drawGrid(ctx);
-
-    // 答案动画
-    if (this._showAnswer && this.answerPath) {
-      this._drawAnswerPath(ctx);
-    }
-
-    // 规则按钮
-    this._ruleBtn = { x: this.width - 50, y: this.statusBarHeight + 50, w: 36, h: 36 };
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    roundRect(ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 18);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 18px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('?', this._ruleBtn.x + 18, this._ruleBtn.y + 18);
-
-    // 撤销按钮
+    this.ctx.fillStyle = '#0a1628';
+    this.ctx.fillRect(0, 0, this.width, this.height);
+    this.drawBoard();
+    // 使用共享组件
+    this.headerBar.draw({
+      title: '一笔画',
+      info: '第 ' + this.level + ' 关',
+      info2: '难度: ' + (this.difficulty || 'easy')
+    });
+    const buttons = [];
     if (this.undoMgr && this.undoMgr.canUndo()) {
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.beginPath();
-      roundRect(ctx, this.width / 2 - 50, this.height - 65, 100, 38, 8);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = '13px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('↩️ 撤销', this.width / 2, this.height - 46);
+      buttons.push({ id: 'undo', text: '撤销' });
     }
+    buttons.push({ id: 'restart', text: '重开' });
+    if (this.hintMgr) {
+      buttons.push({ id: 'hint', text: '提示' });
+    }
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
+    
+    if (this.victory) {
+      this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
+    }
+    
+    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
+  }
 
-    // 规则弹窗
-    if (this.tutorial && this.tutorial.shouldShow()) {
-      this.tutorial.draw();
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const prev = this.undoMgr.undo();
+          if (prev) {
+            this.path = prev;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.path = [];
+        this.undoMgr.clear();
+        this.startTimer();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
     }
   }
 
@@ -427,39 +418,7 @@ class OneStroke {
   }
 
   // ========== 胜利面板 ==========
-  _drawVictory() {
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, 0, this.width, this.height);
 
-    this.confetti.draw();
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('🎉 全部通过！', this.width / 2, this.height / 2 - 60);
-
-    ctx.font = '18px Arial';
-    ctx.fillStyle = '#FFB800';
-    ctx.fillText(`用时: ${this._formatTime(this.time)}`, this.width / 2, this.height / 2 - 20);
-
-    // 下一关按钮
-    this._nextBtn = { x: this.width / 2 - 80, y: this.height / 2 + 20, w: 160, h: 46 };
-    ctx.fillStyle = '#4CAF50';
-    ctx.beginPath();
-    roundRect(ctx, this._nextBtn.x, this._nextBtn.y, this._nextBtn.w, this._nextBtn.h, 12);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 17px Arial';
-    ctx.fillText('下一关 →', this.width / 2, this._nextBtn.y + 28);
-
-    this._showBackButton();
-  }
-
-  _showBackButton() {
-    this._backBtn = { x: 15, y: this.statusBarHeight + 8, w: 70, h: 32 };
-    // 已在 drawVictory 里绘制了返回按钮的底层，这里只记录位置
-  }
 
   _onVictory() {
     this.victory = true;
@@ -475,7 +434,7 @@ class OneStroke {
   bindEvents() {
     this._clickHandler = (e) => {
       if (this.victory) {
-        this._handleVictoryClick(e);
+        if (this.victoryPanel.handleClick(x, y)) return;
         return;
       }
       if (this.tutorial && this.tutorial.shouldShow()) {
@@ -513,13 +472,10 @@ class OneStroke {
         return;
       }
 
-      // 撤销按钮
-      if (this.undoMgr && this.undoMgr.canUndo() &&
-          x >= this.width / 2 - 50 && x <= this.width / 2 + 50 &&
-          y >= this.height - 65 && y <= this.height - 27) {
-        this.path = this.undoMgr.undo();
-        sound.playClick();
-        this.draw();
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
 
@@ -531,16 +487,24 @@ class OneStroke {
     // 触摸移动（滑动连续绘制）
     this._touchStartHandler = (e) => {
       if (this.victory || !this.isPlaying) return;
-      this._touchActive = true;
       const touch = e.touches[0];
-      this._handleCellClick(touch.clientX, touch.clientY);
+      const x = touch.clientX, y = touch.clientY;
+      // 返回按钮
+      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+        this.stopTimer();
+        if (this._answerAnimTimer) clearInterval(this._answerAnimTimer);
+        this.switchGame('level-select', this.gameName);
+        return;
+      }
+      this._touchActive = true;
+      this._handleCellClick(x, y, false);
     };
     this.canvas.addEventListener('touchstart', this._touchStartHandler);
 
     this._touchMoveHandler = (e) => {
       if (!this._touchActive || this.victory || !this.isPlaying) return;
       const touch = e.touches[0];
-      this._handleCellClick(touch.clientX, touch.clientY);
+      this._handleCellClick(touch.clientX, touch.clientY, true);
     };
     this.canvas.addEventListener('touchmove', this._touchMoveHandler);
 
@@ -551,11 +515,13 @@ class OneStroke {
     this.canvas.addEventListener('touchend', this._touchEndHandler);
   }
 
-  _handleCellClick(x, y) {
+  _handleCellClick(x, y, isSliding) {
     if (!this.isPlaying || this.victory) return;
     const idx = this._getCellAtPoint(x, y);
     if (idx === null) return;
     if (this.grid[idx] === 1) return; // 洞不可点击
+    // 滑动时跳过重复格子
+    if (isSliding && this._lastTouchIdx === idx) return;
 
     const path = this.path;
 
@@ -584,7 +550,9 @@ class OneStroke {
     // 必须与最后一个格子相邻
     const last = path[path.length - 1];
     if (!this._adjacent(last, idx)) {
-      // 不相邻：重置为新起点
+      // 滑动中不相邻 → 直接忽略，不重置起点
+      if (isSliding) return;
+      // 点击时不相邻：重置为新起点
       this.undoMgr.save(path.slice());
       this.path = [idx];
       this._lastTouchIdx = idx;

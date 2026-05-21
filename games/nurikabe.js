@@ -6,6 +6,10 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
+
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 class Nurikabe {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
     console.log(`[Nurikabe] 初始化游戏, 关卡: ${level}`);
@@ -40,6 +44,14 @@ class Nurikabe {
     
     this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
     this.bindEvents();
   }
   
@@ -92,14 +104,12 @@ class Nurikabe {
     this.clickHandler = (e) => {
       let touch = e.touches ? e.touches[0] : e;
       let x = touch.clientX;
-      let y = touch.clientY;// 撤销按钮检测
-      if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
-        const state = this.undoMgr.undo();
-        if (state) {
-          this.board = state.board;
-          this.marks = state.marks;
-          this.draw();
-        }
+      let y = touch.clientY;
+      
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
       
@@ -182,21 +192,33 @@ class Nurikabe {
   }
   
   draw() {
-    this.drawBackground();
-      
-    this.drawHeader();
+    this.ctx.fillStyle = '#0a1628';
+    this.ctx.fillRect(0, 0, this.width, this.height);
     this.drawBoard();
-    this.drawBottomBar();
+    // 使用共享组件
+    this.headerBar.draw({
+      title: '数连',
+      info: '第 ' + this.level + ' 关',
+      info2: this.size + '×' + this.size
+    });
+    const buttons = [];
+    if (this.undoMgr && this.undoMgr.canUndo()) {
+      buttons.push({ id: 'undo', text: '撤销' });
+    }
+    buttons.push({ id: 'restart', text: '重开' });
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
     
     if (this.victory) {
-      this.drawVictory();
+      this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
     }
-
-    // 规则弹窗
-    if (this.tutorial.shouldShow()) {
-      this.tutorial.draw();
-    }
+    
+    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
   }
+
+
   
   checkVictory() {
     for (let r = 0; r < this.size; r++) {
@@ -224,26 +246,6 @@ class Nurikabe {
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
   
-  drawHeader() {
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🧱 数墙游戏', this.width / 2, 40);
-    
-    this.ctx.font = (this.width / 30) + 'px Arial';
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    this.ctx.fillText('用黑色墙壁分隔数字岛屿', this.width / 2, 70);
-  }
   
   drawBoard() {
     // 棋盘阴影
@@ -294,16 +296,35 @@ class Nurikabe {
       }
     }
   }
-  
-  drawBottomBar() {
-    this.drawButton(this.width - 85, this.height - 55, 70, 40, '重置');
-    
-    // 提示
-    this.ctx.font = (this.width / 32) + 'px Arial';
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('点击格子循环切换：空 → 墙 → 岛', this.width / 2, this.height - 70);
+
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const state = this.undoMgr.undo();
+          if (state) {
+            this.board = state.board;
+            this.marks = state.marks;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.initBoard();
+        this.undoMgr.clear();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
+    }
   }
+  
   
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -317,13 +338,6 @@ class Nurikabe {
     this.ctx.fillText(text, x + w / 2, y + 26);
   }
   
-  drawVictory() {
-    if (!this._nextBtn || !this._backBtn) {
-      this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-    }
-  }
   
 
   saveGameProgress() {
@@ -347,52 +361,6 @@ class Nurikabe {
 
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
-  }
-  showBackButton() {
-    const panelW = 260, panelH = 200;
-    const panelX = (this.width - panelW) / 2;
-    const panelY = (this.height - panelH) / 2;
-
-    // 半透明遮罩
-    this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-
-    // 面板背景
-    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
-    this.ctx.fillStyle = '#1e2a4a';
-    this.ctx.fill();
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-
-    // 标题
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 恭喜通关！', this.width / 2, panelY + 50);
-
-    this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('关卡 ' + this.level, this.width / 2, panelY + 80);
-
-    // 下一关按钮
-    const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    roundRect(this.ctx, btnX, panelY + 100, btnW, btnH, 21);
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 17px Arial';
-    this.ctx.fillText('下一关', this.width / 2, panelY + 126);
-    this._nextBtn = { x: btnX, y: panelY + 100, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    roundRect(this.ctx, btnX, panelY + 152, btnW, btnH, 21);
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('返回选关', this.width / 2, panelY + 178);
-    this._backBtn = { x: btnX, y: panelY + 152, w: btnW, h: btnH };
   }
 
   _drawAchievementPopup() {

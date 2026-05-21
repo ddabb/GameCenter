@@ -6,6 +6,9 @@ const TutorialOverlay = require('./tutorial-overlay')
 const UndoManager = require('./undo-manager')
 const { AchievementManager } = require('./achievement-manager')
 const { ShareCard } = require('./share-card');
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 
 class Othello {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
@@ -33,7 +36,7 @@ class Othello {
     
     this.cellSize = Math.min(this.width * 0.9 / 8, 42);
     this.boardOffsetX = (this.width - this.cellSize * 8) / 2;
-    this.boardOffsetY = this.statusBarHeight + 200;
+    this.boardOffsetY = this.statusBarHeight + 130;
     
     this.BLACK = 1;
     this.WHITE = 2;
@@ -60,6 +63,14 @@ class Othello {
     }
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
+    
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
   }
   
   initBoard() {
@@ -143,44 +154,27 @@ class Othello {
       let touch = e.touches ? e.touches[0] : e;
       let x = touch.clientX;
       let y = touch.clientY;
-      // 顶部返回按钮（左上角）
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      // 顶部返回按钮（使用共享组件）
+      if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
-          this.switchGame('menu');
+        this.switchGame('menu');
         return;
       }
 
-      // 通关面板
+      // 通关面板（使用共享组件）
       if (this.gameOver) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
-          this.level++;
-          this.loadLevel();
-          sound.play('click');
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
+        if (this.victoryPanel.handleClick(x, y)) {
+          // handleClick 内部已处理下一关/返回/重新开始逻辑
           return;
-        }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
-          sound.play('click');
-          this.switchGame('menu');
-          return;
-        }
-        if (!this._nextBtn || !this._backBtn) {
-          this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
         }
         return;
       }
       
-      if (this.currentPlayer !== this.BLACK || this.aiThinking) return;// 撤销按钮检测
-      if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
-        const state = this.undoMgr.undo();
-        if (state) {
-          this.board = state.board;
-          this.draw();
-        }
+      if (this.currentPlayer !== this.BLACK || this.aiThinking) return;
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
       
@@ -189,7 +183,7 @@ class Othello {
         this.draw();
         return;
       }// 难度按钮
-      let diffY = 55;
+      let diffY = this.statusBarHeight + 75;
       let diffW = 60;
       let diffGap = 8;
       let totalW = 4 * diffW + 3 * diffGap;
@@ -537,15 +531,32 @@ class Othello {
   draw() {
     this.drawBackground();
       
+    // 顶部栏（使用共享组件）
+    this.headerBar.draw({
+      title: '⚫ 黑白棋',
+      info: `⚫ ${this.blackCount}  vs  ${this.whiteCount} ⚪`,
+      info2: this.gameOver
+        ? (this.winner === this.BLACK ? '🎉 你赢了！' : this.winner === this.WHITE ? '💪 AI获胜' : '🤝 平局！')
+        : (this.currentPlayer === this.BLACK ? '🎯 你的回合' : this.skipMessage || '🤔 AI思考中...')
+    });
+    
     this.drawDifficultyBar();
-    this.drawHeader();
     this.drawBoard();
     this.drawPieces();
     this.drawValidMoves();
-    this.drawBottomBar();
+    
+    // 底部工具栏
+    const buttons = [{ id: 'restart', text: '🔄 重新开始', enabled: true }];
+    if (this.undoMgr && this.undoMgr.canUndo()) {
+      buttons.unshift({ id: 'undo', text: '↩️ 撤销', enabled: true });
+    }
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
     
     if (this.gameOver) {
-      this.drawGameOver();
+      this.victoryPanel.setSubtitle(`第 ${this.level} 关`);
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
     }
   }
   
@@ -558,7 +569,7 @@ class Othello {
   }
   
   drawDifficultyBar() {
-    let y = this.statusBarHeight + 110;
+    let y = this.statusBarHeight + 75;
     let w = 60;
     let h = 32;
     let gap = 8;
@@ -588,179 +599,35 @@ class Othello {
       this.ctx.fillText(diff.label, x + w/2, y + 6);
     }
   }
-  
-  drawHeader() {
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
 
-    // 标题
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 20px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('⚫ 黑白棋 ⚪', this.width / 2, this.statusBarHeight + 30);
-
-    // 分数板和回合提示合并一行
-    let infoY = this.statusBarHeight + 55;
-    let scoreWidth = this.width * 0.85;
-    let scoreX = (this.width - scoreWidth) / 2;
-    let scoreH = 36;
-
-    // 左侧黑棋
-    let blackActive = this.currentPlayer === this.BLACK && !this.gameOver;
-    this.ctx.fillStyle = blackActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, scoreX, infoY, scoreWidth / 2 - 4, scoreH, scoreH/2);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 18px Arial';
-    this.ctx.fillText('⚫ ' + this.blackCount, scoreX + scoreWidth / 4, infoY + scoreH/2 + 6);
-
-    // 中间回合提示
-    if (!this.gameOver) {
-      let turnText = this.currentPlayer === this.BLACK ? '🎯 你的回合' : '🤔 AI思考';
-      let turnColor = this.currentPlayer === this.BLACK ? '#6BCB77' : '#FFD700';
-      this.ctx.fillStyle = turnColor;
-      this.ctx.font = 'bold 14px Arial';
-      this.ctx.fillText(turnText, this.width / 2, infoY + scoreH/2 + 5);
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const prev = this.undoMgr.undo();
+          if (prev) {
+            this.board = prev.board;
+            this.currentPlayer = prev.player;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.initBoard();
+        this.undoMgr.clear();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
     }
-
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      let msgW = 180;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.font = '13px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      let msgW = 180;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.font = '13px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      this.ctx.font = '13px Arial';
-      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      this.ctx.font = '13px Arial';
-      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      this.ctx.font = '13px Arial';
-      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.font = '13px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      this.ctx.font = '13px Arial';
-      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.font = '13px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-      this.skipMessageTimer--;
-      if (this.skipMessageTimer <= 0) this.skipMessage = null;
-    }
-    
-    // 跳过提示
-    if (this.skipMessage && this.skipMessageTimer > 0) {
-      this.ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
-      this.ctx.font = '13px Arial';
-      this.ctx.textAlign = 'center';
-      let msgW = this.ctx.measureText(this.skipMessage).width + 24;
-      let msgX = (this.width - msgW) / 2;
-      roundRect(this.ctx, msgX, infoY + scoreH + 6, msgW, 28, 14);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#FFC107';
-      this.ctx.fillText(this.skipMessage, this.width / 2, infoY + scoreH + 24);
-    }
-    
-    // 右侧白棋
-    let whiteActive = this.currentPlayer === this.WHITE && !this.gameOver;
-    this.ctx.fillStyle = whiteActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, scoreX + scoreWidth / 2 + 4, infoY, scoreWidth / 2 - 4, scoreH, scoreH/2);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 18px Arial';
-    this.ctx.fillText(this.whiteCount + ' ⚪', scoreX + scoreWidth * 3/4, infoY + scoreH/2 + 6);
   }
-  
+
   drawBoard() {
     // 棋盘阴影
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
@@ -850,9 +717,7 @@ class Othello {
     }
   }
   
-  drawBottomBar() {
-    // 底部留空，不再绘制返回按钮
-  }
+
   
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -866,77 +731,11 @@ class Othello {
     this.ctx.fillText(text, x + w/2, y + 26);
   }
   
-  showBackButton() {
-    const panelW = 260, panelH = 200;
-    const panelX = (this.width - panelW) / 2;
-    const panelY = (this.height - panelH) / 2;
-
-    // 半透明遮罩
-    this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-
-    // 面板背景
-    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
-    this.ctx.fillStyle = '#1e2a4a';
-    this.ctx.fill();
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
-
-    // 结果
-    let resultText, resultEmoji;
-    if (this.winner === this.BLACK) {
-      resultEmoji = '🎉';
-      resultText = '你赢了！';
-    } else if (this.winner === this.WHITE) {
-      resultEmoji = '💪';
-      resultText = 'AI获胜';
-    } else {
-      resultEmoji = '🤝';
-      resultText = '平局！';
-    }
-
-    this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = 'bold 28px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(resultEmoji, this.width / 2, panelY + 50);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 20px Arial';
-    this.ctx.fillText(resultText, this.width / 2, panelY + 85);
-
-    this.ctx.font = '16px Arial';
-    this.ctx.fillText('⚫ ' + this.blackCount + '  VS  ' + this.whiteCount + ' ⚪', this.width / 2, panelY + 115);
-
-    // 下一关按钮
-    const btnW = 180, btnH = 42, btnX = (this.width - btnW) / 2;
-    roundRect(this.ctx, btnX, panelY + 130, btnW, btnH, 21);
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 17px Arial';
-    this.ctx.fillText('下一关', this.width / 2, panelY + 156);
-    this._nextBtn = { x: btnX, y: panelY + 130, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    roundRect(this.ctx, btnX, panelY + 182, btnW, btnH, 21);
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('返回选关', this.width / 2, panelY + 208);
-    this._backBtn = { x: btnX, y: panelY + 182, w: btnW, h: btnH };
-  }
 
 
 
-  drawGameOver() {
-    if (!this._nextBtn || !this._backBtn) {
-      this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-    }
-  }
+
+
   
 
   saveGameProgress() {

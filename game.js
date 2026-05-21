@@ -7,6 +7,9 @@ const roundRect = require('./utils/round-rect.js');
 var _global = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : this);
 _global.roundRect = roundRect;
 
+// 触摸事件监听器缓存
+let _touchListeners = {};
+
 // ── 全局错误捕获 ────────────────────────────────────────────────────────────────
 function showErrorOnCanvas(err) {
   try {
@@ -334,6 +337,8 @@ function loadGame(gameName, level) {
   if (gameInstance) {
     try { gameInstance.destroy(); } catch(e) { console.warn('[game] destroy error:', e.message); }
     gameInstance = null;
+    // 清空残留的事件监听器
+    for (let type in _touchListeners) _touchListeners[type] = [];
   }
 
   try {

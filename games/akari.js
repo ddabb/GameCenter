@@ -12,6 +12,9 @@ const roundRect = require('../utils/round-rect.js');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 
 class Akari {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
@@ -40,6 +43,15 @@ class Akari {
     statsManager.startGame(this.gameName, this.level);
 
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+    
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
+    
     this.bindEvents();
     this.loadLevel();
   }
@@ -113,12 +125,20 @@ class Akari {
       }
       
       if (this.victory) {
-        this._handleVictoryClick(e);
+        const result = this.victoryPanel.handleClick(x, y);
+        if (result === 'next') {
+          this.victory = false;
+          this.level++;
+          this.loadLevel();
+          this.victoryPanel.reset();
+        } else if (result === 'back') {
+          this.switchGame('level-select', this.gameName);
+        }
         return;
       }
 
       // 返回按钮
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      if (this.headerBar.isBackButton(x, y)) {
         this.switchGame('level-select', this.gameName);
         return;
       }
@@ -157,7 +177,12 @@ class Akari {
   }
 
   draw() {
-    if (this.victory) { this._drawVictory(); return; }
+    if (this.victory) {
+      this.victoryPanel.setSubtitle(`第 ${this.level} 关`);
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
+      return;
+    }
     const ctx = this.ctx;
     const { cellSize, offsetX, offsetY } = this.getLayout();
 
@@ -165,53 +190,8 @@ class Akari {
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // 顶栏
-    this.ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,10, 10, 80, 40, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '13px Arial';
-    this.ctx.textAlign = 'center';
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
-
-    this.ctx.beginPath();
-    roundRect(this.ctx,this.width - 90, 10, 80, 40, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.fillText('🔄 重开', this.width - 50, 36);
-
-    // 关卡标题
-    this.ctx.fillStyle = '#FFB800';
-    this.ctx.font = 'bold 18px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(`💡 数灯  第${this.level}关`, this.width / 2, 38);
-
-    // 规则按钮（右上角）
-    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
-    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
-
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.lineWidth = 1;
-    this.ctx.beginPath();
-    this.ctx.moveTo(20, 60);
-    this.ctx.lineTo(this.width - 20, 60);
-    this.ctx.stroke();
+    // 顶部栏（使用共享组件）
+    this.headerBar.draw({ title: '💡 数灯', info: `第${this.level}关` });
 
     // 网格
     for (let r = 0; r < this.size.rows; r++) {
@@ -278,17 +258,9 @@ class Akari {
       }
     }
 
-    // 撤销按钮
-    if (this.undoMgr.canUndo()) {
-      this.ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      this.ctx.beginPath();
-      roundRect(this.ctx,this.width / 2 - 50, this.height - 70, 100, 42, 8);
-      this.ctx.fill();
-      this.ctx.fillStyle = '#fff';
-      this.ctx.font = '14px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('↩️ 撤销', this.width / 2, this.height - 42);
-    }
+    // 底部工具栏
+    this.bottomBar.setButtons([{ id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr.canUndo() }]);
+    this.bottomBar.draw();
 
     // 底部操作提示
     this.ctx.fillStyle = 'rgba(255,255,255,0.4)';
@@ -405,71 +377,9 @@ class Akari {
     } catch (e) { /* ignore */ }
   }
 
-  _drawVictory() {
-    const ctx = this.ctx;
-    const W = this.width, H = this.height;
 
-    // 背景
-    this.ctx.fillStyle = '#1a1a2e';
-    this.ctx.fillRect(0, 0, W, H);
 
-    // 胜利卡片
-    this.ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,W / 2 - 130, H / 2 - 120, 260, 240, 16);
-    this.ctx.fill();
 
-    this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = 'bold 28px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 通关成功！', W / 2, H / 2 - 70);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '16px Arial';
-    this.ctx.fillText(`第 ${this.level} 关`, W / 2, H / 2 - 30);
-
-    // 下一关按钮
-    const btnY = H / 2 + 10;
-    const btnW = 180, btnH = 42, btnX = (W - btnW) / 2;
-    this.ctx.fillStyle = '#4CAF50';
-    this.ctx.beginPath();
-    roundRect(this.ctx, btnX, btnY, btnW, btnH, 21);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 17px Arial';
-    this.ctx.fillText('➡️ 下一关', W / 2, btnY + 26);
-    this._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
-
-    // 返回选关按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, btnX, btnY + 52, btnW, btnH, 21);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '15px Arial';
-    this.ctx.fillText('返回选关', W / 2, btnY + 78);
-    this._backBtn = { x: btnX, y: btnY + 52, w: btnW, h: btnH };
-  }
-
-  _handleVictoryClick(e) {
-    const touch = e.touches ? e.touches[0] : e;
-    const x = touch.clientX, y = touch.clientY;
-    const W = this.width, H = this.height;
-    
-    // 下一关按钮
-    if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
-      this.victory = false;
-      this.level++;
-      this.loadLevel();
-      return;
-    }
-    
-    // 返回选关按钮
-    if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
-      this.switchGame('level-select', this.gameName);
-      return;
-    }
-  }
 
   destroy() {
     this.canvas.removeEventListener('click', this._clickHandler);

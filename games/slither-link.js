@@ -6,6 +6,10 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
+
+const VictoryPanel = require('./components/victory-panel');
+const HeaderBar = require('./components/header-bar');
+const BottomBar = require('./components/bottom-bar');
 /**
  * 数回 (Slither Link) - 小游戏版
  * 规则：在格点间画线，形成一条闭合回路，数字表示该格周围的线段数
@@ -44,6 +48,14 @@ class SlitherLink {
     
     this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+
+    // 共享 UI 组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onConfettiDraw: () => this.confetti.draw(),
+      onAchievementDraw: () => this._drawAchievementPopup()
+    });
     this.bindEvents();
   }
   
@@ -95,14 +107,12 @@ class SlitherLink {
     this.clickHandler = (e) => {
       let touch = e.touches ? e.touches[0] : e;
       let x = touch.clientX;
-      let y = touch.clientY;// 撤销按钮检测
-      if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
-        const state = this.undoMgr.undo();
-        if (state) {
-          this.hLines = state.hLines;
-          this.vLines = state.vLines;
-          this.draw();
-        }
+      let y = touch.clientY;
+      
+      // 底部工具栏按钮检测（使用共享组件）
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
       
@@ -274,9 +284,7 @@ class SlitherLink {
     this.ctx.font = (this.width / 22) + 'px Arial';
     this.ctx.fillText('🏠 返回选关', this.width / 2, btnY + btnH + 12 + 33);
     
-    this._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
-    this._backBtn = { x: btnX, y: btnY + btnH + 12, w: btnW, h: btnH };
-    
+            
     // 分享按钮
     const shareBtnY = btnY + (btnH + 12) * 2;
     this.ctx.fillStyle = '#1976D2';
@@ -295,21 +303,36 @@ class SlitherLink {
   }
   
   draw() {
-    this.drawBackground();
-      
-    this.drawHeader();
+    this.ctx.fillStyle = '#0a1628';
+    this.ctx.fillRect(0, 0, this.width, this.height);
     this.drawBoard();
-    this.drawBottomBar();
+    // 使用共享组件
+    this.headerBar.draw({
+      title: '数回',
+      info: '第 ' + this.level + ' 关',
+      info2: this.rows + '×' + this.cols
+    });
+    const buttons = [];
+    if (this.undoMgr && this.undoMgr.canUndo()) {
+      buttons.push({ id: 'undo', text: '撤销' });
+    }
+    buttons.push({ id: 'restart', text: '重开' });
+    if (this.hintMgr) {
+      buttons.push({ id: 'hint', text: '提示' });
+    }
+    this.bottomBar.setButtons(buttons);
+    this.bottomBar.draw();
     
     if (this.victory) {
-      this.drawVictory();
+      this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
     }
-
-    // 规则弹窗
-    if (this.tutorial.shouldShow()) {
-      this.tutorial.draw();
-    }
+    
+    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
   }
+
+
   
   drawBackground() {
     let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
@@ -318,30 +341,35 @@ class SlitherLink {
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
-  
-  drawHeader() {
-    // 左上角返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, 15, this.statusBarHeight + 8, 70, 32, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', 50, this.statusBarHeight + 29);
 
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 16) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🔗 数回游戏', this.width / 2, 40);
-    
-    this.ctx.font = (this.width / 30) + 'px Arial';
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    this.ctx.fillText('点击边画线，形成闭合回路', this.width / 2, 70);
-    
-    this.ctx.fillText('关卡 ' + this.level, this.width / 2, 95);
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const state = this.undoMgr.undo();
+          if (state) {
+            this.hLines = state.hLines;
+            this.vLines = state.vLines;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'restart':
+        this.initLines();
+        this.undoMgr.clear();
+        sound.playClick();
+        this.draw();
+        break;
+      case 'hint':
+        if (this.hintMgr) {
+          this.hintMgr.showHint();
+          sound.playSuccess();
+        }
+        break;
+    }
   }
-  
+
   drawBoard() {
     // 绘制网格点
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -414,9 +442,6 @@ class SlitherLink {
     }
   }
   
-  drawBottomBar() {
-    this.drawButton(this.width - 85, this.height - 55, 70, 40, '重置');
-  }
   
   drawButton(x, y, w, h, text) {
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
@@ -430,19 +455,6 @@ class SlitherLink {
     this.ctx.fillText(text, x + w / 2, y + 26);
   }
   
-  drawVictory() {
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-    
-    this.ctx.fillStyle = '#6BCB77';
-    this.ctx.font = 'bold ' + (this.width / 12) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 完美闭环！', this.width / 2, this.height / 2 - 20);
-    
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = (this.width / 28) + 'px Arial';
-    this.ctx.fillText('点击任意位置返回菜单', this.width / 2, this.height / 2 + 30);
-  }
   
 
   saveGameProgress() {
