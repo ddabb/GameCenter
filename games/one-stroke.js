@@ -717,6 +717,16 @@ class OneStroke {
     const touch = e.touches ? e.touches[0] : e;
     const x = touch.clientX;
     const y = touch.clientY;
+    // 返回按钮
+    if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w &&
+        y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
+      this.stopTimer();
+      if (this._answerAnimTimer) clearInterval(this._answerAnimTimer);
+      this.confetti.stop();
+      this.switchGame('level-select', this.gameName);
+      return;
+    }
+    // 下一关
     if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w &&
         y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
       this.nextPuzzle();

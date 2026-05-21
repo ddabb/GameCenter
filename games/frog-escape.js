@@ -149,11 +149,37 @@ class FrogEscape {
         } else {
           self._boardData = self.generateBoard();
         }
+        self._initBoard();
+        self.draw();
       },
       fail() {
         self._boardData = self.generateBoard();
+        self._initBoard();
+        self.draw();
       }
     });
+  }
+
+  _initBoard() {
+    // 根据 _boardData 初始化显示状态 board
+    this.board = [];
+    if (!this._boardData || this._boardData.length === 0) return;
+    for (let r = 0; r < this._boardData.length; r++) {
+      const row = [];
+      for (let c = 0; c < this._boardData[r].length; c++) {
+        row.push({
+          revealed: false,
+          flagged: false,
+          isFrog: this._boardData[r][c].isFrog,
+          nearby: this._boardData[r][c].nearby
+        });
+      }
+      this.board.push(row);
+    }
+    this._firstClick = true;
+    this.gameOver = false;
+    this.cellsRevealed = 0;
+    this.cellsFlagged = 0;
   }
 
   buildBoardFromPuzzle(puzzle) {
