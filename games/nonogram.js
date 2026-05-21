@@ -10,10 +10,7 @@ const Confetti = require('./confetti');
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
-/**
- * 数织 (Nonogram) - 小游戏版
- * 规则：根据行列提示填充格子，完成图案
- */
+
 class Nonogram {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
     this.ctx = ctx;
@@ -22,65 +19,86 @@ class Nonogram {
     this.switchGame = switchGame;
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
-    
-    // 安全区域适配
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
-    
+
     this.level = level;
-    statsManager.startGame(this.gameName, level) || 1;
     this.gameName = 'nonogram';
-    
+    statsManager.startGame(this.gameName, level) || 1;
+
     this.size = 6;
     this.cellSize = Math.min(this.width * 0.8 / this.size, 45);
-    this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = this.statusBarHeight + 150;
-    
+    this.boardOffsetX = 0;
+    this.boardOffsetY = 0;
+
     this.grid = [];
     this.rowHints = [];
     this.colHints = [];
     this.answer = [];
-    
-    this.animationTime = 0;
+    this._calcLayout();
+
+    this.mode = 'fill';
     this.victory = false;
+    this.animationTime = 0;
+    this._touchStartCell = null;
+    this._lastFilledCell = null;
+
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = new AchievementManager();
+    this.undoMgr = new UndoManager();
+    this.hintMgr = new HintManager();
 
-
-
-    this.hintMgr = new HintManager(); this._levelData = null;
-    
     this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
-    
-    // 共享 UI 组件
+
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
-      onAchievementDraw: () => this._drawAchievementPopup()
+      onAchievementDraw: () => this._drawAchievementPopup(),
+      showNext: false,
+      backText: '返回选关'
     });
   }
-  
+
+  _calcLayout() {
+    const maxRowLen = Math.max(...this.rowHints.map(h => h.length || 0), 0);
+    const maxColLen = Math.max(...this.colHints.map(h => h.length || 0), 0);
+    const numFont = Math.floor(this.cellSize * 0.35);
+    const rowHintW = Math.max(42, maxRowLen * (numFont + 4) + 8);
+    const colHintH = Math.max(22, maxColLen * (numFont + 2) + 6);
+
+    this.cellSize = Math.min(
+      Math.floor((this.width - rowHintW - 32) / this.size),
+      Math.floor((this.height - this.statusBarHeight - 150 - colHintH) / this.size),
+      45
+    );
+
+    this.boardOffsetX = 16 + rowHintW;
+    this.boardOffsetY = this.statusBarHeight + 80 + colHintH;
+  }
+
   async loadLevel() {
-    if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
+    if (this.confetti) this.confetti.stop();
+    if (this.undoMgr) this.undoMgr.clear();
+    if (this.hintMgr) this.hintMgr.reset();
+    this.victory = false;
+    this.mode = 'fill';
+
     try {
-      const data = await LevelLoader.load('nonogram', this.level);
+      const data = await LevelLoader.load('nonogram', this.level, this.difficulty || 'easy');
       if (data && data.answer) {
         this.size = data.size || 6;
-        this.cellSize = Math.min(this.width * 0.8 / this.size, 45);
-        this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-        this.answer = data.answer || [];
         this.rowHints = data.rowHints || [];
         this.colHints = data.colHints || [];
-        this.victory = false;
-        this.undoMgr.clear();
+        this.answer = data.answer || [];
+        this._calcLayout();
+        this._initGrid();
         this.draw();
         return;
       }
-    } catch (e) { /* CDN失败，走内置题 */ }
-    
-    // 内置题目（保底）
+    } catch (e) {}
+
     this.answer = [
       [0,1,0,0,1,0],
       [1,1,1,1,1,1],
@@ -92,8 +110,12 @@ class Nonogram {
     this.size = 6;
     this.rowHints = [[1,1],[6],[6],[6],[4],[2]];
     this.colHints = [[3,1],[3],[4],[4],[4],[1,1]];
-    this.victory = false;
-    this.undoMgr.clear();
+    this._calcLayout();
+    this._initGrid();
+    this.draw();
+  }
+
+  _initGrid() {
     this.grid = [];
     for (let r = 0; r < this.size; r++) {
       this.grid[r] = [];
@@ -101,183 +123,221 @@ class Nonogram {
         this.grid[r][c] = 0;
       }
     }
+  }
+
+  _checkLineMatch(line, hints) {
+    const enc = [], runLen = 0, inRun = false;
+    let result = [];
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === 1) {
+        result.push(result.pop() + 1 || 1);
+      } else if (result.length) {
+        enc.push(result.pop());
+      }
+    }
+    if (line[line.length - 1] === 1 && result.length) enc.push(result.pop());
+    if (enc.length !== hints.length) return false;
+    for (let i = 0; i < enc.length; i++) {
+      if (enc[i] !== hints[i]) return false;
+    }
+    return true;
+  }
+
+  _checkAndMarkEmpty(r, c) {
+    const size = this.size;
+    let changed = false;
+
+    const rowHints = this.rowHints[r];
+    const rowSum = rowHints.reduce((a, b) => a + b, 0);
+    let rowFilled = 0, rowEmpty = 0;
+    for (let cc = 0; cc < size; cc++) {
+      if (this.grid[r][cc] === 1) rowFilled++;
+      else if (this.grid[r][cc] === 2) rowEmpty++;
+    }
+
+    if (rowFilled === rowSum && rowFilled + rowEmpty < size) {
+      if (this._checkLineMatch(this.grid[r], rowHints)) {
+        for (let cc = 0; cc < size; cc++) {
+          if (this.grid[r][cc] === 0) {
+            this.grid[r][cc] = 2;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    const colHints = this.colHints[c];
+    const colSum = colHints.reduce((a, b) => a + b, 0);
+    let colFilled = 0, colEmpty = 0;
+    for (let rr = 0; rr < size; rr++) {
+      if (this.grid[rr][c] === 1) colFilled++;
+      else if (this.grid[rr][c] === 2) colEmpty++;
+    }
+
+    if (colFilled === colSum && colFilled + colEmpty < size) {
+      if (this._checkLineMatch(this.grid.map(g => g[c]), colHints)) {
+        for (let rr = 0; rr < size; rr++) {
+          if (this.grid[rr][c] === 0) {
+            this.grid[rr][c] = 2;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    return changed;
+  }
+
+  _fillCell(r, c) {
+    if (r < 0 || r >= this.size || c < 0 || c >= this.size) return false;
+    if (this.victory) return false;
+
+    const key = r + '_' + c;
+    if (this._lastFilledCell === key) return false;
+    this._lastFilledCell = key;
+
+    const old = this.grid[r][c];
+    let newVal;
+
+    if (this.mode === 'fill') {
+      newVal = old === 1 ? 0 : 1;
+    } else {
+      newVal = old === 2 ? 0 : 2;
+    }
+
+    if (old === newVal) return false;
+
+    if (!this.undoMgr || !this.undoMgr._stack || !this.undoMgr._stack.length || this.undoMgr._stack[this.undoMgr._stack.length - 1] !== this.undoMgr._lastState) {
+      this.undoMgr.save({ grid: this.grid.map(row => [...row]) });
+    }
+
+    this.grid[r][c] = newVal;
+    this._checkAndMarkEmpty(r, c);
+    sound.playClick();
+    this.draw();
+    this._checkVictory();
+    return true;
+  }
+
+  _checkVictory() {
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.answer[r][c] === 1 && this.grid[r][c] !== 1) return;
+        if (this.answer[r][c] === 0 && this.grid[r][c] === 1) return;
+      }
+    }
+    this._onVictory();
+  }
+
+  _onVictory() {
+    this.victory = true;
+    this.confetti.start();
+    sound.play('victory');
+
+    try {
+      const baseKey = 'progress_' + this.gameName;
+      let saved = wx.getStorageSync(baseKey);
+      let progress = saved ? JSON.parse(saved) : { unlocked: 1 };
+      if (this.level >= (progress.unlocked || 1)) {
+        progress.unlocked = this.level + 1;
+        wx.setStorageSync(baseKey, JSON.stringify(progress));
+      }
+      const diffKey = `progress_${this.gameName}_${this.difficulty || 'easy'}`;
+      let diffSaved = wx.getStorageSync(diffKey);
+      let diffProgress = diffSaved ? JSON.parse(diffSaved) : { unlocked: 1 };
+      if (this.level >= (diffProgress.unlocked || 1)) {
+        diffProgress.unlocked = this.level + 1;
+        wx.setStorageSync(diffKey, JSON.stringify(diffProgress));
+      }
+    } catch (e) {}
+
+    let winCount = 0;
+    try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+    const newlyAchieved = this.achievement.check(this.gameName, winCount);
+    this._newAchievements = newlyAchieved;
+    statsManager.endGame(true);
+
     this.draw();
   }
-  
-  bindEvents() {
-    this.clickHandler = (e) => {
-      let touch = e.touches ? e.touches[0] : e;
-      let x = touch.clientX;
-      let y = touch.clientY;
-      // 规则按钮（右上角）
-    
-    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
 
-    if (this.victory) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
-          this.level++;
-          this.loadLevel();
-          sound.play('click');
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
-          return;
-        }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
+  bindEvents() {
+    this._clickHandler = (e) => {
+      const touch = e.touches ? e.touches[0] : e;
+      const x = touch.clientX;
+      const y = touch.clientY;
+
+      if (this.victory) {
+        const action = this.victoryPanel.handleClick(x, y);
+        if (action === 'back') {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
-          return;
-        }
+        } else if (action === 'next') {
+          this.level++;
+          this.loadLevel();
+        }
         return;
-      }// 底部工具栏按钮检测（使用共享组件）
+      }
+
+      if (this.tutorial && this.tutorial.shouldShow()) {
+        if (this.tutorial.hitTest(x, y)) {
+          this.tutorial.dismiss();
+          this.draw();
+        }
+        return;
+      }
+
       const action = this.bottomBar.handleClick(x, y);
       if (action) {
         this._handleBottomAction(action);
         return;
       }
 
-      // 检查格子点击
+      if (this._fillBtn && x >= this._fillBtn.x && x <= this._fillBtn.x + this._fillBtn.w &&
+          y >= this._fillBtn.y && y <= this._fillBtn.y + this._fillBtn.h) {
+        this.mode = 'fill';
+        sound.playClick();
+        this.draw();
+        return;
+      }
+
+      if (this._markBtn && x >= this._markBtn.x && x <= this._markBtn.x + this._markBtn.w &&
+          y >= this._markBtn.y && y <= this._markBtn.y + this._markBtn.h) {
+        this.mode = 'mark';
+        sound.playClick();
+        this.draw();
+        return;
+      }
+
       const col = Math.floor((x - this.boardOffsetX) / this.cellSize);
       const row = Math.floor((y - this.boardOffsetY) / this.cellSize);
-      
+
       if (row >= 0 && row < this.size && col >= 0 && col < this.size) {
-        if (this.undoMgr) this.undoMgr.save({ grid: this.grid.map(r => [...r]) });
-        this.grid[row][col] = this.grid[row][col] === 1 ? 0 : 1;
-        this.checkVictory();
+        this._touchStartCell = { r: row, c: col };
+        this._lastFilledCell = null;
+        this._fillCell(row, col);
       }
     };
-    this.canvas.addEventListener('click', this.clickHandler);
-  }
-  
-  checkVictory() {
-    for (let r = 0; r < this.size; r++) {
-      for (let c = 0; c < this.size; c++) {
-        if (this.grid[r][c] !== this.answer[r][c]) return;
-      }
-    }
-    this.victory = true;
-      this.confetti.start();
-      // 成就检测
-      let winCount = 0;
-      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
-      const newlyAchieved = this.achievement.check(this.gameName, winCount);
-      this._newAchievements = newlyAchieved;
-      sound.play('victory');
-      this.saveGameProgress(); statsManager.endGame(true);
-  }
-  
-  update() {
-    this.animationTime += 0.08;
-  }
-  
-  draw() {
-    this.drawBackground();
-      
-    // 顶部栏（使用共享组件）
-    this.headerBar.draw({ title: '🎨 数织', info: `关卡 ${this.level}` });
-    
-    // 规则按钮（右上角）
-        this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
-    
-    this.drawHints();
-    this.drawBoard();
-    
-    // 底部工具栏
-    const buttons = [{ id: 'reset', text: '🔄 重置', enabled: true }];
-    if (this.undoMgr && this.undoMgr.canUndo()) {
-      buttons.unshift({ id: 'undo', text: '↩️ 撤销', enabled: true });
-    }
-    if (this.hintMgr && this._levelData) {
-      buttons.push({ id: 'hint', text: '💡 提示', enabled: true });
-    }
-    this.bottomBar.setButtons(buttons);
-    this.bottomBar.draw();
-    
-    if (this.victory) {
-      this.victoryPanel.setSubtitle(`第 ${this.level} 关`);
-      this.victoryPanel.setAchievements(this._newAchievements);
-      this.victoryPanel.draw();
-    }
+    this.canvas.addEventListener('click', this._clickHandler);
 
-    // 规则弹窗
-    if (this.tutorial.shouldShow()) {
-      this.tutorial.draw();
-    }
-  }
-  
-  drawBackground() {
-    let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(1, '#16213e');
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.width, this.height);
-  }
-  
-  
-  drawHints() {
-    // 绘制列提示
-    this.ctx.font = (this.cellSize * 0.35) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    for (let c = 0; c < this.size; c++) {
-      const x = this.boardOffsetX + c * this.cellSize + this.cellSize / 2;
-      const hints = this.colHints[c];
-      for (let i = 0; i < hints.length; i++) {
-        const y = this.boardOffsetY - (hints.length - i - 1) * 18 - 5;
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        this.ctx.fillText(hints[i], x, y);
+    this._touchMoveHandler = (e) => {
+      if (!this._touchStartCell || this.victory) return;
+      const touch = e.touches ? e.touches[0] : e;
+      const x = touch.clientX;
+      const y = touch.clientY;
+      const col = Math.floor((x - this.boardOffsetX) / this.cellSize);
+      const row = Math.floor((y - this.boardOffsetY) / this.cellSize);
+      if (row >= 0 && row < this.size && col >= 0 && col < this.size) {
+        this._fillCell(row, col);
       }
-    }
-    
-    // 绘制行提示
-    this.ctx.textAlign = 'right';
-    for (let r = 0; r < this.size; r++) {
-      const y = this.boardOffsetY + r * this.cellSize + this.cellSize / 2 + 5;
-      const hints = this.rowHints[r];
-      let text = hints.join(' ');
-      const x = this.boardOffsetX - 10;
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      this.ctx.fillText(text, x, y);
-    }
-  }
-  
-  drawBoard() {
-    for (let r = 0; r < this.size; r++) {
-      for (let c = 0; c < this.size; c++) {
-        const x = this.boardOffsetX + c * this.cellSize;
-        const y = this.boardOffsetY + r * this.cellSize;
-        
-        // 背景
-        this.ctx.fillStyle = '#2a2a4a';
-        this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
-        
-        // 填充
-        if (this.grid[r][c] === 1) {
-          let gradient = this.ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
-          gradient.addColorStop(0, '#6BCB77');
-          gradient.addColorStop(1, '#4CAF50');
-          this.ctx.fillStyle = gradient;
-          this.ctx.fillRect(x + 2, y + 2, this.cellSize - 4, this.cellSize - 4);
-        }
-        
-        // 网格线
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
-      }
-    }
+    };
+    this.canvas.addEventListener('touchmove', this._touchMoveHandler, { passive: true });
+
+    this._touchEndHandler = () => {
+      this._touchStartCell = null;
+      this._lastFilledCell = null;
+    };
+    this.canvas.addEventListener('touchend', this._touchEndHandler);
+    this.canvas.addEventListener('touchcancel', this._touchEndHandler);
   }
 
   _handleBottomAction(action) {
@@ -293,7 +353,7 @@ class Nonogram {
         }
         break;
       case 'restart':
-        this.initGrid();
+        this._initGrid();
         this.undoMgr.clear();
         sound.playClick();
         this.draw();
@@ -304,49 +364,189 @@ class Nonogram {
           sound.playSuccess();
         }
         break;
+      case 'rule':
+        sound.play('click');
+        this.tutorial.show();
+        this.draw();
+        break;
     }
   }
 
-  drawButton(x, y, w, h, text) {
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  draw() {
+    this.ctx.fillStyle = '#1a1a2e';
+    this.ctx.fillRect(0, 0, this.width, this.height);
+
+    this.headerBar.draw({
+      title: '🎨 数织',
+      info: `第 ${this.level} 关`,
+      info2: this.mode === 'fill' ? '填充模式' : '标记模式'
+    });
+
+    this._drawModeButtons();
+    this.drawHints();
+    this.drawBoard();
+    this.bottomBar.setButtons([
+      { id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr.canUndo() },
+      { id: 'restart', text: '🔄 重开' },
+      { id: 'hint', text: '💡 提示' }
+    ]);
+    this.bottomBar.draw();
+
+    if (this.victory) {
+      this.victoryPanel.setSubtitle('🎉 恭喜通关！');
+      this.victoryPanel.setAchievements(this._newAchievements || []);
+      this.victoryPanel.draw();
+    }
+  }
+
+  _drawModeButtons() {
+    const btnW = 80, btnH = 32;
+    const gap = 10;
+    const totalW = btnW * 2 + gap;
+    const startX = (this.width - totalW) / 2;
+    const y = this.statusBarHeight + 45;
+
+    const modes = [
+      { id: 'fill', text: '🖊️ 填充', color: '#6BCB77' },
+      { id: 'mark', text: '❌ 标记', color: '#FF6B6B' }
+    ];
+
+    modes.forEach((mode, i) => {
+      const x = startX + i * (btnW + gap);
+      const isActive = this.mode === mode.id;
+
+      this.ctx.fillStyle = isActive ? mode.color : 'rgba(255,255,255,0.1)';
+      this.ctx.beginPath();
+      this._roundRect(x, y, btnW, btnH, 16);
+      this.ctx.fill();
+
+      this.ctx.fillStyle = '#fff';
+      this.ctx.font = '14px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(mode.text, x + btnW / 2, y + 21);
+    });
+    this.ctx.textAlign = 'left';
+
+    this._fillBtn = { x: startX, y, w: btnW, h: btnH };
+    this._markBtn = { x: startX + btnW + gap, y, w: btnW, h: btnH };
+  }
+
+  _roundRect(x, y, w, h, r) {
     this.ctx.beginPath();
-    roundRect(this.ctx,x, y, w, h, 20);
-    this.ctx.fill();
-    
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = (this.width / 32) + 'px Arial';
+    this.ctx.moveTo(x + r, y);
+    this.ctx.arcTo(x + w, y, x + w, y + h, r);
+    this.ctx.arcTo(x + w, y + h, x, y + h, r);
+    this.ctx.arcTo(x, y + h, x, y, r);
+    this.ctx.arcTo(x, y, x + w, y, r);
+    this.ctx.closePath();
+  }
+
+  drawHints() {
+    if (!this.colHints || !this.rowHints || !this.size) return;
+
+    const fontSize = Math.max(10, Math.floor(this.cellSize * 0.32));
+    this.ctx.font = fontSize + 'px Arial';
     this.ctx.textAlign = 'center';
-    this.ctx.fillText(text, x + w / 2, y + 26);
-  }
-  
-
-  
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
 
-  saveGameProgress() {
-    try {
-      const key = 'progress_' + this.gameName;
-      const saved = wx.getStorageSync(key);
-      let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
-      // 解锁下一关
-      if (this.level >= progress.unlocked) {
-        progress.unlocked = this.level + 1;
+    for (let c = 0; c < this.size; c++) {
+      const hints = this.colHints[c] || [];
+      const x = this.boardOffsetX + c * this.cellSize + this.cellSize / 2;
+      for (let i = 0; i < hints.length; i++) {
+        const y = this.boardOffsetY - (hints.length - i) * (fontSize + 2);
+        this.ctx.fillText(hints[i], x, y);
       }
-      // 记录通关（1星，后续可扩展星级评分）
-      if (!progress.stars[this.level]) {
-        progress.stars[this.level] = 1;
-      }
-      wx.setStorageSync(key, JSON.stringify(progress));
-    } catch (e) {
-      console.log('保存进度失败', e);
     }
+
+    this.ctx.textAlign = 'right';
+    for (let r = 0; r < this.size; r++) {
+      const hints = this.rowHints[r] || [];
+      const y = this.boardOffsetY + r * this.cellSize + this.cellSize / 2 + fontSize / 3;
+      const x = this.boardOffsetX - 5;
+      this.ctx.fillText(hints.join(' '), x, y);
+    }
+    this.ctx.textAlign = 'left';
   }
 
-  destroy() {
-    this.canvas.removeEventListener('click', this.clickHandler);
+  drawBoard() {
+    if (!this.grid || !this.size) return;
+
+    for (let r = 0; r < this.size; r++) {
+      if (!this.grid[r]) continue;
+      for (let c = 0; c < this.size; c++) {
+        const x = this.boardOffsetX + c * this.cellSize;
+        const y = this.boardOffsetY + r * this.cellSize;
+        const val = this.grid[r][c];
+
+        this.ctx.fillStyle = '#2a2a4a';
+        this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
+
+        if (val === 1) {
+          const gradient = this.ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
+          gradient.addColorStop(0, '#6BCB77');
+          gradient.addColorStop(1, '#4CAF50');
+          this.ctx.fillStyle = gradient;
+          this.ctx.fillRect(x + 2, y + 2, this.cellSize - 4, this.cellSize - 4);
+        } else if (val === 2) {
+          this.ctx.strokeStyle = '#FF6B6B';
+          this.ctx.lineWidth = 2;
+          this.ctx.beginPath();
+          this.ctx.moveTo(x + 4, y + 4);
+          this.ctx.lineTo(x + this.cellSize - 4, y + this.cellSize - 4);
+          this.ctx.moveTo(x + this.cellSize - 4, y + 4);
+          this.ctx.lineTo(x + 4, y + this.cellSize - 4);
+          this.ctx.stroke();
+        }
+
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
+
+        if (c === this.size - 1) {
+          this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          this.ctx.lineWidth = 2;
+          this.ctx.beginPath();
+          this.ctx.moveTo(x + this.cellSize, y);
+          this.ctx.lineTo(x + this.cellSize, y + this.cellSize);
+          this.ctx.stroke();
+        }
+        if (r === this.size - 1) {
+          this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          this.ctx.lineWidth = 2;
+          this.ctx.beginPath();
+          this.ctx.moveTo(x, y + this.cellSize);
+          this.ctx.lineTo(x + this.cellSize, y + this.cellSize);
+          this.ctx.stroke();
+        }
+      }
+    }
   }
 
   _drawAchievementPopup() {
-    this._newAchievements = null;
+    if (!this._newAchievements || this._newAchievements.length === 0) return;
+    this._newAchievements.forEach(a => {
+      const text = a.title || a.name;
+      const cx = this.width / 2, cy = this.height * 0.6;
+      this.ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      this.ctx.fillRect(cx - 120, cy - 30, 240, 60);
+      this.ctx.fillStyle = '#FFD700';
+      this.ctx.font = 'bold 18px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('🏆 成就解锁!', cx, cy - 8);
+      this.ctx.fillStyle = '#fff';
+      this.ctx.font = '14px Arial';
+      this.ctx.fillText(text, cx, cy + 14);
+    });
+    this.ctx.textAlign = 'left';
+  }
+
+  destroy() {
+    if (this._clickHandler) this.canvas.removeEventListener('click', this._clickHandler);
+    if (this._touchMoveHandler) this.canvas.removeEventListener('touchmove', this._touchMoveHandler);
+    if (this._touchEndHandler) {
+      this.canvas.removeEventListener('touchend', this._touchEndHandler);
+      this.canvas.removeEventListener('touchcancel', this._touchEndHandler);
+    }
   }
 }
 

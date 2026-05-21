@@ -255,6 +255,7 @@ class OneStroke {
 
   // ========== 绘制 ==========
   drawBoard() {
+    if (!this.grid || this.grid.length === 0) return;
     this._drawGrid(this.ctx);
     if (this.answerPath && this._showAnswer) {
       this._drawAnswerPath(this.ctx);
@@ -288,7 +289,8 @@ class OneStroke {
       this.victoryPanel.draw();
     }
     
-    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
+ 
+
   }
 
   _handleBottomAction(action) {
@@ -315,6 +317,11 @@ class OneStroke {
           this.hintMgr.showHint();
           sound.playSuccess();
         }
+        break;
+      case 'rule':
+        sound.play('click');
+        this.tutorial.show();
+        this.draw();
         break;
     }
   }
@@ -426,29 +433,59 @@ class OneStroke {
     this.stopTimer();
     this.confetti.start();
     sound.playWin();
-    statsManager.completeGame(this.gameName, this.level, this.time);
+    statsManager.endGame(true);
+
+    try {
+      const baseKey = 'progress_' + this.gameName;
+      let saved = wx.getStorageSync(baseKey);
+      let progress = saved ? JSON.parse(saved) : { unlocked: 1 };
+      if (this.level >= (progress.unlocked || 1)) {
+        progress.unlocked = this.level + 1;
+        wx.setStorageSync(baseKey, JSON.stringify(progress));
+      }
+
+      const diffKey = `progress_${this.gameName}_${this.difficulty}`;
+      let diffSaved = wx.getStorageSync(diffKey);
+      let diffProgress = diffSaved ? JSON.parse(diffSaved) : { unlocked: 1 };
+      if (this.level >= (diffProgress.unlocked || 1)) {
+        diffProgress.unlocked = this.level + 1;
+        wx.setStorageSync(diffKey, JSON.stringify(diffProgress));
+      }
+    } catch (e) {}
+
     this.draw();
   }
 
   // ========== 交互 ==========
   bindEvents() {
     this._clickHandler = (e) => {
+      const touch = e.touches ? e.touches[0] : e;
+      const x = touch.clientX;
+      const y = touch.clientY;
+
       if (this.victory) {
-        if (this.victoryPanel.handleClick(x, y)) return;
+        const action = this.victoryPanel.handleClick(x, y);
+        if (action === 'next') {
+          this.level++;
+          this.loadLevel();
+          sound.play('click');
+          return;
+        }
+        if (action === 'back') {
+          sound.play('click');
+          this.switchGame('level-select', this.gameName);
+          return;
+        }
         return;
       }
+
       if (this.tutorial && this.tutorial.shouldShow()) {
-        const touch = e.touches ? e.touches[0] : e;
-        if (this.tutorial.hitTest(touch.clientX, touch.clientY)) {
+        if (this.tutorial.hitTest(x, y)) {
           this.tutorial.dismiss();
           this.draw();
         }
         return;
       }
-
-      const touch = e.touches ? e.touches[0] : e;
-      const x = touch.clientX;
-      const y = touch.clientY;
 
       // 返回按钮
       if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
@@ -461,14 +498,6 @@ class OneStroke {
       // 重开按钮
       if (x >= this.width - 90 && x <= this.width - 15 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
         this._reset();
-        return;
-      }
-
-      // 规则按钮
-      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w &&
-          y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
-        this.tutorial.show();
-        this.draw();
         return;
       }
 
@@ -506,7 +535,7 @@ class OneStroke {
       const touch = e.touches[0];
       this._handleCellClick(touch.clientX, touch.clientY, true);
     };
-    this.canvas.addEventListener('touchmove', this._touchMoveHandler);
+    this.canvas.addEventListener('touchmove', this._touchMoveHandler, { passive: true });
 
     this._touchEndHandler = () => {
       this._touchActive = false;
@@ -739,6 +768,26 @@ class OneStroke {
       }
     } catch (e) {}
     return false;
+  }
+
+  destroy() {
+    this.stopTimer();
+    if (this._answerAnimTimer) {
+      clearInterval(this._answerAnimTimer);
+      this._answerAnimTimer = null;
+    }
+    if (this._clickHandler) {
+      this.canvas.removeEventListener('click', this._clickHandler);
+    }
+    if (this._touchStartHandler) {
+      this.canvas.removeEventListener('touchstart', this._touchStartHandler);
+    }
+    if (this._touchMoveHandler) {
+      this.canvas.removeEventListener('touchmove', this._touchMoveHandler);
+    }
+    if (this._touchEndHandler) {
+      this.canvas.removeEventListener('touchend', this._touchEndHandler);
+    }
   }
 }
 

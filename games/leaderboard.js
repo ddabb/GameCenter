@@ -40,7 +40,8 @@ class Leaderboard {
 
     games.forEach(g => {
       try {
-        const data = wx.getStorageSync('progress_' + g);
+        const raw = wx.getStorageSync('progress_' + g);
+        const data = raw ? JSON.parse(raw) : null;
         const unlocked = data && data.unlocked ? data.unlocked - 1 : 0;
         const title = this._gameTitle(g);
         map.set(g, { name: g, title, unlocked, stars: 0 });

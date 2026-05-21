@@ -117,10 +117,10 @@ class Akari {
       const x = touch.clientX;
       const y = touch.clientY;
       
-      // 规则按钮
-      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
-        this.tutorial.show();
-        this.draw();
+      // 底部工具栏按钮
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
       
@@ -370,16 +370,43 @@ class Akari {
 
   _saveProgress() {
     try {
-      const key = this.statsKey;
-      const data = wx.getStorageSync(key) || { unlocked: 1, stars: {} };
+      const baseKey = `progress_${this.gameName}`;
+      const raw = wx.getStorageSync(baseKey);
+      const data = raw ? JSON.parse(raw) : { unlocked: 1, stars: {} };
       data.unlocked = Math.max(data.unlocked || 1, this.level + 1);
-      wx.setStorageSync(key, data);
+      wx.setStorageSync(baseKey, JSON.stringify(data));
+
+      const diffKey = `progress_${this.gameName}_${this.difficulty}`;
+      const diffRaw = wx.getStorageSync(diffKey);
+      const diffData = diffRaw ? JSON.parse(diffRaw) : { unlocked: 1, stars: {} };
+      diffData.unlocked = Math.max(diffData.unlocked || 1, this.level + 1);
+      wx.setStorageSync(diffKey, JSON.stringify(diffData));
     } catch (e) { /* ignore */ }
   }
 
 
 
 
+
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const state = this.undoMgr.undo();
+          if (state) {
+            this.grid = state;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'rule':
+        sound.play('click');
+        this.tutorial.show();
+        this.draw();
+        break;
+    }
+  }
 
   destroy() {
     this.canvas.removeEventListener('click', this._clickHandler);

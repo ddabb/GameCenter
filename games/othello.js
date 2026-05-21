@@ -625,6 +625,11 @@ class Othello {
           sound.playSuccess();
         }
         break;
+      case 'rule':
+        sound.play('click');
+        this.tutorial.show();
+        this.draw();
+        break;
     }
   }
 

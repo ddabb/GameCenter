@@ -12,13 +12,20 @@ const GAME_NAMES = {
   'merge-abc': 'ABC合成'
 };
 
-const SUPPORT_DIFFICULTY = ['akari', 'tents', 'slither-link', 'one-stroke'];
+const SUPPORT_DIFFICULTY = ['akari', 'tents', 'slither-link', 'one-stroke', 'nonogram', 'nurikabe', 'sokoban'];
 
 const LEVEL_COUNTS = {
   'akari': { easy: 1000, medium: 1000, hard: 1000 },
   'tents': { easy: 1000, medium: 1000, hard: 1000 },
   'slither-link': { easy: 1000, medium: 1000, hard: 1000 },
-  'one-stroke': { easy: 1000, medium: 1000, hard: 1000 }
+  'one-stroke': { easy: 1000, medium: 1000, hard: 1000 },
+  'nonogram': { easy: 1000, medium: 1000, hard: 1000 },
+  'nurikabe': { easy: 1000, medium: 1000, hard: 1000 },
+  'sokoban': { easy: 1000, medium: 1000, hard: 1000 },
+  'battleship': { easy: 100 },
+  '24point': { easy: 500 },
+  'othello': { easy: 50 },
+  'merge-abc': { easy: 100 }
 };
 
 class LevelSelect {
@@ -83,7 +90,8 @@ class LevelSelect {
 
   _loadProgress() {
     try {
-      const data = wx.getStorageSync(this._storageKey());
+      const raw = wx.getStorageSync(this._storageKey());
+      const data = raw ? JSON.parse(raw) : null;
       this.unlocked = (data && data.unlocked) ? data.unlocked : 1;
     } catch (e) {
       this.unlocked = 1;
@@ -92,7 +100,8 @@ class LevelSelect {
 
   _loadStars() {
     try {
-      const data = wx.getStorageSync(this._storageKey());
+      const raw = wx.getStorageSync(this._storageKey());
+      const data = raw ? JSON.parse(raw) : null;
       this.stars = (data && data.stars) ? data.stars : {};
     } catch (e) {
       this.stars = {};

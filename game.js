@@ -331,6 +331,9 @@ function loadGame(gameName, level) {
     return;
   }
 
+  // 重置绘制错误标志位，允许新游戏正常绘制
+  _drawErrorOccurred = false;
+
   // 停止加载动画
   stopLoadingAnimation();
 
@@ -363,7 +366,11 @@ function switchGame(gameName, level) {
   loadGame(gameName, level);
 }
 
+let _drawErrorOccurred = false;
+
 function draw() {
+  if (_drawErrorOccurred) return;
+  
   try {
     if (gameInstance) {
       if (typeof gameInstance.update === 'function') {
@@ -376,6 +383,8 @@ function draw() {
   } catch (e) {
     console.error('[Draw]', e.message, e.stack);
     showErrorOnCanvas(e);
+    _drawErrorOccurred = true;
+    return;
   }
   // 兼容微信PC端：requestAnimationFrame 可能不存在
   if (typeof requestAnimationFrame === 'function') {

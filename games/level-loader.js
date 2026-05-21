@@ -51,7 +51,7 @@ class LevelLoader {
       case 'battleship':
         return base + '/' + gameName + '/easy-' + pad + '.json';
       case 'nonogram':
-        return base + '/' + gameName + '/nonogram-' + pad + '.json';
+        return base + '/nonogram/' + difficulty + '-' + pad + '.json';
       case 'sokoban':
         return base + '/' + gameName + '/sokoban-' + pad + '.json';
       case 'nurikabe':
@@ -87,9 +87,9 @@ class LevelLoader {
       case 'slither-link': return LevelLoader.loadSlitherLink(level, difficulty);
       case 'akari':        return LevelLoader.loadAkari(level, difficulty);
       case 'tents':       return LevelLoader.loadTents(level, difficulty);
-      case 'nonogram':     return LevelLoader.loadNonogram(level);
-      case 'sokoban':     return LevelLoader.loadSokoban(level);
-      case 'nurikabe':     return LevelLoader.loadNurikabe(level);
+      case 'nonogram':     return LevelLoader.loadNonogram(level, difficulty);
+      case 'sokoban':     return LevelLoader.loadSokoban(level, difficulty);
+      case 'nurikabe':     return LevelLoader.loadNurikabe(level, difficulty);
       case 'one-stroke':   return LevelLoader.loadOneStroke(level, difficulty);
       case 'battleship':  return LevelLoader.loadBattleship(level);
       case '24point':      return LevelLoader.load24Point(level);
@@ -145,32 +145,40 @@ class LevelLoader {
     } catch (e) { return null; }
   }
 
-  static loadNonogram(level) {
+  static loadNonogram(level, difficulty = 'easy') {
     try {
       const pad = String(level).padStart(4, '0');
-      const file = require('./nonogram/nonogram-' + pad + '.json');
-      return { id: file.id, rows: file.rows, cols: file.cols,
-               clues: file.clues, grid: file.grid || null,
-               difficulty: file.difficulty || 'medium' };
+      const dir = difficulty || 'easy';
+      const file = require('./nonogram/' + dir + '-' + pad + '.json');
+      return {
+        id: file.id,
+        size: file.size,
+        answer: file.answer,
+        rowHints: file.rowHints,
+        colHints: file.colHints,
+        difficulty: dir
+      };
     } catch (e) { return null; }
   }
 
-  static loadSokoban(level) {
+  static loadSokoban(level, difficulty = 'easy') {
     try {
       const pad = String(level).padStart(4, '0');
-      const file = require('./sokoban/sokoban-' + pad + '.json');
+      const dir = difficulty || 'easy';
+      const file = require('./sokoban/' + dir + '-' + pad + '.json');
       return { id: file.id, grid: file.grid, moves: file.moves,
-               difficulty: file.difficulty || 'medium' };
+               difficulty: dir };
     } catch (e) { return null; }
   }
 
-  static loadNurikabe(level) {
+  static loadNurikabe(level, difficulty = 'easy') {
     try {
       const pad = String(level).padStart(4, '0');
-      const file = require('./nurikabe/nurikabe-' + pad + '.json');
+      const dir = difficulty || 'easy';
+      const file = require('./nurikabe/' + dir + '-' + pad + '.json');
       return { id: file.id, size: file.size, clues: file.clues,
                grid: file.grid || null,
-               difficulty: file.difficulty || 'medium' };
+               difficulty: dir };
     } catch (e) { return null; }
   }
 

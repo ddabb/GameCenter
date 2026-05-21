@@ -167,11 +167,10 @@ class Tents {
         return;
       }
 
-      // 规则
-      const rb = this._ruleBtn;
-      if (rb && x >= rb.x && x <= rb.x + rb.w && y >= rb.y && y <= rb.y + rb.h) {
-        this.tutorial.show();
-        this.draw();
+      // 底部工具栏按钮
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
       }
 
@@ -224,18 +223,6 @@ class Tents {
       { id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr && this.undoMgr.canUndo() }
     ]);
     this.bottomBar.draw();
-    this._undoBtn = this.bottomBar.handleClick ? { x: this.width - 90, y: this.height - 55, w: 75, h: 40 } : null;
-
-    // 规则按钮（右上角）
-    const rb = this._ruleBtn;
-    this.ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, rb.x, rb.y, rb.w, rb.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 20px -apple-system';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', rb.x + rb.w / 2, rb.y + rb.h / 2 + 7);
 
     if (this.victory) {
       this.victoryPanel.setSubtitle('关卡 ' + this.level);
@@ -406,6 +393,26 @@ class Tents {
       wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('[Tents] 保存进度失败', e);
+    }
+  }
+
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'undo':
+        if (this.undoMgr && this.undoMgr.canUndo()) {
+          const state = this.undoMgr.undo();
+          if (state) {
+            this.tents = state.tents;
+            sound.playClick();
+            this.draw();
+          }
+        }
+        break;
+      case 'rule':
+        sound.play('click');
+        this.tutorial.show();
+        this.draw();
+        break;
     }
   }
 

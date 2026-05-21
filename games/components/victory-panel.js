@@ -67,7 +67,7 @@ class VictoryPanel {
    * 绘制胜利面板
    * @param {boolean} forceRedraw - 强制重绘按钮（首次或尺寸变化时）
    */
-  draw(forceRedraw) {
+  draw() {
     const ctx = this.ctx;
 
     // 如果有额外回调（confetti、achievement popup）
@@ -77,12 +77,22 @@ class VictoryPanel {
       this._newAchievements = null;
     }
 
-    // 按钮已绘制则跳过
-    if (this._buttonsDrawn && !forceRedraw) return;
-
-    const panelW = 260, panelH = 200;
+    // 计算按钮坐标
+    const panelW = 260, panelH = 240;
     const panelX = (this.width - panelW) / 2;
     const panelY = (this.height - panelH) / 2;
+    const btnW = 180, btnH = 42;
+    const btnX = (this.width - btnW) / 2;
+    let btnY = panelY + 85;
+
+    // 更新按钮坐标
+    if (this.opts.showNext) {
+      this._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+      btnY += 52;
+    } else {
+      this._nextBtn = null;
+    }
+    this._backBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
 
     // 半透明遮罩
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -109,10 +119,6 @@ class VictoryPanel {
       ctx.fillText(this._subtitleText || this.opts.subtitle, this.width / 2, panelY + 80);
     }
 
-    const btnW = 180, btnH = 42;
-    const btnX = (this.width - btnW) / 2;
-    let btnY = panelY + 95;
-
     // 下一关按钮
     if (this.opts.showNext) {
       roundRect(ctx, btnX, btnY, btnW, btnH, 21);
@@ -121,10 +127,7 @@ class VictoryPanel {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 17px Arial, -apple-system';
       ctx.fillText(this.opts.nextText, this.width / 2, btnY + 27);
-      this._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
       btnY += 52;
-    } else {
-      this._nextBtn = null;
     }
 
     // 返回按钮
@@ -134,7 +137,6 @@ class VictoryPanel {
     ctx.fillStyle = '#fff';
     ctx.font = '15px Arial, -apple-system';
     ctx.fillText(this.opts.backText, this.width / 2, btnY + 27);
-    this._backBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
     btnY += 52;
 
     // 额外按钮
@@ -150,8 +152,6 @@ class VictoryPanel {
       this._extraBtns.push({ x: btnX, y: btnY, w: btnW, h: btnH, action: eb.action });
       btnY += 52;
     }
-
-    this._buttonsDrawn = true;
   }
 
   /**
@@ -183,7 +183,6 @@ class VictoryPanel {
     this._nextBtn = null;
     this._backBtn = null;
     this._extraBtns = [];
-    this._buttonsDrawn = false;
     this._newAchievements = null;
   }
 }

@@ -195,12 +195,14 @@ class Battleship {
         return;
       }
       
-      // 规则按钮
-      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
-        this.tutorial.show();
-        this.draw();
+      // 底部工具栏按钮
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) {
+        this._handleBottomAction(action);
         return;
-      }// 顶部返回按钮
+      }
+      
+      // 顶部返回按钮
       if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
         this.switchGame('level-select', this.gameName);
@@ -288,17 +290,6 @@ class Battleship {
     this.drawBoard();
     this.bottomBar.setButtons([{ id: 'reset', text: '🔄 新局' }]);
     this.bottomBar.draw();
-    
-    // 规则按钮（右上角）
-    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
-    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
     
     if (this.victory) {
       this.victoryPanel.setSubtitle('关卡 ' + this.level);
@@ -407,6 +398,21 @@ class Battleship {
       wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
+    }
+  }
+
+  _handleBottomAction(action) {
+    switch (action) {
+      case 'reset':
+        this.startGame(this.level);
+        sound.play('click');
+        this.draw();
+        break;
+      case 'rule':
+        sound.play('click');
+        this.tutorial.show();
+        this.draw();
+        break;
     }
   }
 

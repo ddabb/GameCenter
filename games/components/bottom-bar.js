@@ -45,9 +45,13 @@ class BottomBar {
   /**
    * 设置底部按钮列表
    * @param {Array} buttons - [{id, text, enabled?, color?, icon?}]
+   * @param {boolean} showRuleBtn - 是否显示规则按钮（默认显示）
    */
-  setButtons(buttons) {
+  setButtons(buttons, showRuleBtn = true) {
     this._buttons = buttons || [];
+    if (showRuleBtn) {
+      this._buttons.unshift({ id: 'rule', text: '📖 规则' });
+    }
     this._buttonRects = [];
   }
 

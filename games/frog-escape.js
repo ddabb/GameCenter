@@ -2,9 +2,11 @@
 // 扫雷换皮：🐸牛蛙要躲避 | 💧水花=安全 | 数字=周围牛蛙数
 const sound = require('./sound-manager.js');
 const TutorialOverlay = require('./tutorial-overlay.js');
+const Confetti = require('./confetti');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
 const VictoryPanel = require('./components/victory-panel');
+const FailurePanel = require('./components/failure-panel');
 
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/minesweeper';
 const RECORDS_KEY = 'frog_escape_records';
@@ -50,29 +52,29 @@ class FrogEscape {
     this._ruleBtn = null;
     this._resultBtn = null;
 
-    // 规则弹窗
-    this.tutorial = new TutorialOverlay(ctx, this.width, this.height, 'frog-escape', {
-      title: '🐸 躲避牛蛙',
-      rules: [
-        '点击格子，躲开所有牛蛙',
-        '💧 安全区域会显示水花',
-        '🔢 数字表示周围有多少只牛蛙',
-        '🚩 长按标记可疑的牛蛙位置',
-        '🏆 全部安全区域翻开后获胜'
-      ],
-      buttonText: '开始游戏'
-    });
-
-    this.loadRecord();
-    this.startGame('easy');  // 初始化游戏
+    // 彩纸效果
+    this.confetti = new Confetti(ctx, this.width, this.height);
 
     // 共享 UI 组件
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
-      onAchievementDraw: () => this._drawAchievementPopup()
+      onAchievementDraw: () => this._drawAchievementPopup(),
+      showNext: false,
+      backText: '返回菜单'
     });
+    this.failurePanel = new FailurePanel(this.ctx, this.width, this.height, {
+      retryText: '再来一局',
+      backText: '返回菜单'
+    });
+
+    // 规则弹窗
+    this.tutorial = new TutorialOverlay(ctx, this.width, this.height, 'frog-escape');
+
+    this.loadRecord();
+    this.startGame('easy');  // 初始化游戏
+
     this.bindEvents();
   }
 
@@ -100,6 +102,7 @@ class FrogEscape {
   }
 
   startGame(diff) {
+    console.log('[FrogEscape] startGame:', { diff, current: this.difficulty });
     const d = diff || this.difficulty;
     const diffInfo = DIFFICULTIES.find(x => x.key === d) || DIFFICULTIES[0];
     const { rows, cols, mines } = diffInfo;
@@ -113,7 +116,7 @@ class FrogEscape {
     const maxBoardWidth = this.width - 32;
     this.cellSize = Math.min(Math.floor(maxBoardWidth / cols), 48);
     this.boardOffsetX = (this.width - this.cellSize * cols) / 2;
-    this.boardOffsetY = 100; // 留出顶部状态栏
+    this.boardOffsetY = this.headerBar.boardStartY; // 使用 headerBar 计算的起始位置
 
     // 重置状态
     this.board = [];
@@ -130,6 +133,12 @@ class FrogEscape {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+
+    // 停止彩纸效果
+    if (this.confetti) this.confetti.stop();
+
+    // 重置胜利面板状态
+    if (this.victoryPanel) this.victoryPanel.reset();
 
     // 初始化显示棋盘
     for (let r = 0; r < rows; r++) {
@@ -151,19 +160,27 @@ class FrogEscape {
     const suffix = String(idx).padStart(4, '0');
     const url = `${CDN_BASE}/${this.difficulty}-${suffix}.json`;
 
+    console.log('[FrogEscape] loadPuzzle:', { difficulty: this.difficulty, url });
+
     const self = this;
     wx.request({
       url,
       success(res) {
+        console.log('[FrogEscape] wx.request success:', { statusCode: res.statusCode, hasData: !!res.data });
         if (res.statusCode === 200 && res.data) {
+          console.log('[FrogEscape] using CDN puzzle');
           self._boardData = self.buildBoardFromPuzzle(res.data);
         } else {
+          console.log('[FrogEscape] CDN failed, generating board');
           self._boardData = self.generateBoard();
         }
+        console.log('[FrogEscape] _boardData loaded:', { rows: self._boardData.length });
         self._initBoard();
         self.draw();
       },
-      fail() {
+      fail(err) {
+        console.log('[FrogEscape] wx.request fail:', err);
+        console.log('[FrogEscape] generating fallback board');
         self._boardData = self.generateBoard();
         self._initBoard();
         self.draw();
@@ -309,11 +326,16 @@ class FrogEscape {
       this.tutorial.draw();
     }
 
-    // 胜利/失败面板
-    if (this.gameOver || this.won) {
-      this.victoryPanel.setSubtitle(this.won ? '胜利！' : '失败！');
+    // 胜利面板
+    if (this.won) {
+      this.victoryPanel.setSubtitle('胜利！');
       this.victoryPanel.setAchievements(this._newAchievements || []);
       this.victoryPanel.draw();
+    }
+    // 失败面板
+    if (this.gameOver && !this.won) {
+      this.failurePanel.setSubtitle('踩到牛蛙了！');
+      this.failurePanel.draw();
     }
   }
 
@@ -326,7 +348,7 @@ class FrogEscape {
     const ctx = this.ctx;
     const { rows, cols, cellSize } = this;
     const offsetX = this.boardOffsetX;
-    const offsetY = this.boardOffsetY + 80; // 留出工具栏
+    const offsetY = this.boardOffsetY + 20; // 留出工具栏（headerBar 已计算过状态栏和标题栏）
 
     const colors = ['#3498db', '#27ae60', '#e74c3c', '#9b59b6', '#f39c12', '#1abc9c', '#e67e22', '#7f8c8d'];
 
@@ -387,26 +409,60 @@ class FrogEscape {
 
 
   bindEvents() {
+    console.log('[FrogEscape] bindEvents called');
     this.clickHandler = (e) => {
+      console.log('[FrogEscape] clickHandler called:', e);
       const touch = e.touches ? e.touches[0] : e;
       const x = touch.clientX, y = touch.clientY;
+      console.log('[FrogEscape] click coords:', { x, y, width: this.width, height: this.height });
 
       // 规则弹窗优先处理
       if (this.tutorial.shouldShow()) {
+        console.log('[FrogEscape] tutorial showing, checking click');
         if (this.tutorial.hitTest(x, y)) {
+          console.log('[FrogEscape] clicked dismiss button');
           this.tutorial.dismiss();
+          this.draw();
         }
         return;
       }
 
-      // 游戏结束时只处理结果按钮
-      if (this.gameOver || this.won) {
-        if (this.victoryPanel.handleClick(x, y)) return;
+      // 胜利面板按钮处理
+      if (this.won) {
+        console.log('[FrogEscape] won state');
+        const action = this.victoryPanel.handleClick(x, y);
+        if (action === 'back') {
+          console.log('[FrogEscape] clicked back button in victory panel');
+          sound.play('click');
+          if (this.timerInterval) clearInterval(this.timerInterval);
+          this.switchGame('menu');
+        } else if (action === 'next') {
+          console.log('[FrogEscape] clicked next button in victory panel');
+          sound.play('click');
+          this.startGame(this.difficulty);
+        }
+        return;
+      }
+      // 失败面板按钮处理
+      if (this.gameOver) {
+        console.log('[FrogEscape] game over state');
+        const action = this.failurePanel.handleClick(x, y);
+        if (action === 'back') {
+          console.log('[FrogEscape] clicked back button in failure panel');
+          sound.play('click');
+          if (this.timerInterval) clearInterval(this.timerInterval);
+          this.switchGame('menu');
+        } else if (action === 'retry') {
+          console.log('[FrogEscape] clicked retry button in failure panel');
+          sound.play('click');
+          this.startGame(this.difficulty);
+        }
         return;
       }
 
-      // 返回按钮
-      if (this._backBtn && this._hitTest(this._backBtn, x, y)) {
+      // 返回按钮（使用共享组件）
+      if (this.headerBar.isBackButton(x, y)) {
+        console.log('[FrogEscape] clicked back button');
         sound.play('click');
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.switchGame('menu');
@@ -415,6 +471,7 @@ class FrogEscape {
 
       // 规则按钮
       if (this._ruleBtn && this._hitTest(this._ruleBtn, x, y)) {
+        console.log('[FrogEscape] clicked rule button');
         sound.play('click');
         this.tutorial.show();
         return;
@@ -423,12 +480,14 @@ class FrogEscape {
       // 底部工具栏按钮检测（使用共享组件）
       const action = this.bottomBar.handleClick(x, y);
       if (action) {
+        console.log('[FrogEscape] bottom bar action:', action);
         this._handleBottomAction(action);
         return;
       }
 
       // 难度切换
       if (this._diffBtn && this._hitTest(this._diffBtn, x, y)) {
+        console.log('[FrogEscape] clicked difficulty button');
         sound.play('click');
         const idx = DIFFICULTIES.findIndex(d => d.key === this.difficulty);
         const next = DIFFICULTIES[(idx + 1) % DIFFICULTIES.length];
@@ -438,6 +497,7 @@ class FrogEscape {
 
       // 标记模式切换
       if (this._flagBtn && this._hitTest(this._flagBtn, x, y)) {
+        console.log('[FrogEscape] clicked flag button');
         sound.play('click');
         this.flagMode = !this.flagMode;
         return;
@@ -445,49 +505,73 @@ class FrogEscape {
 
       // 帮助按钮
       if (this._helpBtn && this._hitTest(this._helpBtn, x, y)) {
+        console.log('[FrogEscape] clicked help button');
         sound.play('click');
         this.tutorial.show();
         return;
       }
 
       // 棋盘点击
+      console.log('[FrogEscape] calling _handleBoardClick');
       this._handleBoardClick(x, y);
     };
     this.canvas.addEventListener('click', this.clickHandler);
   }
 
   _handleBoardClick(x, y) {
-    if (!this._boardData || this._boardData.length === 0) return;
+    console.log('[FrogEscape] _handleBoardClick:', { x, y });
+    
+    if (!this._boardData || this._boardData.length === 0) {
+      console.log('[FrogEscape] _boardData is empty');
+      return;
+    }
 
     const offsetX = this.boardOffsetX;
-    const offsetY = this.boardOffsetY + 80;
+    const offsetY = this.boardOffsetY + 20;
     const col = Math.floor((x - offsetX) / this.cellSize);
     const row = Math.floor((y - offsetY) / this.cellSize);
 
-    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return;
+    console.log('[FrogEscape] clicked cell:', { row, col, rows: this.rows, cols: this.cols });
+
+    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) {
+      console.log('[FrogEscape] cell out of bounds');
+      return;
+    }
 
     const cell = this.board[row]?.[col];
-    if (!cell) return;
+    if (!cell) {
+      console.log('[FrogEscape] cell is null:', { row, col });
+      return;
+    }
+    console.log('[FrogEscape] cell state:', { revealed: cell.revealed, flagged: cell.flagged });
 
     // 标记模式：点击切换旗帜
     if (this.flagMode && !cell.revealed) {
+      console.log('[FrogEscape] toggle flag at:', { row, col });
       this._toggleFlag(row, col);
       sound.play('flag');
       sound.play('success');
+      this.draw();
       return;
     }
 
     // 已翻开的数字格：检查 chord
     if (cell.revealed && cell.nearby > 0) {
+      console.log('[FrogEscape] chord at:', { row, col, nearby: cell.nearby });
       this._chord(row, col);
+      this.draw();
       return;
     }
 
     // 已翻开或已标记，忽略
-    if (cell.revealed || cell.flagged) return;
+    if (cell.revealed || cell.flagged) {
+      console.log('[FrogEscape] cell already revealed or flagged');
+      return;
+    }
 
     // 首次点击启动计时器
     if (this._firstClick) {
+      console.log('[FrogEscape] first click, starting timer');
       this._firstClick = false;
       this.startTimer();
     }
@@ -495,17 +579,20 @@ class FrogEscape {
     // 踩到牛蛙
     const boardCell = this._boardData?.[row]?.[col];
     if (boardCell && boardCell.isFrog) {
+      console.log('[FrogEscape] hit frog at:', { row, col });
       this._revealCell(row, col);
       sound.play('fail');
       this._gameOver(false);
+      this.draw();
       return;
     }
 
     // 安全格
+    console.log('[FrogEscape] reveal safe cell at:', { row, col });
     sound.play('click');
     this._floodFill(row, col);
     this._checkWin();
-    sound.play('click');
+    this.draw();
   }
 
   _toggleFlag(row, col) {
@@ -607,6 +694,7 @@ class FrogEscape {
     if (exploded) {
       sound.play('success');
       this._gameOver(false);
+      this.draw();
     } else {
       this._checkWin();
     }
@@ -616,6 +704,7 @@ class FrogEscape {
     const safeCells = this.rows * this.cols - this.totalMines;
     if (this.revealedCount === safeCells) {
       this._gameOver(true);
+      this.draw();
     }
   }
 
@@ -642,6 +731,7 @@ class FrogEscape {
 
     if (won) {
       this.saveRecord(this.time);
+      this.confetti.start();
     }
   }
 
@@ -656,7 +746,7 @@ class FrogEscape {
     const x = touch.clientX, y = touch.clientY;
 
     const offsetX = this.boardOffsetX;
-    const offsetY = this.boardOffsetY + 80;
+    const offsetY = this.boardOffsetY + 20;
     const col = Math.floor((x - offsetX) / this.cellSize);
     const row = Math.floor((y - offsetY) / this.cellSize);
 
@@ -694,6 +784,11 @@ class FrogEscape {
           this.hintMgr.showHint();
           sound.playSuccess();
         }
+        break;
+      case 'rule':
+        sound.play('click');
+        this.tutorial.show();
+        this.draw();
         break;
     }
   }
