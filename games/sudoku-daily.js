@@ -476,9 +476,10 @@ class SudokuDaily {
   }
   
   _handleBoardClick(x, y) {
-    const boardSize = Math.min(this.width - 40, 360);
+    const padding = 20;
+    const boardSize = Math.min(this.width - padding * 2, Math.min(this.height - this.statusBarHeight - 220, 400));
     const startX = (this.width - boardSize) / 2;
-    const startY = this.statusBarHeight + 80;
+    const startY = this.statusBarHeight + 50;
     const cellSize = boardSize / 9;
     
     if (x < startX || x > startX + boardSize) return false;
@@ -488,16 +489,6 @@ class SudokuDaily {
     const row = Math.floor((y - startY) / cellSize);
     
     if (row >= 0 && row < 9 && col >= 0 && col < 9) {
-      if (this.showCandidates && this.board[row][col].value === '') {
-        const cellX = (x - startX) % cellSize;
-        const cellY = (y - startY) % cellSize;
-        const num = Math.floor(cellX / (cellSize / 3)) + 1 + Math.floor(cellY / (cellSize / 3)) * 3;
-        if (num >= 1 && num <= 9 && this.board[row][col].candidates[num - 1] === num) {
-          this.onCandidateClick(row, col, num);
-          return true;
-        }
-      }
-      
       this.onCellClick(row, col);
       return true;
     }
@@ -506,27 +497,32 @@ class SudokuDaily {
   }
   
   _handleNumberPadClick(x, y) {
-    const padY = this.height - 200;
-    const padH = 50;
+    const bottomBarHeight = 60;
+    const padY = this.height - bottomBarHeight - 180;
+    const btnSize = 50;
+    const gap = 8;
+    const gridSize = btnSize * 3 + gap * 2;
+    const startX = (this.width - gridSize) / 2;
+    const startY = padY + 15;
     
-    if (y < padY || y > padY + padH) return false;
+    if (y < padY || y > padY + 165) return false;
     
-    const btnW = Math.min(35, (this.width - 60) / 10);
-    const gap = 5;
-    const totalW = btnW * 9 + gap * 8;
-    const startX = (this.width - totalW) / 2;
-    
-    for (let i = 0; i < 9; i++) {
-      const btnX = startX + i * (btnW + gap);
-      if (x >= btnX && x <= btnX + btnW) {
-        this.onNumberInput(i + 1);
-        return true;
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        const btnX = startX + col * (btnSize + gap);
+        const btnY = startY + row * (btnSize + gap);
+        if (x >= btnX && x <= btnX + btnSize && y >= btnY && y <= btnY + btnSize) {
+          this.onNumberInput(row * 3 + col + 1);
+          return true;
+        }
       }
     }
     
-    const clearX = startX + 9 * (btnW + gap) + 10;
-    const clearBtnW = 50;
-    if (x >= clearX && x <= clearX + clearBtnW && y >= padY && y <= padY + padH) {
+    const clearBtnX = startX;
+    const clearBtnY = startY + 3 * (btnSize + gap) + 5;
+    const clearBtnW = gridSize;
+    const clearBtnH = 40;
+    if (x >= clearBtnX && x <= clearBtnX + clearBtnW && y >= clearBtnY && y <= clearBtnY + clearBtnH) {
       this.onClearCell();
       return true;
     }
@@ -601,22 +597,30 @@ class SudokuDaily {
   }
   
   drawBoard() {
-    const boardSize = Math.min(this.width - 40, 360);
+    const padding = 20;
+    const boardSize = Math.min(this.width - padding * 2, Math.min(this.height - this.statusBarHeight - 220, 400));
     const startX = (this.width - boardSize) / 2;
-    const startY = this.statusBarHeight + 80;
+    const startY = this.statusBarHeight + 50;
     const cellSize = boardSize / 9;
     
     this.ctx.fillStyle = '#fff';
     this.ctx.beginPath();
-    roundRect(this.ctx, startX, startY, boardSize, boardSize, 8);
+    roundRect(this.ctx, startX, startY, boardSize, boardSize, 12);
     this.ctx.fill();
+    
+    this.ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+    this.ctx.shadowBlur = 10;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 4;
+    this.ctx.fill();
+    this.ctx.shadowColor = 'transparent';
     
     for (let i = 0; i <= 9; i++) {
       const pos = startX + i * cellSize;
       const posY = startY + i * cellSize;
       
-      this.ctx.strokeStyle = '#333';
-      this.ctx.lineWidth = i % 3 === 0 ? 2 : 0.5;
+      this.ctx.strokeStyle = i % 3 === 0 ? '#1a1a2e' : '#ddd';
+      this.ctx.lineWidth = i % 3 === 0 ? 2.5 : 0.8;
       this.ctx.beginPath();
       this.ctx.moveTo(pos, startY);
       this.ctx.lineTo(pos, startY + boardSize);
@@ -636,11 +640,11 @@ class SudokuDaily {
         
         if (cell.value) {
           if (cell.fixed) {
-            this.ctx.fillStyle = '#333';
-            this.ctx.font = `bold ${cellSize * 0.6}px Arial`;
+            this.ctx.fillStyle = '#1a1a2e';
+            this.ctx.font = `bold ${cellSize * 0.55}px Arial`;
           } else {
             this.ctx.fillStyle = cell.error ? '#e74c3c' : '#2196F3';
-            this.ctx.font = `bold ${cellSize * 0.6}px Arial`;
+            this.ctx.font = `bold ${cellSize * 0.55}px Arial`;
           }
           this.ctx.textAlign = 'center';
           this.ctx.textBaseline = 'middle';
@@ -654,8 +658,8 @@ class SudokuDaily {
               const nx = cx + nc * candSize + candSize / 2;
               const ny = cy + nr * candSize + candSize / 2;
               
-              this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-              this.ctx.font = `${candSize * 0.45}px Arial`;
+              this.ctx.fillStyle = '#666';
+              this.ctx.font = `bold ${candSize * 0.55}px Arial`;
               this.ctx.textAlign = 'center';
               this.ctx.textBaseline = 'middle';
               this.ctx.fillText(String(n + 1), nx, ny);
@@ -670,44 +674,55 @@ class SudokuDaily {
       const sy = startY + this.selectedCell.row * cellSize;
       this.ctx.strokeStyle = '#2196F3';
       this.ctx.lineWidth = 3;
-      this.ctx.strokeRect(sx + 1, sy + 1, cellSize - 2, cellSize - 2);
+      this.ctx.strokeRect(sx + 2, sy + 2, cellSize - 4, cellSize - 4);
+      
+      this.ctx.fillStyle = 'rgba(33, 150, 243, 0.08)';
+      this.ctx.fillRect(sx, sy, cellSize, cellSize);
     }
   }
   
   drawNumberPad() {
-    const padY = this.height - 200;
-    const padH = 50;
-    const btnW = Math.min(35, (this.width - 60) / 10);
-    const gap = 5;
-    const totalW = btnW * 9 + gap * 8;
-    const startX = (this.width - totalW) / 2;
+    const bottomBarHeight = 60;
+    const padY = this.height - bottomBarHeight - 180;
+    const btnSize = 50;
+    const gap = 8;
+    const gridSize = btnSize * 3 + gap * 2;
+    const startX = (this.width - gridSize) / 2;
+    const startY = padY + 15;
     
-    for (let i = 0; i < 9; i++) {
-      const btnX = startX + i * (btnW + gap);
-      
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      this.ctx.beginPath();
-      roundRect(this.ctx, btnX, padY, btnW, padH, 8);
-      this.ctx.fill();
-      
-      this.ctx.fillStyle = '#fff';
-      this.ctx.font = `bold ${btnW * 0.5}px Arial`;
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(String(i + 1), btnX + btnW / 2, padY + padH / 2);
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        const btnX = startX + col * (btnSize + gap);
+        const btnY = startY + row * (btnSize + gap);
+        
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        this.ctx.beginPath();
+        roundRect(this.ctx, btnX, btnY, btnSize, btnSize, 8);
+        this.ctx.fill();
+        
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = `bold ${btnSize * 0.5}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(String(row * 3 + col + 1), btnX + btnSize / 2, btnY + btnSize / 2);
+      }
     }
     
-    const clearX = startX + 9 * (btnW + gap) + 10;
+    const clearBtnX = startX;
+    const clearBtnY = startY + 3 * (btnSize + gap) + 5;
+    const clearBtnW = gridSize;
+    const clearBtnH = 40;
+    
     this.ctx.fillStyle = 'rgba(255, 107, 107, 0.3)';
     this.ctx.beginPath();
-    roundRect(this.ctx, clearX, padY, 50, padH, 8);
+    roundRect(this.ctx, clearBtnX, clearBtnY, clearBtnW, clearBtnH, 8);
     this.ctx.fill();
     
     this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
+    this.ctx.font = '16px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    this.ctx.fillText('清除', clearX + 25, padY + padH / 2);
+    this.ctx.fillText('清除', clearBtnX + clearBtnW / 2, clearBtnY + clearBtnH / 2);
   }
   
   _drawAchievementPopup() {

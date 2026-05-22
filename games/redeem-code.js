@@ -1,4 +1,5 @@
 const sound = require('./sound-manager');
+const roundRect = require('../utils/round-rect.js');
 
 class RedeemCodeManager {
   constructor() {
@@ -145,9 +146,10 @@ class RedeemCodeUI {
     this.ctx = ctx;
     this.canvas = canvas;
     this.switchGame = switchGame;
-    this.width = systemInfo.windowWidth;
-    this.height = systemInfo.windowHeight;
-    this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    systemInfo = systemInfo || {};
+    this.width = parseInt(systemInfo.windowWidth) || parseInt(canvas.width) || 375;
+    this.height = parseInt(systemInfo.windowHeight) || parseInt(canvas.height) || 667;
+    this.statusBarHeight = parseInt(systemInfo.statusBarHeight) || 44;
 
     this.manager = new RedeemCodeManager();
     this.inputCode = '';
@@ -155,8 +157,8 @@ class RedeemCodeUI {
     this.messageType = 'info';
 
     this.backBtn = { x: 10, y: this.statusBarHeight + 8, w: 70, h: 32 };
-    this.inputRect = { x: 30, y: this.height / 2 - 60, w: this.width - 60, h: 50 };
-    this.redeemBtn = { x: 30, y: this.height / 2 + 20, w: this.width - 60, h: 50 };
+    this.inputRect = { x: 30, y: this.height / 2 - 60, w: Math.max(255, this.width - 60), h: 50 };
+    this.redeemBtn = { x: 30, y: this.height / 2 + 20, w: Math.max(255, this.width - 60), h: 50 };
 
     this._clickHandler = this._onClick.bind(this);
     this._inputHandler = this._onInput.bind(this);
@@ -195,8 +197,7 @@ class RedeemCodeUI {
     ctx.fillText('输入兑换码领取奖励', tw / 2, this.height / 2 - 90);
 
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.roundRect(this.inputRect.x, this.inputRect.y, this.inputRect.w, this.inputRect.h, 25);
+    roundRect(ctx, this.inputRect.x, this.inputRect.y, this.inputRect.w, this.inputRect.h, 25);
     ctx.fill();
     ctx.strokeStyle = '#E0E0E0';
     ctx.lineWidth = 2;
@@ -217,8 +218,7 @@ class RedeemCodeUI {
 
     const canRedeem = this.inputCode.length >= 4;
     ctx.fillStyle = canRedeem ? '#5677FC' : '#CCCCCC';
-    ctx.beginPath();
-    ctx.roundRect(this.redeemBtn.x, this.redeemBtn.y, this.redeemBtn.w, this.redeemBtn.h, 25);
+    roundRect(ctx, this.redeemBtn.x, this.redeemBtn.y, this.redeemBtn.w, this.redeemBtn.h, 25);
     ctx.fill();
 
     ctx.fillStyle = '#ffffff';
