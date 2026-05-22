@@ -5,6 +5,7 @@
 const AchievementManager = require('./achievement-manager');
 const roundRect = require('../utils/round-rect.js');
 const sound = require('./sound-manager');
+const { ShareCard } = require('./share-card');
 
 class Leaderboard {
   constructor(ctx, canvas, systemInfo, switchGame) {
@@ -16,13 +17,15 @@ class Leaderboard {
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
 
     this.backBtn = { x: 10, y: this.statusBarHeight + 8, w: 70, h: 32 };
+    this.shareBtn = { x: this.width - 80, y: this.statusBarHeight + 8, w: 70, h: 32 };
     this.tabs = [
-      { key: 'all', label: '总榜' },
+      { key: 'all', label: '总览' },
       { key: 'akari', label: '灯塔' },
       { key: 'one-stroke', label: '一笔画' },
       { key: 'slither-link', label: '数回' },
       { key: 'tents', label: '帐篷' },
     ];
+    this.showShareBtn = true;
     this.currentTab = 'all';
 
     // 加载各游戏进度，汇总排序
@@ -36,21 +39,29 @@ class Leaderboard {
   _loadAll() {
     const games = ['akari','battleship','nonogram','nurikabe','tents',
                     'slither-link','sokoban','24point','othello','merge-abc','frog-escape','one-stroke'];
-    const map = new Map(); // key → {name, title, unlocked}
+    const map = new Map(); // key → {name, title, unlocked, bestTime, totalWins}
 
     games.forEach(g => {
       try {
         const raw = wx.getStorageSync('progress_' + g);
         const data = raw ? JSON.parse(raw) : null;
         const unlocked = data && data.unlocked ? data.unlocked - 1 : 0;
+        
+        const statsRaw = wx.getStorageSync('stats_' + g);
+        const stats = statsRaw ? JSON.parse(statsRaw) : null;
+        const totalWins = stats && stats.totalWins ? stats.totalWins : 0;
+        const totalPlays = stats && stats.totalPlays ? stats.totalPlays : 0;
+        const winRate = totalPlays > 0 ? Math.round((totalWins / totalPlays) * 100) : 0;
+        
         const title = this._gameTitle(g);
-        map.set(g, { name: g, title, unlocked, stars: 0 });
-      } catch (e) { map.set(g, { name: g, title: this._gameTitle(g), unlocked: 0, stars: 0 }); }
+        map.set(g, { name: g, title, unlocked, totalWins, winRate, plays: totalPlays });
+      } catch (e) { map.set(g, { name: g, title: this._gameTitle(g), unlocked: 0, totalWins: 0, winRate: 0, plays: 0 }); }
     });
 
-    // all 榜单排序
     const all = Array.from(map.values()).sort((a, b) => b.unlocked - a.unlocked);
-    map.set('all', { name: 'all', title: '总榜', unlocked: all.reduce((s, v) => s + v.unlocked, 0), stars: 0 });
+    const totalUnlocked = all.reduce((s, v) => s + v.unlocked, 0);
+    const totalWins = all.reduce((s, v) => s + v.totalWins, 0);
+    map.set('all', { name: 'all', title: '我的战绩', unlocked: totalUnlocked, totalWins, winRate: 0, plays: 0 });
 
     return map;
   }
@@ -85,6 +96,14 @@ class Leaderboard {
     ctx.font = '15px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('‹ 返回', this.backBtn.x, this.statusBarHeight + 30);
+    
+    // 分享按钮
+    if (this.showShareBtn) {
+      ctx.fillStyle = '#5677FC';
+      ctx.font = '15px -apple-system,BlinkMacSystemFont,sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('分享 ›', this.shareBtn.x + this.shareBtn.w - 8, this.statusBarHeight + 30);
+    }
 
     // Tab 行
     ctx.fillStyle = '#ffffff';
@@ -135,19 +154,19 @@ class Leaderboard {
       ctx.fillStyle = '#333333';
       ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(item.title, 70, ry + 28);
+      ctx.fillText(item.title, 70, ry + 26);
 
-      // 关卡数
+      // 关卡数和胜率
       ctx.fillStyle = '#888888';
-      ctx.font = '13px -apple-system,BlinkMacSystemFont,sans-serif';
-      ctx.fillText('已通关 ' + item.unlocked + ' 关', 70, ry + 48);
+      ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
+      ctx.fillText(`通关 ${item.unlocked} 关 · 胜率 ${item.winRate}%`, 70, ry + 48);
 
-      // 我的徽章
-      if (item.unlocked > 0) {
+      // 通关次数
+      if (item.totalWins > 0) {
         ctx.fillStyle = '#5677FC';
-        ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
+        ctx.font = 'bold 14px -apple-system,BlinkMacSystemFont,sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText('我的', tw - 25, ry + 38);
+        ctx.fillText(`${item.totalWins} 次通关`, tw - 25, ry + 38);
       }
     });
   }
@@ -174,6 +193,11 @@ class Leaderboard {
       return;
     }
 
+    if (this.showShareBtn && this._hit(this.shareBtn, x, y)) {
+      this._shareRanking();
+      return;
+    }
+
     // Tab 切换
     const tw = this.width;
     const tabW = tw / this.tabs.length;
@@ -190,6 +214,31 @@ class Leaderboard {
 
   _hit(btn, x, y) {
     return x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h;
+  }
+
+  async _shareRanking() {
+    try {
+      const totalData = this.leaderboardData.get('all');
+      const shareCard = new ShareCard(this.ctx, 500, 400);
+      
+      const imagePath = await shareCard.generate({
+        gameName: 'akari',
+        gameTitle: '我的战绩',
+        level: totalData.unlocked,
+        stars: Math.min(3, Math.floor(totalData.unlocked / 50)),
+        customText: `共通关 ${totalData.unlocked} 关 · ${totalData.totalWins} 次胜利`
+      });
+
+      if (imagePath) {
+        await shareCard.share({
+          path: imagePath,
+          title: `我在指尖谜题通关了 ${totalData.unlocked} 关！`,
+          content: '快来和我一起挑战吧！'
+        });
+      }
+    } catch (e) {
+      console.log('分享失败', e);
+    }
   }
 
   destroy() {
