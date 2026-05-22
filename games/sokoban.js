@@ -6,10 +6,11 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
-
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
+const { getInstance: getRewardManager } = require('./reward-manager');
+
 class Sokoban {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
     console.log(`[Sokoban] 初始化游戏, 关卡: ${level}`);
@@ -230,7 +231,15 @@ class Sokoban {
     console.log(`[Sokoban] 通关！关卡: ${this.level}, 步数: ${this.moves}`);
     this.victory = true;
       this.confetti.start();
-      // 成就检测
+      
+      const rewardMgr = getRewardManager();
+      const rewardResult = rewardMgr.processVictory(this.gameName, {
+        difficulty: this.difficulty || 'easy',
+        level: this.level,
+        time: this.timer || 0
+      });
+      rewardMgr.showRewardToast(rewardResult);
+      
       let winCount = 0;
       try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
       const newlyAchieved = this.achievement.check(this.gameName, winCount);

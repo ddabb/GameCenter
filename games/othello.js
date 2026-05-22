@@ -9,6 +9,7 @@ const { ShareCard } = require('./share-card');
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
+const { getInstance: getRewardManager } = require('./reward-manager');
 
 class Othello {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
@@ -291,10 +292,18 @@ class Othello {
     let whiteCanMove = this._hasValidMoves(this.WHITE);
     
     if (!blackCanMove && !whiteCanMove) {
-      // 双方都无法落子，游戏结束
       this.gameOver = true;
       this.confetti.start();
       sound.play('victory');
+      
+      const rewardMgr = getRewardManager();
+      const rewardResult = rewardMgr.processVictory(this.gameName, {
+        difficulty: 'easy',
+        level: 1,
+        time: 0
+      });
+      rewardMgr.showRewardToast(rewardResult);
+      
       this.saveGameProgress(); statsManager.endGame(true);
       this.winner = this.blackCount > this.whiteCount ? this.BLACK :
                    this.whiteCount > this.blackCount ? this.WHITE : null;

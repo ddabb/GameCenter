@@ -149,6 +149,7 @@ function getGameModule(name) {
       case 'merge-abc':    gameModules[name] = require('./games/merge-abc.js'); break;
       case 'frog-escape':  gameModules[name] = require('./games/frog-escape.js'); break;
       case 'one-stroke':   gameModules[name] = require('./games/one-stroke.js'); break;
+      case 'sudoku-daily': gameModules[name] = require('./games/sudoku-daily.js'); break;
       case 'settings':     gameModules[name] = require('./games/settings.js'); break;
       case 'achievements': gameModules[name] = require('./games/achievements.js'); break;
       case 'leaderboard':  gameModules[name] = require('./games/leaderboard.js'); break;
@@ -318,10 +319,9 @@ function safeInit() {
   }
 }
 
-function loadGame(gameName, level) {
-  // 如果分包还没加载完，先排队
+function loadGame(gameName, level, difficulty) {
   if (!subpackageLoaded) {
-    pendingGameLoad = { gameName: gameName, level: level };
+    pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
     loadSubpackage();
     return;
   }
@@ -331,16 +331,12 @@ function loadGame(gameName, level) {
     return;
   }
 
-  // 重置绘制错误标志位，允许新游戏正常绘制
   _drawErrorOccurred = false;
-
-  // 停止加载动画
   stopLoadingAnimation();
 
   if (gameInstance) {
     try { gameInstance.destroy(); } catch(e) { console.warn('[game] destroy error:', e.message); }
     gameInstance = null;
-    // 清空残留的事件监听器
     for (let type in _touchListeners) _touchListeners[type] = [];
   }
 
@@ -352,18 +348,18 @@ function loadGame(gameName, level) {
       currentGame = 'menu';
       return;
     }
-    gameInstance = new Module(ctx, canvas, systemInfo, switchGame, level);
+    gameInstance = new Module(ctx, canvas, systemInfo, switchGame, level, difficulty);
     currentGame = gameName;
     loadingShown = false;
-    console.log('[loadGame] 加载成功:', gameName, level || '');
+    console.log('[loadGame] 加载成功:', gameName, 'level:', level || '', 'difficulty:', difficulty || '');
   } catch (e) {
     console.error('[loadGame] 加载失败:', gameName, e.message, e.stack);
     showErrorOnCanvas(e);
   }
 }
 
-function switchGame(gameName, level) {
-  loadGame(gameName, level);
+function switchGame(gameName, level, difficulty) {
+  loadGame(gameName, level, difficulty);
 }
 
 let _drawErrorOccurred = false;

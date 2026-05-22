@@ -1,6 +1,7 @@
 /**
- * menu.js - 主菜单 v3.0
+ * menu.js - 主菜单 v3.1
  * 顶部标题 + 游戏网格，底部固定导航栏（设置/成就/排行/商城/我的）
+ * 优化：安全区域适配 + 响应式布局
  */
 const roundRect = require('../utils/round-rect.js');
 const sound = require('./sound-manager');
@@ -14,6 +15,7 @@ class Menu {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    this.safeAreaTop = systemInfo.safeAreaInsets?.top || 0;
     this.safeAreaBottom = systemInfo.safeAreaInsets?.bottom || 20;
 
     const CheckInManager = require('./check-in.js');
@@ -21,12 +23,11 @@ class Menu {
     this._showCheckin = false;
     this._checkinResult = null;
 
-    // 每日挑战
     const { DailyChallenge } = require('./daily-challenge');
     this.dailyChallenge = new DailyChallenge();
     this._dailyBanner = null;
+    this._sudokuBanner = null;
 
-    // 底部导航栏
     this._bottomBarH = 60 + this.safeAreaBottom;
     this._bottomBarY = this.height - this._bottomBarH;
     this._navItems = [
@@ -42,10 +43,9 @@ class Menu {
       item.y = this._bottomBarY;
       item.w = navW;
       item.h = this._bottomBarH;
-      item.iconSize = 26;
+      item.iconSize = Math.max(22, Math.round(this._bottomBarH * 0.35));
     });
 
-    // 游戏列表
     this.games = [
       { name: 'one-stroke',    title: '一笔画',    icon: '✏️', color: '#F6AD55' },
       { name: 'othello',       title: '黑白棋',    icon: '⚫', color: '#4A5568' },
@@ -62,21 +62,28 @@ class Menu {
     ];
 
     this.gameTotalLevels = {
-      'othello': 30, 'akari': 3000, 'sokoban': 3003, 'nurikabe': 3001,
-      'tents': 3000, '24point': 9999, 'slither-link': 3000, 'nonogram': 3001,
-      'battleship': 3000, 'merge-abc': 9999, 'frog-escape': 9999, 'one-stroke': 3000,
+      'othello': 30, 'akari': { easy: 1000, medium: 1000, hard: 1000 },
+      'sokoban': { easy: 1000, medium: 1000, hard: 1000 },
+      'nurikabe': { easy: 1000, medium: 1000, hard: 1000 },
+      'tents': { easy: 1000, medium: 1000, hard: 1000 },
+      '24point': { easy: 500, medium: 500, hard: 500 },
+      'slither-link': { easy: 1000, medium: 1000, hard: 1000 },
+      'nonogram': { easy: 1000, medium: 1000, hard: 1000 },
+      'battleship': { easy: 1000, medium: 1000, hard: 1000 },
+      'merge-abc': 9999, 'frog-escape': 9999, 'one-stroke': { easy: 1000, medium: 1000, hard: 1000 },
     };
+    this._difficultyGames = ['akari', 'tents', 'slither-link', 'one-stroke', 'nonogram', 'nurikabe', 'sokoban', 'battleship', '24point'];
 
-    // 布局计算
     this.padding = 16;
     this.gridGap = 10;
-    this.cols = 3;
-    this.headerH = this.statusBarHeight + 52;  // 标题区高度
-    this.bannerH = 50;                          // 每日挑战区
-    this.contentTop = this.headerH + this.bannerH + 10;
+    this.cols = this._calculateCols();
+    this.headerH = this.safeAreaTop + this.statusBarHeight + 52;
+    this.bannerH = 50;
+    this.sudokuBannerH = 50;
+    this.contentTop = this.headerH + this.bannerH + this.sudokuBannerH + 10;
     this.contentBottom = this._bottomBarY - 8;
     this.contentH = this.contentBottom - this.contentTop;
-    this.rowH = 90;   // 每行高度（卡片+间距）
+    this.rowH = 90;
     this.rows = Math.ceil(this.games.length / this.cols);
     this.buttonSize = Math.min(
       (this.width - this.padding * 2 - this.gridGap * (this.cols - 1)) / this.cols,
@@ -90,12 +97,17 @@ class Menu {
     this.draw();
   }
 
+  _calculateCols() {
+    if (this.width < 320) return 2;
+    if (this.width < 400) return 3;
+    return 3;
+  }
+
   bindEvents() {
     this.clickHandler = (e) => {
       const t = e.touches ? e.touches[0] : e;
       const x = t.clientX, y = t.clientY;
 
-      // 底部导航栏
       for (const item of this._navItems) {
         if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
           sound.play('click');
@@ -104,14 +116,12 @@ class Menu {
         }
       }
 
-      // 兑换码按钮（右侧第二个）
       if (this._hitRedeemBtn(x, y)) {
         sound.play('click');
         this.switchGame('redeem-code');
         return;
       }
 
-      // 签到按钮（右上角小图标）
       if (this._hitCheckinBtn(x, y)) {
         sound.play('click');
         this._showCheckin = !this._showCheckin;
@@ -119,7 +129,6 @@ class Menu {
         return;
       }
 
-      // 签到弹窗
       if (this._showCheckin) {
         const W = this.width, H = this.height;
         const popW = W * 0.82, popH = 320;
@@ -132,7 +141,6 @@ class Menu {
           this.draw();
           return;
         }
-        // 外部关闭
         if (x < popX || x > popX + popW || y < popY || y > popY + popH) {
           this._showCheckin = false;
           this._checkinResult = null;
@@ -142,7 +150,6 @@ class Menu {
         return;
       }
 
-      // 每日挑战横幅
       const db = this._dailyBanner;
       if (db && x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
         const dc = this.dailyChallenge.getToday();
@@ -151,7 +158,13 @@ class Menu {
         return;
       }
 
-      // 游戏卡片
+      const sb = this._sudokuBanner;
+      if (sb && x >= sb.x && x <= sb.x + sb.w && y >= sb.y && y <= sb.y + sb.h) {
+        sound.play('click');
+        this.switchGame('sudoku-daily');
+        return;
+      }
+
       for (let i = 0; i < this.games.length; i++) {
         const col = i % this.cols;
         const row = Math.floor(i / this.cols);
@@ -169,12 +182,12 @@ class Menu {
   }
 
   _hitRedeemBtn(x, y) {
-    const bx = this.width - 88, by = this.statusBarHeight + 14, bw = 36, bh = 36;
+    const bx = this.width - 96, by = this.safeAreaTop + this.statusBarHeight + 10, bw = 40, bh = 40;
     return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
   }
 
   _hitCheckinBtn(x, y) {
-    const bx = this.width - 44, by = this.statusBarHeight + 14, bw = 36, bh = 36;
+    const bx = this.width - 48, by = this.safeAreaTop + this.statusBarHeight + 10, bw = 40, bh = 40;
     return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
   }
 
@@ -186,7 +199,6 @@ class Menu {
     const ctx = this.ctx;
     const W = this.width, H = this.height;
 
-    // 背景
     ctx.clearRect(0, 0, W, H);
     const bg = ctx.createLinearGradient(0, 0, 0, H);
     bg.addColorStop(0, '#EEF2FF');
@@ -196,6 +208,7 @@ class Menu {
 
     this._drawHeader();
     this._drawDailyBanner();
+    this._drawSudokuBanner();
     this._drawGrid();
     this._drawBottomBar();
 
@@ -206,25 +219,25 @@ class Menu {
     const ctx = this.ctx;
     const W = this.width;
     const SH = this.statusBarHeight;
+    const SAT = this.safeAreaTop;
+    const headerTop = 0;
+    const headerBottom = SAT + SH + 50;
 
-    // 毛玻璃顶栏
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillRect(0, 0, W, SH + 50);
+    ctx.fillRect(0, headerTop, W, headerBottom - headerTop);
     ctx.strokeStyle = '#E0E3ED';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, SH + 50);
-    ctx.lineTo(W, SH + 50);
+    ctx.moveTo(0, headerBottom);
+    ctx.lineTo(W, headerBottom);
     ctx.stroke();
 
-    // 标题
     ctx.fillStyle = '#1A1A2E';
     ctx.font = 'bold 22px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('🎮 指尖谜题', this.padding, SH + 34);
+    ctx.fillText('🎮 指尖谜题', this.padding, SAT + SH + 34);
 
-    // 兑换码按钮（右侧第二个）
-    const redeemX = W - 88, redeemY = SH + 14, redeemW = 36, redeemH = 36;
+    const redeemX = W - 96, redeemY = SAT + SH + 10, redeemW = 40, redeemH = 40;
     const redeemGradient = ctx.createRadialGradient(redeemX + redeemW / 2, redeemY + redeemH / 2, 0, redeemX + redeemW / 2, redeemY + redeemH / 2, redeemH / 2);
     redeemGradient.addColorStop(0, 'rgba(255,152,0,0.4)');
     redeemGradient.addColorStop(1, 'rgba(255,152,0,0.2)');
@@ -232,12 +245,11 @@ class Menu {
     ctx.beginPath();
     ctx.arc(redeemX + redeemW / 2, redeemY + redeemH / 2, redeemH / 2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.font = '18px -apple-system';
+    ctx.font = '20px -apple-system';
     ctx.textAlign = 'center';
-    ctx.fillText('🎁', redeemX + redeemW / 2, redeemY + redeemH / 2 + 6);
+    ctx.fillText('🎁', redeemX + redeemW / 2, redeemY + redeemH / 2 + 7);
 
-    // 签到按钮（右上角）
-    const bx = W - 44, by = SH + 14, bw = 36, bh = 36;
+    const bx = W - 48, by = SAT + SH + 10, bw = 40, bh = 40;
     const todayChecked = this.checkin.isCheckedInToday();
     const checkinGradient = ctx.createRadialGradient(bx + bw / 2, by + bh / 2, 0, bx + bw / 2, by + bh / 2, bh / 2);
     if (todayChecked) {
@@ -251,9 +263,9 @@ class Menu {
     ctx.beginPath();
     ctx.arc(bx + bw / 2, by + bh / 2, bh / 2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.font = '18px -apple-system';
+    ctx.font = '20px -apple-system';
     ctx.textAlign = 'center';
-    ctx.fillText(todayChecked ? '✅' : '📅', bx + bw / 2, by + bh / 2 + 6);
+    ctx.fillText(todayChecked ? '✅' : '📅', bx + bw / 2, by + bh / 2 + 7);
   }
 
   _drawDailyBanner() {
@@ -266,19 +278,16 @@ class Menu {
 
     this._dailyBanner = { x: bx, y: by, w: bw, h: bh };
 
-    // 卡片
     ctx.fillStyle = dc.completed ? 'rgba(76,175,80,0.08)' : 'rgba(102,126,234,0.08)';
     ctx.beginPath();
     _rr(ctx, bx, by, bw, bh, 12);
     ctx.fill();
 
-    // 左侧色条
     ctx.fillStyle = dc.completed ? '#4CAF50' : '#6677FC';
     ctx.beginPath();
     _rr(ctx, bx, by, 4, bh, [12, 0, 0, 12]);
     ctx.fill();
 
-    // 文案
     ctx.textAlign = 'left';
     ctx.fillStyle = dc.completed ? '#2E7D32' : '#444';
     ctx.font = 'bold 13px -apple-system';
@@ -288,7 +297,6 @@ class Menu {
     ctx.font = '12px -apple-system';
     ctx.fillText(dc.gameTitle + ' · 第' + dc.level + '关', bx + 14, by + 38);
 
-    // 右侧连胜
     if (streak > 0) {
       ctx.textAlign = 'right';
       ctx.fillStyle = '#FF6B6B';
@@ -302,6 +310,58 @@ class Menu {
     }
   }
 
+  _drawSudokuBanner() {
+    const ctx = this.ctx;
+    const W = this.width;
+    const PROGRESS_KEY = 'sudoku_daily_progress';
+    const todayDate = this._getTodayDate();
+
+    let completed = false;
+    try {
+      const saved = wx.getStorageSync(PROGRESS_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        completed = data[todayDate] && data[todayDate].completed;
+      }
+    } catch (e) {}
+
+    const bx = this.padding;
+    const by = this.headerH + this.bannerH + 6;
+    const bw = W - this.padding * 2;
+    const bh = this.sudokuBannerH - 6;
+
+    this._sudokuBanner = { x: bx, y: by, w: bw, h: bh };
+
+    ctx.fillStyle = completed ? 'rgba(76,175,80,0.08)' : 'rgba(156,39,176,0.08)';
+    ctx.beginPath();
+    _rr(ctx, bx, by, bw, bh, 12);
+    ctx.fill();
+
+    ctx.fillStyle = completed ? '#4CAF50' : '#9C27B0';
+    ctx.beginPath();
+    _rr(ctx, bx, by, 4, bh, [12, 0, 0, 12]);
+    ctx.fill();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = completed ? '#2E7D32' : '#444';
+    ctx.font = 'bold 13px -apple-system';
+    ctx.fillText(completed ? '✅ 今日数独已完成' : '🧩 每日数独', bx + 14, by + 20);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '12px -apple-system';
+    ctx.fillText('数独挑战 · 思维训练', bx + 14, by + 38);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = completed ? '#4CAF50' : '#9C27B0';
+    ctx.font = 'bold 13px -apple-system';
+    ctx.fillText(completed ? '已完成 ✓' : '去挑战 >', bx + bw - 14, by + 30);
+  }
+
+  _getTodayDate() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   _drawGrid() {
     const ctx = this.ctx;
     for (let i = 0; i < this.games.length; i++) {
@@ -313,13 +373,11 @@ class Menu {
       const by = this.startY + row * (this.buttonSize + this.gridGap) + hover;
       const S = this.buttonSize;
 
-      // 阴影
       ctx.fillStyle = 'rgba(102,126,234,0.15)';
       ctx.beginPath();
       _rr(ctx, bx + 2, by + 3, S, S, 14);
       ctx.fill();
 
-      // 卡片主体
       const grad = ctx.createLinearGradient(bx, by, bx + S, by + S);
       grad.addColorStop(0, this._lighten(game.color, 20));
       grad.addColorStop(1, game.color);
@@ -328,43 +386,55 @@ class Menu {
       _rr(ctx, bx, by, S, S, 14);
       ctx.fill();
 
-      // 高光
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       ctx.beginPath();
       _rr(ctx, bx + 6, by + 6, S - 12, S * 0.38, 8);
       ctx.fill();
 
-      // 图标
       ctx.font = (S * 0.42) + 'px -apple-system';
       ctx.textAlign = 'center';
       ctx.fillText(game.icon, bx + S / 2, by + S / 2 + 8);
 
-      // 名称
       ctx.fillStyle = '#fff';
       ctx.font = 'bold ' + (S * 0.19) + 'px -apple-system';
       ctx.fillText(game.title, bx + S / 2, by + S - 24);
 
-      // 进度
       try {
-        const raw = wx.getStorageSync('progress_' + game.name);
-        if (raw) {
-          const prog = JSON.parse(raw);
-          const done = Object.keys(prog.stars || {}).length;
-          const total = this.gameTotalLevels[game.name] || 30;
-          if (done > 0) {
-            ctx.fillStyle = 'rgba(255,255,255,0.75)';
-            ctx.font = (S * 0.15) + 'px -apple-system';
-            ctx.fillText(done + '/' + total, bx + S / 2, by + S - 8);
-
-            // 进度条
-            const bW = S * 0.72, bH = 3;
-            const bX = bx + (S - bW) / 2, bY = by + S - 3;
-            const r = Math.min(done / total, 1);
-            ctx.fillStyle = 'rgba(255,255,255,0.25)';
-            ctx.fillRect(bX, bY, bW, bH);
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(bX, bY, bW * r, bH);
+        let done = 0;
+        let total = this.gameTotalLevels[game.name] || 30;
+        
+        if (this._difficultyGames.includes(game.name)) {
+          const levels = this.gameTotalLevels[game.name];
+          total = levels.easy + (levels.medium || 0) + (levels.hard || 0);
+          
+          const difficulties = ['easy', 'medium', 'hard'];
+          difficulties.forEach(diff => {
+            const raw = wx.getStorageSync('progress_' + game.name + '_' + diff);
+            if (raw) {
+              const prog = JSON.parse(raw);
+              done += Object.keys(prog.stars || {}).length;
+            }
+          });
+        } else {
+          const raw = wx.getStorageSync('progress_' + game.name);
+          if (raw) {
+            const prog = JSON.parse(raw);
+            done = Object.keys(prog.stars || {}).length;
           }
+        }
+        
+        if (done > 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.75)';
+          ctx.font = (S * 0.15) + 'px -apple-system';
+          ctx.fillText(done + '/' + total, bx + S / 2, by + S - 8);
+
+          const bW = S * 0.72, bH = 3;
+          const bX = bx + (S - bW) / 2, bY = by + S - 3;
+          const r = Math.min(done / total, 1);
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.fillRect(bX, bY, bW, bH);
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(bX, bY, bW * r, bH);
         }
       } catch (e) {}
     }
@@ -375,14 +445,12 @@ class Menu {
     const W = this.width, H = this.height;
     const by = this._bottomBarY, bh = this._bottomBarH;
 
-    // 渐变底栏背景
     const bgGradient = ctx.createLinearGradient(0, by, 0, by + bh);
     bgGradient.addColorStop(0, '#FFFFFF');
     bgGradient.addColorStop(1, '#F8F9FA');
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, by, W, bh);
     
-    // 顶部阴影线
     ctx.strokeStyle = '#E8ECF0';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -390,7 +458,6 @@ class Menu {
     ctx.lineTo(W, by);
     ctx.stroke();
 
-    // 底部阴影
     ctx.fillStyle = 'rgba(0,0,0,0.04)';
     ctx.fillRect(0, by, W, 2);
 
@@ -402,7 +469,6 @@ class Menu {
       const cx = ix + navW / 2;
       const color = navColors[i % navColors.length];
 
-      // 图标圆背景 - 使用更鲜艳的颜色
       const circleGradient = ctx.createRadialGradient(cx, iy + 18, 0, cx, iy + 18, 18);
       circleGradient.addColorStop(0, color + '20');
       circleGradient.addColorStop(1, color + '08');
@@ -411,17 +477,14 @@ class Menu {
       ctx.arc(cx, iy + 18, 18, 0, Math.PI * 2);
       ctx.fill();
 
-      // 图标 - 使用更清晰的显示
       ctx.font = '24px -apple-system';
       ctx.textAlign = 'center';
       ctx.fillText(item.icon, cx, iy + 26);
 
-      // 标签 - 使用更深的颜色提高对比度
       ctx.fillStyle = '#333333';
       ctx.font = 'bold 12px -apple-system';
       ctx.fillText(item.label, cx, by + bh - 10);
 
-      // 更新坐标
       item.x = ix; item.y = by; item.w = navW; item.h = bh;
     });
   }
@@ -432,29 +495,24 @@ class Menu {
     const popW = W * 0.82, popH = 320;
     const popX = (W - popW) / 2, popY = (H - popH) / 2 - 20;
 
-    // 遮罩
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(0, 0, W, H);
 
-    // 弹窗
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     _rr(ctx, popX, popY, popW, popH, 20);
     ctx.fill();
 
-    // 标题
     ctx.fillStyle = '#1A1A2E';
     ctx.font = 'bold 18px -apple-system';
     ctx.textAlign = 'center';
     ctx.fillText('📅 每日签到', W / 2, popY + 38);
 
-    // 连续签到
     const streak = this.checkin.getStreak();
     ctx.fillStyle = '#FF6B6B';
     ctx.font = 'bold 14px -apple-system';
     ctx.fillText('🔥 连续 ' + streak + ' 天', W / 2, popY + 60);
 
-    // 本周
     const week = this.checkin.getWeekStatus();
     const dayW = (popW - 40) / 7;
     const dayStartX = popX + 20;
@@ -474,7 +532,6 @@ class Menu {
       ctx.fillText(d.checked ? '✓' : (d.reward.coins + '💰'), dx + dayW / 2, dayY + 50);
     });
 
-    // 结果
     if (this._checkinResult && this._checkinResult.success) {
       const r = this._checkinResult;
       ctx.fillStyle = '#4CAF50';
@@ -493,7 +550,6 @@ class Menu {
       ctx.fillText('今日已签到 ✅', W / 2, popY + 185);
     }
 
-    // 按钮
     const btnW = 120, btnH = 40;
     const btnX = (W - btnW) / 2, btnY = popY + popH - 60;
     const done = this.checkin.isCheckedInToday();

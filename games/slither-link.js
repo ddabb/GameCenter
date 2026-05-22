@@ -6,10 +6,11 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
-
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
+const { getInstance: getRewardManager } = require('./reward-manager');
+
 /**
  * 数回 (Slither Link) - 小游戏版
  * 规则：在格点间画线，形成一条闭合回路，数字表示该格周围的线段数
@@ -229,7 +230,15 @@ class SlitherLink {
     console.log(`[SlitherLink] 通关！关卡: ${this.level}`);
     this.victory = true;
       this.confetti.start();
-      // 成就检测
+      
+      const rewardMgr = getRewardManager();
+      const rewardResult = rewardMgr.processVictory(this.gameName, {
+        difficulty: this.difficulty || 'easy',
+        level: this.level,
+        time: this.timer || 0
+      });
+      rewardMgr.showRewardToast(rewardResult);
+      
       let winCount = 0;
       try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
       const newlyAchieved = this.achievement.check(this.gameName, winCount);

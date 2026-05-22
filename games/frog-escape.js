@@ -7,6 +7,7 @@ const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
 const VictoryPanel = require('./components/victory-panel');
 const FailurePanel = require('./components/failure-panel');
+const { getInstance: getRewardManager } = require('./reward-manager');
 
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/minesweeper';
 const RECORDS_KEY = 'frog_escape_records';
@@ -716,7 +717,6 @@ class FrogEscape {
 
     sound.play(won ? 'victory' : 'gameover');
 
-    // 显示所有牛蛙
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         if (this._boardData?.[r]?.[c]?.isFrog) {
@@ -732,6 +732,14 @@ class FrogEscape {
     if (won) {
       this.saveRecord(this.time);
       this.confetti.start();
+      
+      const rewardMgr = getRewardManager();
+      const rewardResult = rewardMgr.processVictory(this.gameName, {
+        difficulty: 'easy',
+        level: 1,
+        time: this.time || 0
+      });
+      rewardMgr.showRewardToast(rewardResult);
     }
   }
 

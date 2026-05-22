@@ -15,38 +15,82 @@ class HintManager {
   constructor(maxHints = 3) {
     this.maxHints = maxHints;
     this.usedHints = 0;
-    this.lastHint = null; // { row, col, value }
+    this.lastHint = null;
     this._flashTimer = null;
     this._flashVisible = false;
+    this._ctx = null;
   }
 
-  /**
-   * 是否还能提示
-   */
+  setContext(ctx) {
+    this._ctx = ctx;
+  }
+
   canHint() {
     return this.usedHints < this.maxHints;
   }
 
-  /**
-   * 获取提示（各游戏调用）
-   * @param {string} gameName 
-   * @param {Array} answerData 答案数据（grid或answer数组）
-   * @param {Array} currentData 当前用户状态
-   * @returns {object|null} { row, col, value } 或 null
-   */
-  getHint(gameName, answerData, currentData) {
+  getHint(gameName, puzzleData, currentData) {
     if (!this.canHint()) return null;
 
-    // 找到第一个答案与当前状态不一致的格子
+    if (gameName === 'akari') {
+      return this._getAkariHint(puzzleData, currentData);
+    }
+
+    if (gameName === 'nonogram' || gameName === 'battleship' || gameName === 'slither-link') {
+      return this._getHintFromGrid(puzzleData, currentData);
+    }
+
+    return null;
+  }
+
+  _getAkariHint(puzzleData, currentData) {
+    if (!puzzleData || !puzzleData.grid) return null;
+    
+    const grid = puzzleData.grid;
+    const size = grid.length;
+    const lights = currentData;
+    
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (grid[r][c] >= 2) continue;
+        if (lights && lights[r] && lights[r][c]) continue;
+        
+        if (puzzleData.answer && Array.isArray(puzzleData.answer)) {
+          const isAnswer = puzzleData.answer.some(([ar, ac]) => ar === r && ac === c);
+          if (isAnswer) {
+            const hint = { row: r, col: c, value: true };
+            this.lastHint = hint;
+            this.usedHints++;
+            return hint;
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  _getHintFromGrid(puzzleData, currentData) {
+    let answerData = puzzleData;
+    
+    if (puzzleData.grid) {
+      answerData = puzzleData.grid;
+    } else if (puzzleData.answer) {
+      return null;
+    }
+    
     const size = answerData.length;
     const candidates = [];
     
     for (let r = 0; r < size; r++) {
-      for (let c = 0; c < (Array.isArray(answerData[r]) ? answerData[r].length : 0); c++) {
-        const answer = Array.isArray(answerData[r]) ? answerData[r][c] : null;
-        const current = currentData ? (currentData[r] ? currentData[r][c] : null) : null;
+      const rowData = answerData[r];
+      if (!rowData) continue;
+      const rowLen = Array.isArray(rowData) ? rowData.length : 0;
+      
+      for (let c = 0; c < rowLen; c++) {
+        const answer = Array.isArray(rowData) ? rowData[c] : null;
+        const current = currentData && currentData[r] ? currentData[r][c] : null;
         
-        // 找不同的位置
         if (answer !== null && answer !== undefined && answer !== current) {
           candidates.push({ row: r, col: c, value: answer });
         }
@@ -55,7 +99,6 @@ class HintManager {
 
     if (candidates.length === 0) return null;
 
-    // 随机选一个
     const hint = candidates[Math.floor(Math.random() * candidates.length)];
     this.lastHint = hint;
     this.usedHints++;
@@ -65,9 +108,6 @@ class HintManager {
     return hint;
   }
 
-  /**
-   * 开始闪烁动画（3秒后停止）
-   */
   _startFlash() {
     if (this._flashTimer) clearInterval(this._flashTimer);
     let count = 0;
@@ -83,16 +123,10 @@ class HintManager {
     }, 300);
   }
 
-  /**
-   * 是否正在闪烁
-   */
   isFlashing() {
     return this._flashVisible && this.lastHint;
   }
 
-  /**
-   * 绘制提示高亮（在游戏draw中调用）
-   */
   drawHighlight(ctx, offsetX, offsetY, cellSize) {
     if (!this.isFlashing() || !this.lastHint) return;
     
@@ -100,18 +134,19 @@ class HintManager {
     const x = offsetX + col * cellSize;
     const y = offsetY + row * cellSize;
     
-    this.ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,x + 2, y + 2, cellSize - 4, cellSize - 4, 4);
-    this.ctx.fill();
-    this.ctx.strokeStyle = '#4CAF50';
-    this.ctx.lineWidth = 2;
-    this.ctx.stroke();
+    ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(x + 2, y + 2, cellSize - 4, cellSize - 4, 4);
+    } else {
+      ctx.rect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+    }
+    ctx.fill();
+    ctx.strokeStyle = '#4CAF50';
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
-  /**
-   * 重置（新关卡时调用）
-   */
   reset() {
     this.usedHints = 0;
     this.lastHint = null;

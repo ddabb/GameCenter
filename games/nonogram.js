@@ -10,6 +10,7 @@ const Confetti = require('./confetti');
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
+const { getInstance: getRewardManager } = require('./reward-manager');
 
 class Nonogram {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
@@ -233,6 +234,14 @@ class Nonogram {
     this.victory = true;
     this.confetti.start();
     sound.play('victory');
+
+    const rewardMgr = getRewardManager();
+    const rewardResult = rewardMgr.processVictory(this.gameName, {
+      difficulty: this.difficulty || 'easy',
+      level: this.level,
+      time: this.timer
+    });
+    rewardMgr.showRewardToast(rewardResult);
 
     try {
       const baseKey = 'progress_' + this.gameName;

@@ -10,44 +10,52 @@ const Confetti = require('./confetti');
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
-/**
- * 战舰 (Battleship) - 小游戏版
- * 规则：猜测敌方战舰位置，击沉所有战舰获胜
- */
+const { getInstance: getRewardManager } = require('./reward-manager');
+
+const CELL_EMPTY = 0;
+const CELL_SHIP = 1;
+const CELL_WATER = 2;
+
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/battleship';
+
 class Battleship {
-  constructor(ctx, canvas, systemInfo, switchGame, level) {
+  constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
     this.ctx = ctx;
     this.canvas = canvas;
     this.systemInfo = systemInfo;
     this.switchGame = switchGame;
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
-    
-    // 安全区域适配
+    this.gameName = 'battleship';
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     
     this.level = level;
-    statsManager.startGame(this.gameName, level) || 1; // 关卡号
-    this.gameName = 'battleship';
+    this.difficulty = difficulty;
+    this.size = this._getSizeByDifficulty(difficulty);
     
-    this.size = 8; // 8x8网格
-    this.cellSize = Math.min(this.width * 0.85 / this.size, 42);
-    this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = this.statusBarHeight + 120;
+    statsManager.startGame(this.gameName, level);
     
-    // 网格状态：0=空，1=战舰，-1=已打空，2=已击中
+    this.cellSize = this._calcCellSize();
+    this.hintAreaSize = 30;
+    this.boardOffsetX = (this.width - this.cellSize * this.size - this.hintAreaSize) / 2;
+    this.boardOffsetY = this.statusBarHeight + 100;
+    
     this.grid = [];
-    this.ships = [];
-    
-    this.shots = 0;
-    this.hits = 0;
-    this.totalShipCells = 0;
+    this.solution = [];
+    this.rowHints = [];
+    this.colHints = [];
+    this.shipCount = 0;
+    this.totalShips = 0;
     this.animationTime = 0;
     this.victory = false;
+    this.timer = 0;
+    this.timerInterval = null;
+    
+    this.undoMgr = new UndoManager();
+    this.hintMgr = new HintManager();
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = new AchievementManager();
-
-    // 共享 UI 组件
+    
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
@@ -56,138 +64,172 @@ class Battleship {
       onAchievementDraw: () => this._drawAchievementPopup()
     });
 
-
-
-    this.hintMgr = new HintManager(); this._levelData = null;
-    this.lastHit = null;
-    
-    this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
+    this.loadPuzzle();
   }
-  
-  async loadLevel() {
-    if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
+
+  _getSizeByDifficulty(difficulty) {
+    switch(difficulty) {
+      case 'easy': return 6;
+      case 'medium': return 8;
+      case 'hard': return 10;
+      default: return 6;
+    }
+  }
+
+  _calcCellSize() {
+    const maxW = this.width - 60;
+    const maxH = this.height - 280;
+    const sizeByW = Math.floor(maxW / this.size);
+    const sizeByH = Math.floor(maxH / this.size);
+    return Math.max(25, Math.min(sizeByW, sizeByH, 45));
+  }
+
+  _getHintSize() {
+    return Math.max(25, Math.min(this.cellSize, 35));
+  }
+
+  async loadPuzzle() {
+    if (this.confetti) this.confetti.stop();
+    if (this.undoMgr) this.undoMgr.clear();
+    if (this.hintMgr) this.hintMgr.reset();
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    
     try {
-      const data = await LevelLoader.load('battleship', this.level, 'easy');
+      const data = await LevelLoader.load('battleship', this.level, this.difficulty);
       if (data && data.grid) {
-        this.size = data.size || 8;
-        this.cellSize = Math.min(this.width * 0.85 / this.size, 42);
-        this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-        this.boardOffsetY = 120;
-        
-        // 玩家视图：初始全为0（未探索）
-        this.grid = [];
-        for (let r = 0; r < this.size; r++) {
-          this.grid[r] = [];
-          for (let c = 0; c < this.size; c++) {
-            this.grid[r][c] = 0; // 0=未探索
-          }
-        }
-        
-        // 保存答案稍后验证
-        this.answerGrid = data.grid;
-        this.rowCounts = data.rowCounts || [];
-        this.colCounts = data.colCounts || [];
-        
-        // 统计战舰格数
-        this.totalShipCells = 0;
-        for (let r = 0; r < this.size; r++) {
-          for (let c = 0; c < this.size; c++) {
-            if (data.grid[r][c] === 1) this.totalShipCells++;
-          }
-        }
-        
-        this.ships = [];
-        this.shots = 0;
-        this.hits = 0;
-        this.victory = false;
-        this.lastHit = null;
+        this._applyPuzzle(data);
         return;
       }
-    } catch (e) { /* CDN失败，走内置题 */ }
+    } catch (e) {
+      console.log('[Battleship] CDN加载失败，使用内置题目');
+    }
     
-    // 内置题目（简化版：随机生成）
-    this.grid = [];
+    this._generateFallback();
+  }
+
+  _applyPuzzle(puzzleData) {
+    this.size = puzzleData.size || this.size;
+    this.cellSize = this._calcCellSize();
+    this.hintAreaSize = this._getHintSize();
+    this.boardOffsetX = (this.width - this.cellSize * this.size - this.hintAreaSize) / 2;
+    this.boardOffsetY = this.statusBarHeight + 100;
+    
+    let grid = puzzleData.grid;
+    if (typeof grid[0][0] === 'string') {
+      grid = grid.map(row => row.map(cell => cell === 'S' ? CELL_SHIP : CELL_EMPTY));
+    }
+    
+    this.solution = grid;
+    this.grid = Array(this.size).fill(null).map(() => Array(this.size).fill(CELL_EMPTY));
+    this.rowHints = puzzleData.rowCounts || Array(this.size).fill(0);
+    this.colHints = puzzleData.colCounts || Array(this.size).fill(0);
+    
+    this.totalShips = 0;
     for (let r = 0; r < this.size; r++) {
-      this.grid[r] = [];
       for (let c = 0; c < this.size; c++) {
-        this.grid[r][c] = 0; // 0=空，未探索
+        if (this.solution[r][c] === CELL_SHIP) this.totalShips++;
       }
     }
     
-    // 放置战舰（简化版：随机放置）
-    this.ships = [];
-    const shipSizes = [4, 3, 3, 2]; // 一艘4格，两艘3格，一艘2格
-    this.totalShipCells = shipSizes.reduce((a, b) => a + b, 0);
+    this.shipCount = 0;
+    this.victory = false;
+    this.timer = 0;
+    this.startTimer();
+  }
+
+  _generateFallback() {
+    const rows = this.size, cols = this.size;
+    const grid = Array(rows).fill(null).map(() => Array(cols).fill(CELL_EMPTY));
     
-    for (const size of shipSizes) {
+    const shipTypes = this.difficulty === 'easy' 
+      ? [3, 2, 2, 1, 1]
+      : this.difficulty === 'medium' 
+        ? [4, 3, 2, 2, 1, 1]
+        : [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+    
+    for (const length of shipTypes) {
       let placed = false;
-      while (!placed) {
-        const horizontal = Math.random() < 0.5;
-        const maxR = horizontal ? this.size : this.size - size;
-        const maxC = horizontal ? this.size - size : this.size;
+      let attempts = 0;
+      while (!placed && attempts < 100) {
+        attempts++;
+        const isHorizontal = Math.random() > 0.5;
+        const r = Math.floor(Math.random() * (rows - (isHorizontal ? 0 : length - 1)));
+        const c = Math.floor(Math.random() * (cols - (isHorizontal ? length - 1 : 0)));
         
-        const r = Math.floor(Math.random() * maxR);
-        const c = Math.floor(Math.random() * maxC);
-        
-        // 检查是否可以放置
         let canPlace = true;
-        for (let i = 0; i < size; i++) {
-          const rr = horizontal ? r : r + i;
-          const cc = horizontal ? c + i : c;
-          if (this.grid[rr][cc] !== 0) {
+        for (let i = 0; i < length; i++) {
+          const nr = isHorizontal ? r : r + i;
+          const nc = isHorizontal ? c + i : c;
+          if (nr >= rows || nc >= cols || grid[nr][nc] === CELL_SHIP) {
             canPlace = false;
             break;
+          }
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const checkR = nr + dr;
+              const checkC = nc + dc;
+              if (checkR >= 0 && checkR < rows && checkC >= 0 && checkC < cols && grid[checkR][checkC] === CELL_SHIP) {
+                canPlace = false;
+                break;
+              }
+            }
+            if (!canPlace) break;
           }
         }
         
         if (canPlace) {
-          const ship = [];
-          for (let i = 0; i < size; i++) {
-            const rr = horizontal ? r : r + i;
-            const cc = horizontal ? c + i : c;
-            this.grid[rr][cc] = 1; // 1=战舰
-            ship.push({r: rr, c: cc});
+          for (let i = 0; i < length; i++) {
+            const nr = isHorizontal ? r : r + i;
+            const nc = isHorizontal ? c + i : c;
+            grid[nr][nc] = CELL_SHIP;
           }
-          this.ships.push(ship);
           placed = true;
         }
       }
     }
     
-    this.shots = 0;
-    this.hits = 0;
-    this.victory = false;
-    this.lastHit = null;
+    const rowCounts = Array(rows).fill(0);
+    const colCounts = Array(cols).fill(0);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (grid[r][c] === CELL_SHIP) {
+          rowCounts[r]++;
+          colCounts[c]++;
+        }
+      }
+    }
+    
+    this._applyPuzzle({ size: this.size, grid, rowCounts, colCounts });
   }
-  
+
+  startTimer() {
+    this.stopTimer();
+    this.timer = 0;
+    this.timerInterval = setInterval(() => {
+      this.timer++;
+    }, 1000);
+  }
+
+  stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  _formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
   bindEvents() {
     this.clickHandler = (e) => {
       let touch = e.touches ? e.touches[0] : e;
       let x = touch.clientX;
-      let y = touch.clientY;// 撤销按钮检测
-      if (this._undoBtn && x >= this._undoBtn.x && x <= this._undoBtn.x + this._undoBtn.w && y >= this._undoBtn.y && y <= this._undoBtn.y + this._undoBtn.h) {
-        const state = this.undoMgr.undo();
-        if (state) {
-          this.grid = state.grid;
-          this.draw();
-        }
-        return;
-      }
-      
-      // 提示按钮检测
-      if (this._hintBtn && x >= this._hintBtn.x && x <= this._hintBtn.x + this._hintBtn.w && y >= this._hintBtn.y && y <= this._hintBtn.y + this._hintBtn.h) {
-        if (this._levelData && this.hintMgr) {
-          const answerData = this._levelData.grid;
-          const hint = this.hintMgr.getHint('battleship', answerData, this.grid);
-          if (hint) {
-            this.grid[hint.row][hint.col] = hint.value;
-            this.draw();
-          }
-        }
-        return;
-      }
+      let y = touch.clientY;
       
       if (this.tutorial && this.tutorial.shouldShow() && this.tutorial.hitTest(x, y)) {
         this.tutorial.dismiss();
@@ -195,33 +237,31 @@ class Battleship {
         return;
       }
       
-      // 底部工具栏按钮
       const action = this.bottomBar.handleClick(x, y);
       if (action) {
         this._handleBottomAction(action);
         return;
       }
       
-      // 顶部返回按钮
       if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
+        this.stopTimer();
         this.switchGame('level-select', this.gameName);
         return;
       }
       
-      // 通关面板
       if (this.victory) {
         const result = this.victoryPanel.handleClick(x, y);
         if (result === 'next') {
           this.level++;
-          this.loadLevel();
+          this.loadPuzzle();
           sound.play('click');
           this.victoryPanel.reset();
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear(); if (this.hintMgr) this.hintMgr.reset();
           return;
         }
         if (result === 'back') {
           sound.play('click');
+          this.stopTimer();
           this.switchGame('level-select', this.gameName);
           return;
         }
@@ -231,180 +271,36 @@ class Battleship {
         return;
       }
       
-      // 底部工具栏
-      const bottomAction = this.bottomBar.handleClick(x, y);
-      if (bottomAction === 'reset') {
-        this.loadLevel();
-        return;
-      }
-      
-      // 检查格子点击
-      const col = Math.floor((x - this.boardOffsetX) / this.cellSize);
-      const row = Math.floor((y - this.boardOffsetY) / this.cellSize);
+      const col = Math.floor((x - this.boardOffsetX - this.hintAreaSize) / this.cellSize);
+      const row = Math.floor((y - this.boardOffsetY - this.hintAreaSize) / this.cellSize);
       
       if (row >= 0 && row < this.size && col >= 0 && col < this.size) {
-        // 只能点击未探索的格子
-        if (this.grid[row][col] === 0 || this.grid[row][col] === 1) {
-          if (this.grid[row][col] === 1) {
-            this.grid[row][col] = 2; // 2=击中
-            this.hits++;
-            this.lastHit = {row, col, time: this.animationTime};
-          } else {
-            this.grid[row][col] = -1; // -1=打空
-          }
-          if (this.undoMgr) this.undoMgr.save({ grid: this.grid.map(r => [...r]), shots: this.shots, hits: this.hits, lastHit: this.lastHit });
-            this.shots++;
-          this.checkVictory();
+        const prevState = this.grid[row][col];
+        this.grid[row][col] = (this.grid[row][col] + 1) % 3;
+        
+        if (prevState === CELL_EMPTY && this.grid[row][col] === CELL_SHIP) {
+          this.shipCount++;
+        } else if (prevState === CELL_SHIP && this.grid[row][col] !== CELL_SHIP) {
+          this.shipCount--;
         }
+        
+        sound.play('click');
+        this._checkCompletion();
       }
+      
+      this.draw();
     };
+    
     this.canvas.addEventListener('click', this.clickHandler);
-  }
-  
-  checkVictory() {
-    if (this.hits >= this.totalShipCells) {
-      this.victory = true;
-      this.confetti.start();
-      // 成就检测
-      let winCount = 0;
-      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
-      const newlyAchieved = this.achievement.check(this.gameName, winCount);
-      this._newAchievements = newlyAchieved;
-      sound.play('victory');
-      this.saveGameProgress(); statsManager.endGame(true);
-    }
-  }
-  
-  update() {
-    this.animationTime += 0.1;
-  }
-  
-  draw() {
-    this.drawBackground();
-    
-    this.headerBar.draw({
-      title: '🚢 海战游戏',
-      info: '点击格子寻找战舰',
-      info2: `关卡 ${this.level}  |  开火 ${this.shots}  |  命中 ${this.hits}/${this.totalShipCells}`
-    });
-    this.drawBoard();
-    this.bottomBar.setButtons([{ id: 'reset', text: '🔄 新局' }]);
-    this.bottomBar.draw();
-    
-    if (this.victory) {
-      this.victoryPanel.setSubtitle('关卡 ' + this.level);
-      this.victoryPanel.setAchievements(this._newAchievements);
-      this.victoryPanel.draw();
-    }
-    
-    // 规则弹窗
-    if (this.tutorial.shouldShow()) {
-      this.tutorial.draw();
-    }
-  }
-  
-  drawBackground() {
-    let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#0d1b2a');
-    gradient.addColorStop(1, '#1b263b');
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.width, this.height);
-    
-    // 波浪效果
-    for (let i = 0; i < 5; i++) {
-      let waveY = 50 + i * 60 + Math.sin(this.animationTime + i) * 5;
-      this.ctx.strokeStyle = `rgba(65, 178, 224, ${0.1 - i * 0.015})`;
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
-      for (let x = 0; x < this.width; x += 10) {
-        let y = waveY + Math.sin((x + this.animationTime * 20) * 0.02) * 10;
-        if (x === 0) this.ctx.moveTo(x, y);
-        else this.ctx.lineTo(x, y);
-      }
-      this.ctx.stroke();
-    }
-  }
-  
-  drawBoard() {
-    // 棋盘背景
-    this.ctx.fillStyle = 'rgba(0, 50, 80, 0.5)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,this.boardOffsetX - 5, this.boardOffsetY - 5, 
-                       this.cellSize * this.size + 10, this.cellSize * this.size + 10, 8);
-    this.ctx.fill();
-    
-    for (let r = 0; r < this.size; r++) {
-      for (let c = 0; c < this.size; c++) {
-        const x = this.boardOffsetX + c * this.cellSize;
-        const y = this.boardOffsetY + r * this.cellSize;
-        const state = this.grid[r][c];
-        
-        // 海洋背景
-        let waveOffset = Math.sin(this.animationTime + r + c) * 2;
-        this.ctx.fillStyle = 'rgba(30, 80, 120, 0.8)';
-        this.ctx.fillRect(x, y + waveOffset, this.cellSize, this.cellSize);
-        
-        if (state === -1) {
-          // 打空 - 水花
-          this.ctx.fillStyle = 'rgba(100, 150, 200, 0.5)';
-          this.ctx.beginPath();
-          this.ctx.arc(x + this.cellSize / 2, y + this.cellSize / 2, this.cellSize / 4, 0, Math.PI * 2);
-          this.ctx.fill();
-        } else if (state === 2) {
-          // 击中 - 爆炸效果
-          let explosionSize = 1;
-          if (this.lastHit && this.lastHit.row === r && this.lastHit.col === c) {
-            let elapsed = this.animationTime - this.lastHit.time;
-            if (elapsed < 1) {
-              explosionSize = 1 + Math.sin(elapsed * Math.PI) * 0.3;
-            }
-          }
-          
-          // 火焰
-          let gradient = this.ctx.createRadialGradient(
-            x + this.cellSize / 2, y + this.cellSize / 2, 0,
-            x + this.cellSize / 2, y + this.cellSize / 2, this.cellSize / 2 * explosionSize
-          );
-          gradient.addColorStop(0, '#FF6B35');
-          gradient.addColorStop(0.5, '#F7931E');
-          gradient.addColorStop(1, '#FFD700');
-          this.ctx.fillStyle = gradient;
-          this.ctx.beginPath();
-          this.ctx.arc(x + this.cellSize / 2, y + this.cellSize / 2, 
-                       this.cellSize / 3 * explosionSize, 0, Math.PI * 2);
-          this.ctx.fill();
-        }
-        
-        // 网格线
-        this.ctx.strokeStyle = 'rgba(100, 150, 200, 0.3)';
-        this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
-      }
-    }
-  }
-  
-  saveGameProgress() {
-    try {
-      const key = 'progress_' + this.gameName;
-      const saved = wx.getStorageSync(key);
-      let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
-      // 解锁下一关
-      if (this.level >= progress.unlocked) {
-        progress.unlocked = this.level + 1;
-      }
-      // 记录通关（1星，后续可扩展星级评分）
-      if (!progress.stars[this.level]) {
-        progress.stars[this.level] = 1;
-      }
-      wx.setStorageSync(key, JSON.stringify(progress));
-    } catch (e) {
-      console.log('保存进度失败', e);
-    }
   }
 
   _handleBottomAction(action) {
     switch (action) {
       case 'reset':
-        this.startGame(this.level);
+        this.grid = Array(this.size).fill(null).map(() => Array(this.size).fill(CELL_EMPTY));
+        this.shipCount = 0;
+        this.victory = false;
+        this.undoMgr.clear();
         sound.play('click');
         this.draw();
         break;
@@ -413,17 +309,242 @@ class Battleship {
         this.tutorial.show();
         this.draw();
         break;
+      case 'hint':
+        this._useHint();
+        break;
+      case 'undo':
+        const state = this.undoMgr.undo();
+        if (state) {
+          this.grid = state.grid;
+          this.shipCount = state.shipCount;
+          this.draw();
+        }
+        break;
     }
   }
 
-  destroy() {
-    this.canvas.removeEventListener('click', this.clickHandler);
+  _useHint() {
+    const hint = this.hintMgr.getHint('battleship', this.solution, this.grid);
+    if (hint) {
+      this._undoMgr_save();
+      this.grid[hint.row][hint.col] = hint.value;
+      if (hint.value === CELL_SHIP) this.shipCount++;
+      sound.play('click');
+      this._checkCompletion();
+      this.draw();
+    }
+  }
+
+  _checkCompletion() {
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.grid[r][c] === CELL_SHIP && this.solution[r][c] !== CELL_SHIP) return;
+        if (this.grid[r][c] !== CELL_SHIP && this.solution[r][c] === CELL_SHIP) return;
+      }
+    }
+    
+    for (let r = 0; r < this.size; r++) {
+      let cnt = 0;
+      for (let c = 0; c < this.size; c++) {
+        if (this.grid[r][c] === CELL_SHIP) cnt++;
+      }
+      if (cnt !== this.rowHints[r]) return;
+    }
+    
+    for (let c = 0; c < this.size; c++) {
+      let cnt = 0;
+      for (let r = 0; r < this.size; r++) {
+        if (this.grid[r][c] === CELL_SHIP) cnt++;
+      }
+      if (cnt !== this.colHints[c]) return;
+    }
+    
+    this._onVictory();
+  }
+
+  _onVictory() {
+    this.victory = true;
+    this.confetti.start();
+    sound.play('victory');
+    
+    const rewardMgr = getRewardManager();
+    const rewardResult = rewardMgr.processVictory(this.gameName, {
+      difficulty: this.difficulty,
+      level: this.level,
+      time: this.timer
+    });
+    rewardMgr.showRewardToast(rewardResult);
+    
+    let winCount = 0;
+    try { 
+      const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_' + this.difficulty) || '{}'); 
+      winCount = p.unlocked || 0; 
+    } catch(e) {}
+    
+    const newlyAchieved = this.achievement.check(this.gameName, winCount);
+    this._newAchievements = newlyAchieved;
+    
+    this._saveProgress();
+    statsManager.endGame(true);
+    this.stopTimer();
+  }
+
+  _saveProgress() {
+    try {
+      const key = 'progress_' + this.gameName + '_' + this.difficulty;
+      const saved = wx.getStorageSync(key);
+      let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
+      
+      if (this.level >= progress.unlocked) {
+        progress.unlocked = this.level + 1;
+      }
+      if (!progress.stars[this.level]) {
+        progress.stars[this.level] = 1;
+      }
+      wx.setStorageSync(key, JSON.stringify(progress));
+    } catch (e) {
+      console.log('[Battleship] 保存进度失败', e);
+    }
+  }
+
+  update() {
+    this.animationTime += 0.05;
+  }
+
+  draw() {
+    this._drawBackground();
+    this._drawHeader();
+    this._drawHints();
+    this._drawGrid();
+    this._drawBottomBar();
+    
+    if (this.victory) {
+      this.victoryPanel.setSubtitle('用时 ' + this._formatTime(this.timer));
+      this.victoryPanel.setAchievements(this._newAchievements);
+      this.victoryPanel.draw();
+    }
+    
+    if (this.tutorial.shouldShow()) {
+      this.tutorial.draw();
+    }
+  }
+
+  _drawBackground() {
+    const gradient = this.ctx.createLinearGradient(0, 0, this.width, this.height);
+    gradient.addColorStop(0, '#1a1a2e');
+    gradient.addColorStop(1, '#16213e');
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(0, 0, this.width, this.height);
+  }
+
+  _drawHeader() {
+    const timeStr = this._formatTime(this.timer);
+    this.headerBar.draw({
+      title: '🚢 战舰',
+      info: this.difficulty === 'easy' ? '简单' : (this.difficulty === 'medium' ? '中等' : '困难'),
+      info2: `第${this.level}关  |  ⏱ ${timeStr}  |  🚢 ${this.shipCount}/${this.totalShips}`
+    });
+  }
+
+  _drawHints() {
+    const hintSize = this.hintAreaSize;
+    
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    this.ctx.fillRect(this.boardOffsetX, this.boardOffsetY, hintSize + this.cellSize * this.size, hintSize + this.cellSize * this.size);
+    
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold ' + Math.min(14, hintSize * 0.6) + 'px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    for (let c = 0; c < this.size; c++) {
+      const x = this.boardOffsetX + hintSize + c * this.cellSize + this.cellSize / 2;
+      const y = this.boardOffsetY + hintSize / 2;
+      
+      if (this.colHints[c] > 0) {
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.fillText(this.colHints[c], x, y);
+      }
+    }
+    
+    for (let r = 0; r < this.size; r++) {
+      const x = this.boardOffsetX + hintSize / 2;
+      const y = this.boardOffsetY + hintSize + r * this.cellSize + this.cellSize / 2;
+      
+      if (this.rowHints[r] > 0) {
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.fillText(this.rowHints[r], x, y);
+      }
+    }
+  }
+
+  _drawGrid() {
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        const x = this.boardOffsetX + this.hintAreaSize + c * this.cellSize;
+        const y = this.boardOffsetY + this.hintAreaSize + r * this.cellSize;
+        const state = this.grid[r][c];
+        
+        this.ctx.fillStyle = state === CELL_EMPTY ? '#2a3a5a' : (state === CELL_SHIP ? '#4a7ab8' : '#1e3a5f');
+        this.ctx.strokeStyle = 'rgba(100, 150, 200, 0.3)';
+        this.ctx.lineWidth = 1;
+        
+        this.ctx.beginPath();
+        roundRect(this.ctx, x + 1, y + 1, this.cellSize - 2, this.cellSize - 2, 4);
+        this.ctx.fill();
+        this.ctx.stroke();
+        
+        if (state === CELL_SHIP) {
+          const scale = 1 + Math.sin(this.animationTime * 2) * 0.05;
+          this.ctx.font = Math.floor(this.cellSize * 0.6 * scale) + 'px sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          this.ctx.fillText('🚢', x + this.cellSize / 2, y + this.cellSize / 2);
+        } else if (state === CELL_WATER) {
+          this.ctx.font = Math.floor(this.cellSize * 0.5) + 'px sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          this.ctx.fillText('💧', x + this.cellSize / 2, y + this.cellSize / 2);
+        }
+      }
+    }
+  }
+
+  _drawBottomBar() {
+    this.bottomBar.setButtons([
+      { id: 'undo', text: '↩️ 撤销' },
+      { id: 'reset', text: '🔄 重置' },
+      { id: 'hint', text: '💡 提示' },
+      { id: 'rule', text: '📖 规则' }
+    ]);
+    this.bottomBar.draw();
   }
 
   _drawAchievementPopup() {
     this._newAchievements = null;
   }
 
+  destroy() {
+    this.stopTimer();
+    this.canvas.removeEventListener('click', this.clickHandler);
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
 }
 
 module.exports = Battleship;

@@ -49,7 +49,7 @@ class LevelLoader {
       case 'one-stroke':
         return base + '/one-stroke/' + difficulty + '-' + pad + '.json';
       case 'battleship':
-        return base + '/' + gameName + '/easy-' + pad + '.json';
+        return base + '/' + gameName + '/' + difficulty + '-' + pad + '.json';
       case 'nonogram':
         return base + '/nonogram/' + difficulty + '-' + pad + '.json';
       case 'sokoban':
@@ -91,7 +91,7 @@ class LevelLoader {
       case 'sokoban':     return LevelLoader.loadSokoban(level, difficulty);
       case 'nurikabe':     return LevelLoader.loadNurikabe(level, difficulty);
       case 'one-stroke':   return LevelLoader.loadOneStroke(level, difficulty);
-      case 'battleship':  return LevelLoader.loadBattleship(level);
+      case 'battleship':  return LevelLoader.loadBattleship(level, difficulty);
       case '24point':      return LevelLoader.load24Point(level);
       case 'othello':      return LevelLoader.loadOthello(level);
       case 'merge-abc':    return LevelLoader.loadMergeAbc(level);
@@ -182,10 +182,11 @@ class LevelLoader {
     } catch (e) { return null; }
   }
 
-  static loadBattleship(level) {
+  static loadBattleship(level, difficulty = 'easy') {
     try {
       const pad = String(level).padStart(4, '0');
-      return require('./battleship/easy-' + pad + '.json');
+      const dir = difficulty || 'easy';
+      return require('./battleship/' + dir + '-' + pad + '.json');
     } catch (e1) {
       try {
         return require('./battleship/battleship-' + pad + '.json');

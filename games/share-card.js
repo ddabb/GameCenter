@@ -13,11 +13,20 @@ class ShareCard {
   async generate(options) {
     const { gameName, gameTitle, level, stars = 3, customText } = options;
     
-    const tempCanvas = document.createElement('canvas');
+    let tempCanvas, tempCtx;
+    const W = this.width, H = this.height;
+
+    if (typeof wx !== 'undefined' && wx.createCanvas) {
+      tempCanvas = wx.createCanvas();
+    } else if (typeof document !== 'undefined' && document.createElement) {
+      tempCanvas = document.createElement('canvas');
+    } else {
+      return Promise.resolve('');
+    }
+    
     tempCanvas.width = this.width;
     tempCanvas.height = this.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    const W = this.width, H = this.height;
+    tempCtx = tempCanvas.getContext('2d');
 
     const gradient = tempCtx.createLinearGradient(0, 0, W, H);
     gradient.addColorStop(0, '#6677FC');
@@ -73,14 +82,26 @@ class ShareCard {
     tempCtx.fillText('🎮 指尖谜题', W / 2, cardY + cardH + 22);
 
     return new Promise((resolve) => {
-      tempCanvas.toBlob((blob) => {
-        if (blob) {
-          const path = URL.createObjectURL(blob);
-          resolve(path);
+      try {
+        if (tempCanvas.toBlob) {
+          tempCanvas.toBlob((blob) => {
+            if (blob) {
+              const path = URL.createObjectURL(blob);
+              resolve(path);
+            } else {
+              resolve(tempCanvas.toDataURL('image/png', 0.9));
+            }
+          }, 'image/png', 0.9);
+        } else if (tempCanvas.toDataURL) {
+          const dataUrl = tempCanvas.toDataURL('image/png', 0.9);
+          resolve(dataUrl);
         } else {
           resolve('');
         }
-      }, 'image/png', 0.9);
+      } catch (e) {
+        console.error('[ShareCard] generate error:', e);
+        resolve('');
+      }
     });
   }
 

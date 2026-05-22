@@ -1,4 +1,5 @@
 const statsManager = require('./stats-manager.js').getInstance();
+const LevelLoader = require('./level-loader');
 const Confetti = require('./confetti');
 const sound = require('./sound-manager');
 const TutorialOverlay = require('./tutorial-overlay');
@@ -9,6 +10,7 @@ const roundRect = require('../utils/round-rect.js');
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
+const { getInstance: getRewardManager } = require('./reward-manager');
 
 class Tents {
   constructor(ctx, canvas, systemInfo, switchGame, level) {
@@ -59,9 +61,8 @@ class Tents {
     this._nextBtn = null;
     this._backBtn = null;
 
-    const safeLevel = String(this.level).padStart(4, '0');
     try {
-      const data = require(`../data/tents/easy/easy-${safeLevel}.json`);
+      const data = await LevelLoader.load('tents', this.level, this.difficulty || 'easy');
       if (data && data.grid) {
         this.size = data.size || 7;
         this.cellSize = Math.min(this.width * 0.85 / this.size, 55);
@@ -83,11 +84,13 @@ class Tents {
             this.tents[r][c] = 0;
           }
         }
+        
+        this._rowHints = data.rowCounts || this._calcRowHints();
+        this._colHints = data.colCounts || this._calcColHints();
         return;
       }
     } catch (e) { /* 使用内置题 */ }
 
-    // 内置题目（7×7）
     this.size = 7;
     this.cellSize = Math.min(this.width * 0.85 / this.size, 55);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
@@ -110,15 +113,34 @@ class Tents {
         this.tents[r][c] = 0;
       }
     }
+    
+    this._rowHints = [2, 1, 2, 1, 1, 1, 2];
+    this._colHints = [1, 2, 1, 1, 1, 1, 2];
     this.victory = false;
   }
 
+  _calcRowHints() {
+    const hints = [];
+    for (let r = 0; r < this.size; r++) {
+      hints.push(this.countRowTents(r));
+    }
+    return hints;
+  }
+
+  _calcColHints() {
+    const hints = [];
+    for (let c = 0; c < this.size; c++) {
+      hints.push(this.countColTents(c));
+    }
+    return hints;
+  }
+
   getRowHints() {
-    return [2, 1, 2, 1, 1, 1, 2];
+    return this._rowHints || [2, 1, 2, 1, 1, 1, 2];
   }
 
   getColHints() {
-    return [1, 2, 1, 1, 1, 1, 2];
+    return this._colHints || [1, 2, 1, 1, 1, 1, 2];
   }
 
   countRowTents(row) {
@@ -237,14 +259,83 @@ class Tents {
 
   checkVictory() {
     if (!this.size || this.size <= 0) return;
+    
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    const allDirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+    
+    const treeWithTent = {};
     for (let r = 0; r < this.size; r++) {
       for (let c = 0; c < this.size; c++) {
-        if (this.board[r][c] !== 1 && this.tents[r][c] === 0) return;
+        if (this.board[r][c] === 1) {
+          treeWithTent[`${r},${c}`] = false;
+        }
       }
     }
+    
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.tents[r][c] === 1) {
+          let hasAdjacentTree = false;
+          for (const [dr, dc] of dirs) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < this.size && nc >= 0 && nc < this.size && this.board[nr][nc] === 1) {
+              hasAdjacentTree = true;
+              treeWithTent[`${nr},${nc}`] = true;
+            }
+          }
+          if (!hasAdjacentTree) return;
+        }
+      }
+    }
+    
+    for (const key in treeWithTent) {
+      if (!treeWithTent[key]) return;
+    }
+    
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.tents[r][c] === 1) {
+          for (const [dr, dc] of allDirs) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < this.size && nc >= 0 && nc < this.size && this.tents[nr][nc] === 1) {
+              return;
+            }
+          }
+        }
+      }
+    }
+    
+    const rowHints = this.getRowHints();
+    const colHints = this.getColHints();
+    
+    for (let r = 0; r < this.size; r++) {
+      let cnt = 0;
+      for (let c = 0; c < this.size; c++) {
+        if (this.tents[r][c] === 1) cnt++;
+      }
+      if (cnt !== rowHints[r]) return;
+    }
+    
+    for (let c = 0; c < this.size; c++) {
+      let cnt = 0;
+      for (let r = 0; r < this.size; r++) {
+        if (this.tents[r][c] === 1) cnt++;
+      }
+      if (cnt !== colHints[c]) return;
+    }
+    
     console.log(`[Tents] 通关！关卡: ${this.level}`);
     this.victory = true;
     this.confetti.start();
+    
+    const rewardMgr = getRewardManager();
+    const rewardResult = rewardMgr.processVictory(this.gameName, {
+      difficulty: this.difficulty || 'easy',
+      level: this.level,
+      time: this.timer || 0
+    });
+    rewardMgr.showRewardToast(rewardResult);
+    
     let winCount = 0;
     try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch (e) {}
     const newly = this.achievement.check(this.gameName, winCount);

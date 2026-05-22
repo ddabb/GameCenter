@@ -5,11 +5,12 @@ const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
-
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
 const roundRect = require('../utils/round-rect.js');
+const { getInstance: getRewardManager } = require('./reward-manager');
+
 // games/merge-abc.js
 // ABC合成记 - 字母合并游戏(2048风格)
 
@@ -414,6 +415,16 @@ class MergeABC {
     }
     if (!canMove) {
       this._gameOver = true;
+      this.victory = true;
+      
+      const rewardMgr = getRewardManager();
+      const rewardResult = rewardMgr.processVictory(this.gameName, {
+        difficulty: 'easy',
+        level: 1,
+        time: 0
+      });
+      rewardMgr.showRewardToast(rewardResult);
+      
       this.saveGameProgress(); statsManager.endGame(true);
       this._showModal = true;
       this.saveBestScore();

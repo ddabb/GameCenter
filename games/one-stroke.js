@@ -6,6 +6,7 @@ const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
 const statsManager = require('./stats-manager.js').getInstance();
+const { getInstance: getRewardManager } = require('./reward-manager');
 
 // 共享 UI 组件
 const HeaderBar = require('./components/header-bar');
@@ -433,6 +434,15 @@ class OneStroke {
     this.stopTimer();
     this.confetti.start();
     sound.playWin();
+    
+    const rewardMgr = getRewardManager();
+    const rewardResult = rewardMgr.processVictory(this.gameName, {
+      difficulty: this.difficulty || 'easy',
+      level: this.level,
+      time: this.time || 0
+    });
+    rewardMgr.showRewardToast(rewardResult);
+    
     statsManager.endGame(true);
 
     try {

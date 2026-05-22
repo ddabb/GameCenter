@@ -8,11 +8,11 @@ const sound = require('./sound-manager');
 const GAME_NAMES = {
   'one-stroke': '一笔画', 'othello': '黑白棋', 'akari': '灯塔', 'sokoban': '推箱子',
   'nurikabe': '数墙', 'tents': '帐篷', '24point': '24点',
-  'slither-link': '数回', 'nonogram': '数织', 'battleship': '海战',
+  'slither-link': '数回', 'nonogram': '数织', 'battleship': '战舰',
   'merge-abc': 'ABC合成'
 };
 
-const SUPPORT_DIFFICULTY = ['akari', 'tents', 'slither-link', 'one-stroke', 'nonogram', 'nurikabe', 'sokoban'];
+const SUPPORT_DIFFICULTY = ['akari', 'tents', 'slither-link', 'one-stroke', 'nonogram', 'nurikabe', 'sokoban', 'battleship', '24point'];
 
 const LEVEL_COUNTS = {
   'akari': { easy: 1000, medium: 1000, hard: 1000 },
@@ -22,8 +22,8 @@ const LEVEL_COUNTS = {
   'nonogram': { easy: 1000, medium: 1000, hard: 1000 },
   'nurikabe': { easy: 1000, medium: 1000, hard: 1000 },
   'sokoban': { easy: 1000, medium: 1000, hard: 1000 },
-  'battleship': { easy: 100 },
-  '24point': { easy: 500 },
+  'battleship': { easy: 1000, medium: 1000, hard: 1000 },
+  '24point': { easy: 500, medium: 500, hard: 500 },
   'othello': { easy: 50 },
   'merge-abc': { easy: 100 }
 };
@@ -85,6 +85,9 @@ class LevelSelect {
   }
 
   _storageKey() {
+    if (this.showDifficultyTabs) {
+      return `progress_${this.gameName}_${this.difficulty}`;
+    }
     return `progress_${this.gameName}`;
   }
 
@@ -164,7 +167,7 @@ class LevelSelect {
 
       if (x >= cx && x <= cx + this.cellSize && y >= cy && y <= cy + this.cellSize) {
         if (idx + 1 <= this.unlocked) {
-          this.switchGame(this.gameName, idx + 1);
+          this.switchGame(this.gameName, idx + 1, this.difficulty);
         } else {
           wx.showToast({ title: '请先通关前一关', icon: 'none' });
         }
