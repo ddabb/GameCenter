@@ -31,9 +31,7 @@ class Menu {
     this._bottomBarH = 60 + this.safeAreaBottom;
     this._bottomBarY = this.height - this._bottomBarH;
     this._navItems = [
-      { key: 'settings',     icon: '⚙️', label: '设置' },
-      { key: 'achievements', icon: '🏆', label: '成就' },
-      { key: 'leaderboard',  icon: '📊', label: '排行' },
+      { key: 'home',        icon: '🎮', label: '首页' },
       { key: 'prop-shop',    icon: '🛒', label: '商城' },
       { key: 'profile',      icon: '👤', label: '我的' },
     ];
@@ -92,6 +90,7 @@ class Menu {
     const totalGridH = this.rows * this.buttonSize + (this.rows - 1) * this.gridGap;
     this.startY = this.contentTop + (this.contentH - totalGridH) / 2;
 
+    this.gridOffsetX = (this.width - (this.cols * this.buttonSize + (this.cols - 1) * this.gridGap)) / 2;
     this.animationTime = 0;
     this.bindEvents();
     this.draw();
@@ -111,43 +110,9 @@ class Menu {
       for (const item of this._navItems) {
         if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
           sound.play('click');
-          this.switchGame(item.key);
+          if (item.key !== 'home') this.switchGame(item.key);
           return;
         }
-      }
-
-      if (this._hitRedeemBtn(x, y)) {
-        sound.play('click');
-        this.switchGame('redeem-code');
-        return;
-      }
-
-      if (this._hitCheckinBtn(x, y)) {
-        sound.play('click');
-        this._showCheckin = !this._showCheckin;
-        this.draw();
-        return;
-      }
-
-      if (this._showCheckin) {
-        const W = this.width, H = this.height;
-        const popW = W * 0.82, popH = 320;
-        const popX = (W - popW) / 2, popY = (H - popH) / 2 - 40;
-        const btnW = 120, btnH = 40;
-        const btnX = (W - btnW) / 2, btnY = popY + popH - 60;
-        if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
-          const result = this.checkin.checkIn();
-          if (result.success) this._checkinResult = result;
-          this.draw();
-          return;
-        }
-        if (x < popX || x > popX + popW || y < popY || y > popY + popH) {
-          this._showCheckin = false;
-          this._checkinResult = null;
-          this.draw();
-          return;
-        }
-        return;
       }
 
       const db = this._dailyBanner;
@@ -168,7 +133,7 @@ class Menu {
       for (let i = 0; i < this.games.length; i++) {
         const col = i % this.cols;
         const row = Math.floor(i / this.cols);
-        const bx = this.padding + col * (this.buttonSize + this.gridGap);
+        const bx = this.gridOffsetX + col * (this.buttonSize + this.gridGap);
         const by = this.startY + row * (this.buttonSize + this.gridGap);
         if (x >= bx && x <= bx + this.buttonSize && y >= by && y <= by + this.buttonSize) {
           const gameName = this.games[i].name;
@@ -181,15 +146,8 @@ class Menu {
     this.canvas.addEventListener('click', this.clickHandler);
   }
 
-  _hitRedeemBtn(x, y) {
-    const bx = this.width - 96, by = this.safeAreaTop + this.statusBarHeight + 10, bw = 40, bh = 40;
-    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
-  }
-
-  _hitCheckinBtn(x, y) {
-    const bx = this.width - 48, by = this.safeAreaTop + this.statusBarHeight + 10, bw = 40, bh = 40;
-    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
-  }
+  _hitRedeemBtn(x, y) { return false; }
+  _hitCheckinBtn(x, y) { return false; }
 
   update() {
     this.animationTime += 0.05;
@@ -236,36 +194,6 @@ class Menu {
     ctx.font = 'bold 22px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('🎮 指尖谜题', this.padding, SAT + SH + 34);
-
-    const redeemX = W - 96, redeemY = SAT + SH + 10, redeemW = 40, redeemH = 40;
-    const redeemGradient = ctx.createRadialGradient(redeemX + redeemW / 2, redeemY + redeemH / 2, 0, redeemX + redeemW / 2, redeemY + redeemH / 2, redeemH / 2);
-    redeemGradient.addColorStop(0, 'rgba(255,152,0,0.4)');
-    redeemGradient.addColorStop(1, 'rgba(255,152,0,0.2)');
-    ctx.fillStyle = redeemGradient;
-    ctx.beginPath();
-    ctx.arc(redeemX + redeemW / 2, redeemY + redeemH / 2, redeemH / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = '20px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('🎁', redeemX + redeemW / 2, redeemY + redeemH / 2 + 7);
-
-    const bx = W - 48, by = SAT + SH + 10, bw = 40, bh = 40;
-    const todayChecked = this.checkin.isCheckedInToday();
-    const checkinGradient = ctx.createRadialGradient(bx + bw / 2, by + bh / 2, 0, bx + bw / 2, by + bh / 2, bh / 2);
-    if (todayChecked) {
-      checkinGradient.addColorStop(0, 'rgba(76,175,80,0.35)');
-      checkinGradient.addColorStop(1, 'rgba(76,175,80,0.15)');
-    } else {
-      checkinGradient.addColorStop(0, 'rgba(255,193,7,0.4)');
-      checkinGradient.addColorStop(1, 'rgba(255,193,7,0.2)');
-    }
-    ctx.fillStyle = checkinGradient;
-    ctx.beginPath();
-    ctx.arc(bx + bw / 2, by + bh / 2, bh / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = '20px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText(todayChecked ? '✅' : '📅', bx + bw / 2, by + bh / 2 + 7);
   }
 
   _drawDailyBanner() {
@@ -368,7 +296,7 @@ class Menu {
       const game = this.games[i];
       const col = i % this.cols;
       const row = Math.floor(i / this.cols);
-      const bx = this.padding + col * (this.buttonSize + this.gridGap);
+      const bx = this.gridOffsetX + col * (this.buttonSize + this.gridGap);
       const hover = Math.sin(this.animationTime + i * 0.6) * 2;
       const by = this.startY + row * (this.buttonSize + this.gridGap) + hover;
       const S = this.buttonSize;
@@ -462,7 +390,7 @@ class Menu {
     ctx.fillRect(0, by, W, 2);
 
     const navW = W / this._navItems.length;
-    const navColors = ['#6677FC', '#F6AD55', '#4CAF50', '#FF6B6B', '#9F7AEA'];
+    const navColors = ['#6677FC', '#F6AD55', '#4CAF50'];
     
     this._navItems.forEach((item, i) => {
       const ix = item.x, iy = by + 8, ih = bh - 8;

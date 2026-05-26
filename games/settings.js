@@ -4,6 +4,8 @@
  */
 const soundManager = require('./sound-manager');
 const PrivacyManager = require('./privacy');
+const { RedeemCodeUI } = require('./redeem-code');
+const CheckInManager = require('./check-in');
 
 class Settings {
   constructor(ctx, canvas, systemInfo, switchGame) {
@@ -21,6 +23,7 @@ class Settings {
     } catch (e) { this.settings = {}; }
 
     this.backBtn = { x: 10, y: this.statusBarHeight + 8, w: 70, h: 32 };
+    this.checkin = new CheckInManager();
     this.items = this._buildItems();
 
     this._clickHandler = this._onClick.bind(this);
@@ -39,8 +42,10 @@ class Settings {
       { key: 'sound', label: '音效', type: 'toggle', y: y0 },
       { key: 'music', label: '音乐', type: 'toggle', y: y0 + itemH + gap },
       { key: 'vibration', label: '震动', type: 'toggle', y: y0 + (itemH + gap) * 2 },
-      { key: 'privacy', label: '隐私政策', type: 'link', y: y0 + (itemH + gap) * 3 },
-      { key: 'about', label: '关于我们', type: 'link', y: y0 + (itemH + gap) * 4 },
+      { key: 'checkin', label: '📅 每日签到', type: 'link', y: y0 + (itemH + gap) * 3 },
+      { key: 'redeem', label: '🎁 兑换码', type: 'link', y: y0 + (itemH + gap) * 4 },
+      { key: 'privacy', label: '隐私政策', type: 'link', y: y0 + (itemH + gap) * 5 },
+      { key: 'about', label: '关于我们', type: 'link', y: y0 + (itemH + gap) * 6 },
     ];
     items.forEach(it => {
       it.x = padding;
@@ -152,6 +157,10 @@ class Settings {
           this.draw();
         } else if (item.key === 'privacy') {
           this._showPrivacy();
+        } else if (item.key === 'checkin') {
+          this._showCheckin();
+        } else if (item.key === 'redeem') {
+          this._showRedeem();
         } else if (item.key === 'about') {
           this._showAbout();
         }
@@ -188,6 +197,119 @@ class Settings {
       windowHeight: this.height,
       statusBarHeight: this.statusBarHeight
     }, this.switchGame);
+  }
+
+  _showCheckin() {
+    this._showCheckinPopup();
+  }
+
+  _showRedeem() {
+    this.canvas.removeEventListener('click', this._clickHandler);
+    new RedeemCodeUI(this.ctx, this.canvas, {
+      windowWidth: this.width,
+      windowHeight: this.height,
+      statusBarHeight: this.statusBarHeight,
+    }, () => {
+      this._clickHandler = this._onClick.bind(this);
+      this.canvas.addEventListener('click', this._clickHandler);
+      this.draw();
+    });
+  }
+
+  _showCheckinPopup() {
+    const ctx = this.ctx;
+    const W = this.width, H = this.height;
+    const popW = W * 0.82, popH = 320;
+    const popX = (W - popW) / 2, popY = (H - popH) / 2 - 40;
+    const btnW = 120, btnH = 40;
+    const btnX = (W - btnW) / 2, btnY = popY + popH - 60;
+
+    const handler = (e) => {
+      const t = e.touches ? e.touches[0] : e;
+      const x = t.clientX, y = t.clientY;
+      if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
+        const result = this.checkin.checkIn();
+        this._checkinResult = result.success ? result : this._checkinResult;
+        this.draw();
+        this._drawCheckinOverlay(popX, popY, popW, popH, btnX, btnY, btnW, btnH);
+        return;
+      }
+      if (x < popX || x > popX + popW || y < popY || y > popY + popH) {
+        this.canvas.removeEventListener('click', handler);
+        this.draw();
+        return;
+      }
+    };
+    this.canvas.addEventListener('click', handler);
+    this._drawCheckinOverlay(popX, popY, popW, popH, btnX, btnY, btnW, btnH);
+  }
+
+  _drawCheckinOverlay(popX, popY, popW, popH, btnX, btnY, btnW, btnH) {
+    const ctx = this.ctx;
+    const W = this.width;
+    // 半透明遮罩
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, 0, W, this.height);
+    // 卡片
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(popX, popY, popW, popH, 16);
+    ctx.fill();
+    // 标题
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 18px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText('📅 每日签到', W / 2, popY + 38);
+    // 连续天数
+    const streak = this.checkin.getStreak();
+    ctx.fillStyle = '#FF6B6B';
+    ctx.font = 'bold 14px -apple-system';
+    ctx.fillText('🔥 连续 ' + streak + ' 天', W / 2, popY + 60);
+    // 星期网格
+    const week = this.checkin.getWeekStatus();
+    const dayW = (popW - 40) / 7;
+    const dayStartX = popX + 20;
+    ['一','二','三','四','五','六','日'].forEach((d, i) => {
+      ctx.fillStyle = '#999';
+      ctx.font = '12px -apple-system';
+      ctx.textAlign = 'center';
+      ctx.fillText(d, dayStartX + i * dayW + dayW / 2, popY + 82);
+      const isChecked = week[i];
+      ctx.fillStyle = isChecked ? '#4CAF50' : '#ddd';
+      ctx.beginPath();
+      ctx.arc(dayStartX + i * dayW + dayW / 2, popY + 105, 14, 0, Math.PI * 2);
+      ctx.fill();
+      if (isChecked) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px -apple-system';
+        ctx.fillText('✓', dayStartX + i * dayW + dayW / 2, popY + 110);
+      }
+    });
+    // 结果
+    if (this._checkinResult && this._checkinResult.success) {
+      const r = this._checkinResult;
+      ctx.fillStyle = '#4CAF50';
+      ctx.font = 'bold 16px -apple-system';
+      ctx.fillText('✅ 签到成功！', W / 2, popY + 170);
+      ctx.fillStyle = '#555';
+      ctx.font = '14px -apple-system';
+      ctx.fillText('今日可获奖励：', W / 2, popY + 195);
+      if (r.bonus) ctx.fillText('🎊 ' + r.bonus.label + '：' + r.bonus.coins + ' 💰 + ' + r.bonus.gems + ' 💎', W / 2, popY + 218);
+    } else if (this.checkin.isCheckedInToday()) {
+      ctx.fillStyle = '#999';
+      ctx.font = '14px -apple-system';
+      ctx.fillText('今日已签到 ✅', W / 2, popY + 185);
+    }
+    // 按钮
+    const done = this.checkin.isCheckedInToday();
+    ctx.fillStyle = done ? '#E0E0E0' : '#6677FC';
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, btnH / 2);
+    ctx.fill();
+    ctx.fillStyle = done ? '#999' : '#fff';
+    ctx.font = 'bold 14px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(done ? '已签到' : '签到', btnX + btnW / 2, btnY + btnH / 2 + 5);
   }
 
   _showAbout() {

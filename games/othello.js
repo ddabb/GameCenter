@@ -55,6 +55,11 @@ class Othello {
     
     this.skipMessage = null;
     this.skipMessageTimer = 0;
+    
+    this.confetti = new Confetti(this.ctx, this.width, this.height);
+    this.shareCard = new ShareCard(this.ctx, this.width, this.height);
+    this.undoMgr = new UndoManager();
+    
     if (!this.loadState()) {
       this.initBoard();
     } else {
@@ -141,11 +146,6 @@ class Othello {
     this.difficulty = diff;
     this.initBoard();
     this.gameName = 'othello';
-    this.confetti = new Confetti(this.ctx, this.width, this.height);
-
-
-
-    this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.gameOver = false;
     this.saveState();
   }

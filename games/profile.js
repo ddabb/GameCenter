@@ -1,8 +1,8 @@
 /**
- * profile.js — "我的"页面 v2.0
+ * profile.js — "我的"页面 v3.0
  * 
- * 集成：进度统计、成就、签到、货币、隐私政策
- * 不跳转，所有内容页内展示
+ * 集成：进度统计、功能入口（签到/兑换码/成就/排行）、设置开关、隐私/关于
+ * 不跳转设置页，所有功能入口在页内展示
  */
 const roundRect = require('../utils/round-rect.js');
 const sound = require('./sound-manager');
@@ -17,6 +17,13 @@ class Profile {
     this.height = systemInfo.windowHeight;
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     this.padding = 15;
+    this._checkinResult = null;
+
+    // 设置
+    try {
+      const raw = wx.getStorageSync('settings');
+      this.settings = raw && typeof raw === 'object' ? raw : {};
+    } catch (e) { this.settings = {}; }
 
     // 游戏信息
     this.gameInfo = {
@@ -39,6 +46,7 @@ class Profile {
     this.scrollY = 0;
     this.maxScroll = 0;
     this.animationTime = 0;
+    this._showingCheckin = false;
     this.bindEvents();
   }
 
@@ -87,10 +95,11 @@ class Profile {
     // 签到
     try {
       const CheckInManager = require('./check-in.js');
-      const ci = new CheckInManager();
-      this.checkinStreak = ci.getStreak();
-      this.checkedInToday = ci.isCheckedInToday();
+      this.checkin = new CheckInManager();
+      this.checkinStreak = this.checkin.getStreak();
+      this.checkedInToday = this.checkin.isCheckedInToday();
     } catch (e) {
+      this.checkin = null;
       this.checkinStreak = 0;
       this.checkedInToday = false;
     }
@@ -102,13 +111,50 @@ class Profile {
       const x = touch.clientX;
       const y = touch.clientY;
 
+      // 签到弹窗模式
+      if (this._showingCheckin) {
+        this._handleCheckinClick(x, y);
+        return;
+      }
+
       // 返回按钮
       if (y >= 15 && y <= 55 && x >= this.padding && x <= this.padding + 70) {
         this.switchGame('menu');
         return;
       }
 
-      // 隐私政策
+      // 功能入口点击检测
+      if (this._funcItems) {
+        for (const item of this._funcItems) {
+          if (y >= item.y && y <= item.y + item.h && x >= item.x && x <= item.x + item.w) {
+            this._onFuncItemClick(item.key);
+            return;
+          }
+        }
+      }
+
+      // 设置 toggle 点击
+      if (this._settingItems) {
+        for (const item of this._settingItems) {
+          if (item.type === 'toggle' && item.toggleRegion) {
+            const tr = item.toggleRegion;
+            if (y >= tr.y && y <= tr.y + tr.h && x >= tr.x && x <= tr.x + tr.w) {
+              const newVal = this.settings[item.key] !== false;
+              this._setSetting(item.key, !newVal);
+              this.draw();
+              return;
+            }
+          }
+          // link类型（隐私/关于）
+          if (item.type === 'link' && y >= item.y && y <= item.y + item.h && x >= item.x && x <= item.x + item.w) {
+            if (item.key === 'privacy') this.switchGame('privacy');
+            if (item.key === 'about') this._showAbout();
+            return;
+          }
+        }
+      }
+
+      // 底部隐私政策
       if (y >= this.height - 55 && y <= this.height - 20) {
         if (x >= this.width - this.padding - 90 && x <= this.width - this.padding) {
           this.switchGame('privacy');
@@ -121,11 +167,13 @@ class Profile {
     this.touchStartY = 0;
     this.touchStartScrollY = 0;
     this.touchStartHandler = (e) => {
+      if (this._showingCheckin) return;
       const t = e.touches ? e.touches[0] : e;
       this.touchStartY = t.clientY;
       this.touchStartScrollY = this.scrollY;
     };
     this.touchMoveHandler = (e) => {
+      if (this._showingCheckin) return;
       const t = e.touches ? e.touches[0] : e;
       const dy = this.touchStartY - t.clientY;
       this.scrollY = Math.max(0, Math.min(this.maxScroll, this.touchStartScrollY + dy));
@@ -136,6 +184,68 @@ class Profile {
     this.canvas.addEventListener('touchmove', this.touchMoveHandler, { passive: true });
   }
 
+  _onFuncItemClick(key) {
+    if (key === 'checkin') {
+      this._showCheckinPopup();
+    } else if (key === 'redeem') {
+      this.switchGame('redeem-code');
+    } else if (key === 'achievements') {
+      this.switchGame('achievements');
+    } else if (key === 'leaderboard') {
+      this.switchGame('leaderboard');
+    }
+  }
+
+  _showCheckinPopup() {
+    if (!this.checkin) return;
+    this._showingCheckin = true;
+    const W = this.width, H = this.height;
+    this._checkinPop = {
+      popW: W * 0.82, popH: 320,
+      popX: (W - W * 0.82) / 2, popY: (H - 320) / 2 - 40,
+      btnW: 120, btnH: 40,
+    };
+    this._checkinPop.btnX = (W - 120) / 2;
+    this._checkinPop.btnY = this._checkinPop.popY + this._checkinPop.popH - 60;
+    this.draw();
+  }
+
+  _handleCheckinClick(x, y) {
+    const p = this._checkinPop;
+    // 签到按钮
+    if (x >= p.btnX && x <= p.btnX + p.btnW && y >= p.btnY && y <= p.btnY + p.btnH) {
+      if (this.checkin && !this.checkin.isCheckedInToday()) {
+        const result = this.checkin.checkIn();
+        this._checkinResult = result.success ? result : this._checkinResult;
+        this.checkinStreak = this.checkin.getStreak();
+        this.checkedInToday = this.checkin.isCheckedInToday();
+      }
+      this.draw();
+      return;
+    }
+    // 点击遮罩关闭
+    if (x < p.popX || x > p.popX + p.popW || y < p.popY || y > p.popY + p.popH) {
+      this._showingCheckin = false;
+      this._checkinResult = null;
+      this.draw();
+    }
+  }
+
+  _setSetting(key, val) {
+    this.settings[key] = val;
+    try { wx.setStorageSync('settings', this.settings); } catch (e) {}
+    if (key === 'sound') sound.setSoundEnabled(val);
+    if (key === 'vibration') sound.setVibrationEnabled(val);
+  }
+
+  _showAbout() {
+    wx.showModal({
+      title: '关于我们',
+      content: 'SolvePuzzle v1.5.0\n12款经典益智游戏合集\n27000+关卡等你挑战\n\n如有建议，欢迎反馈！',
+      showCancel: false
+    });
+  }
+
   update() {
     this.animationTime += 0.05;
   }
@@ -143,9 +253,17 @@ class Profile {
   draw() {
     this.drawBackground();
     this.drawHeader();
-    this.drawOverview();
-    this.drawGameList();
-    this.drawFooter();
+
+    let y = 65;
+    y = this.drawOverview(y);
+    y = this.drawFuncEntries(y);
+    y = this.drawGameListHeader(y);
+    y = this.drawSettings(y);
+    y = this.drawFooter(y);
+
+    if (this._showingCheckin) {
+      this._drawCheckinOverlay();
+    }
   }
 
   drawBackground() {
@@ -157,28 +275,28 @@ class Profile {
   }
 
   drawHeader() {
+    const ctx = this.ctx;
     // 返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this.padding, 15, 70, 35, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', this.padding + 35, 38);
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.beginPath();
+    roundRect(ctx, this.padding, 15, 70, 35, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('← 返回', this.padding + 35, 38);
 
     // 标题
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 20px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('👤 我的', this.width / 2, 38);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('👤 我的', this.width / 2, 38);
   }
 
-  drawOverview() {
+  drawOverview(y) {
     const ctx = this.ctx;
     const W = this.width;
     const p = this.padding;
-    let y = 65;
 
     // ── 第一行：通关 / 星星 / 成就 ──
     const row1H = 70;
@@ -213,15 +331,14 @@ class Profile {
     roundRect(ctx, p, y, W - p * 2, row2H, 12);
     ctx.fill();
 
-    // 金币
     ctx.textAlign = 'left';
     ctx.font = '13px Arial';
+    ctx.fillStyle = '#fff';
     ctx.fillText('💰', p + 15, y + 22);
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 16px Arial';
     ctx.fillText(String(this.coins), p + 35, y + 22);
 
-    // 钻石
     ctx.textAlign = 'left';
     ctx.font = '13px Arial';
     ctx.fillStyle = '#fff';
@@ -230,7 +347,6 @@ class Profile {
     ctx.font = 'bold 16px Arial';
     ctx.fillText(String(this.gems), p + 140, y + 22);
 
-    // 签到
     ctx.textAlign = 'right';
     ctx.fillStyle = this.checkedInToday ? '#4CAF50' : '#FFC107';
     ctx.font = '13px Arial';
@@ -239,7 +355,6 @@ class Profile {
       : `📅 待签到 🔥${this.checkinStreak}天`;
     ctx.fillText(checkinText, W - p - 12, y + 22);
 
-    // 总关卡
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.font = '11px Arial';
     ctx.textAlign = 'left';
@@ -248,104 +363,241 @@ class Profile {
     ctx.fillText(`通关率 ${this.totalLevels > 0 ? Math.round(this.totalCompleted / this.totalLevels * 100) : 0}%`, W - p - 12, y + 42);
 
     y += row2H + 8;
+    return y;
+  }
 
-    // ── 各游戏进度标题 ──
+  drawFuncEntries(y) {
+    const ctx = this.ctx;
+    const W = this.width;
+    const p = this.padding;
+    const itemH = 48;
+    const gap = 1;
+
+    const funcDefs = [
+      { key: 'checkin',     icon: '📅', label: '每日签到',     badge: this.checkedInToday ? '✅' : '' },
+      { key: 'redeem',      icon: '🎁', label: '兑换码',       badge: '' },
+      { key: 'achievements', icon: '🏆', label: `成就 (${this.achievementUnlocked}/${this.achievementTotal})`, badge: '' },
+      { key: 'leaderboard', icon: '📊', label: '排行榜',       badge: '' },
+    ];
+
+    this._funcItems = funcDefs.map((def, i) => {
+      const item = { ...def, x: p, y: y + i * (itemH + gap), w: W - p * 2, h: itemH };
+      return item;
+    });
+
+    // 区标题
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('快捷功能', p + 5, y + 8);
+    y += 16;
+
+    // 重新计算位置
+    this._funcItems = funcDefs.map((def, i) => {
+      const item = { ...def, x: p, y: y + i * (itemH + gap), w: W - p * 2, h: itemH };
+      return item;
+    });
+
+    this._funcItems.forEach(item => {
+      // 行背景
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.beginPath();
+      roundRect(ctx, item.x, item.y, item.w, item.h, 8);
+      ctx.fill();
+
+      // 图标+文字
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(item.icon, item.x + 15, item.y + 30);
+      ctx.font = '15px Arial';
+      ctx.fillText(item.label, item.x + 42, item.y + 30);
+
+      // badge
+      if (item.badge) {
+        ctx.fillStyle = '#4CAF50';
+        ctx.font = '13px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(item.badge, item.x + 42 + ctx.measureText(item.label).width + 8, item.y + 30);
+      }
+
+      // 右箭头
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = '18px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText('›', item.x + item.w - 15, item.y + 32);
+    });
+
+    y = this._funcItems[this._funcItems.length - 1].y + itemH + 12;
+    return y;
+  }
+
+  drawGameListHeader(y) {
+    const ctx = this.ctx;
+    const p = this.padding;
+
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'left';
     ctx.fillText('📊 各游戏进度', p + 5, y + 12);
+    return y + 20;
   }
 
-  drawGameList() {
+  drawSettings(y) {
     const ctx = this.ctx;
-    const p = this.padding;
     const W = this.width;
-    const itemH = 55;
-    const startY = 208;
-    const endY = this.height - 65;
-    const totalH = this.games.length * itemH;
-    this.maxScroll = Math.max(0, totalH - (endY - startY));
+    const p = this.padding;
+    const itemH = 48;
+    const gap = 1;
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, startY, W, endY - startY);
-    ctx.clip();
+    // 区标题
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('⚙️ 设置', p + 5, y + 12);
+    y += 18;
 
-    const offset = -this.scrollY;
+    const settingDefs = [
+      { key: 'sound',     label: '音效', type: 'toggle' },
+      { key: 'music',     label: '音乐', type: 'toggle' },
+      { key: 'vibration', label: '震动', type: 'toggle' },
+      { key: 'privacy',   label: '🔒 隐私政策', type: 'link' },
+      { key: 'about',     label: 'ℹ️ 关于我们', type: 'link' },
+    ];
 
-    for (let i = 0; i < this.games.length; i++) {
-      const game = this.games[i];
-      const info = this.gameInfo[game.name];
-      const prog = this.progress[game.name];
-      const completed = Object.keys(prog.stars).length;
-      const stars = Object.values(prog.stars).reduce((a, b) => a + b, 0);
-      const ratio = info.totalLevels > 0 ? completed / info.totalLevels : 0;
+    this._settingItems = settingDefs.map((def, i) => {
+      const item = { ...def, x: p, y: y + i * (itemH + gap), w: W - p * 2, h: itemH };
+      return item;
+    });
 
-      const iy = startY + offset + i * itemH;
-      if (iy + itemH < startY || iy > endY) continue;
-
-      // 背景条
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    this._settingItems.forEach(item => {
+      // 行背景
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
       ctx.beginPath();
-      roundRect(ctx, p, iy + 2, W - p * 2, itemH - 6, 8);
+      roundRect(ctx, item.x, item.y, item.w, item.h, 8);
       ctx.fill();
 
-      // 图标
-      ctx.font = '24px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(info.icon, p + 22, iy + 30);
-
-      // 名称 + 关卡数
+      // 标签
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 14px Arial';
+      ctx.font = '15px Arial';
       ctx.textAlign = 'left';
-      ctx.fillText(info.title, p + 48, iy + 22);
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = '11px Arial';
-      ctx.fillText(`${completed}/${info.totalLevels}`, p + 48, iy + 38);
+      ctx.fillText(item.label, item.x + 15, item.y + 30);
 
-      // 进度条
-      const barX = p + 120;
-      const barW = W - barX - 70;
-      const barH = 6;
-      const barY = iy + 27;
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
-      ctx.beginPath();
-      roundRect(ctx, barX, barY, barW, barH, 3);
-      ctx.fill();
-      if (ratio > 0) {
-        ctx.fillStyle = info.color;
+      if (item.type === 'toggle') {
+        const on = this.settings[item.key] !== false;
+        const tw = 50, th = 26;
+        const tx = item.x + item.w - 15 - tw;
+        const ty = item.y + (item.h - th) / 2;
+
+        // 轨道
+        ctx.fillStyle = on ? '#5677FC' : '#555';
         ctx.beginPath();
-        roundRect(ctx, barX, barY, barW * ratio, barH, 3);
+        roundRect(ctx, tx, ty, tw, th, th / 2);
         ctx.fill();
-      }
 
-      // 百分比
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = '11px Arial';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${Math.round(ratio * 100)}%`, W - p - 12, iy + 32);
+        // 滑块
+        const cx = on ? tx + tw - 3 : tx + 3;
+        const cy = ty + th / 2;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, th / 2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        item.toggleRegion = { x: tx, y: ty, w: tw, h: th };
+      } else {
+        // 右箭头
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '18px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('›', item.x + item.w - 15, item.y + 32);
+      }
+    });
+
+    y = this._settingItems[this._settingItems.length - 1].y + itemH + 12;
+    return y;
+  }
+
+  drawFooter(y) {
+    // 不再需要单独的隐私政策按钮，已合入设置区
+  }
+
+  _drawCheckinOverlay() {
+    if (!this.checkin || !this._checkinPop) return;
+    const ctx = this.ctx;
+    const W = this.width;
+    const p = this._checkinPop;
+
+    // 遮罩
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, W, this.height);
+
+    // 卡片
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    roundRect(ctx, p.popX, p.popY, p.popW, p.popH, 16);
+    ctx.fill();
+
+    // 标题
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 18px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText('📅 每日签到', W / 2, p.popY + 38);
+
+    // 连续天数
+    const streak = this.checkin.getStreak();
+    ctx.fillStyle = '#FF6B6B';
+    ctx.font = 'bold 14px -apple-system';
+    ctx.fillText('🔥 连续 ' + streak + ' 天', W / 2, p.popY + 60);
+
+    // 星期网格
+    const week = this.checkin.getWeekStatus();
+    const dayW = (p.popW - 40) / 7;
+    const dayStartX = p.popX + 20;
+    ['一','二','三','四','五','六','日'].forEach((d, i) => {
+      const cx = dayStartX + i * dayW + dayW / 2;
+      ctx.fillStyle = '#999';
+      ctx.font = '12px -apple-system';
+      ctx.textAlign = 'center';
+      ctx.fillText(d, cx, p.popY + 82);
+
+      const isChecked = week[i] && week[i].checked;
+      ctx.fillStyle = isChecked ? '#4CAF50' : '#ddd';
+      ctx.beginPath();
+      ctx.arc(cx, p.popY + 105, 14, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (isChecked) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px -apple-system';
+        ctx.fillText('✓', cx, p.popY + 110);
+      }
+    });
+
+    // 签到结果
+    if (this._checkinResult && this._checkinResult.success) {
+      const r = this._checkinResult;
+      ctx.fillStyle = '#4CAF50';
+      ctx.font = 'bold 16px -apple-system';
+      ctx.fillText('✅ 签到成功！', W / 2, p.popY + 170);
+      ctx.fillStyle = '#555';
+      ctx.font = '14px -apple-system';
+      ctx.fillText('获得 ' + (r.reward ? r.reward.coins : 0) + ' 💰', W / 2, p.popY + 195);
+    } else if (this.checkin.isCheckedInToday()) {
+      ctx.fillStyle = '#999';
+      ctx.font = '14px -apple-system';
+      ctx.fillText('今日已签到 ✅', W / 2, p.popY + 185);
     }
 
-    ctx.restore();
-  }
-
-  drawFooter() {
-    const ctx = this.ctx;
-    const p = this.padding;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(0, this.height - 55, this.width, 55);
-
-    // 隐私政策
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    // 签到按钮
+    const done = this.checkin.isCheckedInToday();
+    ctx.fillStyle = done ? '#E0E0E0' : '#6677FC';
     ctx.beginPath();
-    roundRect(ctx, this.width - p - 90, this.height - 45, 90, 30, 8);
+    roundRect(ctx, p.btnX, p.btnY, p.btnW, p.btnH, p.btnH / 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '12px Arial';
+    ctx.fillStyle = done ? '#999' : '#fff';
+    ctx.font = 'bold 14px -apple-system';
     ctx.textAlign = 'center';
-    ctx.fillText('🔒 隐私政策', this.width - p - 45, this.height - 26);
+    ctx.fillText(done ? '已签到' : '签到', p.btnX + p.btnW / 2, p.btnY + p.btnH / 2 + 5);
   }
 
   destroy() {

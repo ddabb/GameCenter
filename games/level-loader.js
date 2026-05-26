@@ -75,9 +75,10 @@ class LevelLoader {
       if (url) {
         try {
           const data = await LevelLoader.fetchFromCDN(url);
+          console.log(`[LevelLoader] CDN成功: ${url}`);
           return LevelLoader.normalize(gameName, data, level, difficulty);
         } catch (e) {
-          // CDN 失败 → 回退本地
+          console.log(`[LevelLoader] CDN失败(${url}): ${e.message}，回退本地`);
         }
       }
     }

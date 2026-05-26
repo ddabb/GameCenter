@@ -38,9 +38,7 @@ class Nurikabe {
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = new AchievementManager();
-
-
-
+    this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     
     this.loadLevel();

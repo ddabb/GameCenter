@@ -18,6 +18,10 @@ class HeaderBar {
     this.ctx = ctx;
     this.width = width;
     this.statusBarHeight = statusBarHeight || 44;
+    
+    const systemInfo = wx.getSystemInfoSync ? wx.getSystemInfoSync() : {};
+    this.safeAreaTop = systemInfo.safeAreaInsets?.top || this.statusBarHeight;
+    
     this.opts = Object.assign({
       bgColor: '#1a1a2e',        // 顶部背景色
       textColor: '#fff',          // 标题文字色
@@ -26,9 +30,10 @@ class HeaderBar {
       titleFontSize: 18,
       infoFontSize: 13,
       height: 44,                 // 标题栏高度（不含 status bar）
-      showDifficulty: false       // 是否显示难度选择
+      showDifficulty: false,      // 是否显示难度选择
+      extraTopOffset: 25          // 额外顶部偏移，避免被微信关闭按钮遮盖
     }, opts);
-    this._backBtn = { x: 15, y: this.statusBarHeight + 8, w: 70, h: 32 };
+    this._backBtn = { x: 15, y: this.safeAreaTop + this.opts.extraTopOffset + 8, w: 70, h: 32 };
   }
 
   /**
@@ -42,7 +47,7 @@ class HeaderBar {
    */
   draw(params) {
     const ctx = this.ctx;
-    const y0 = this.statusBarHeight;
+    const y0 = this.safeAreaTop + this.opts.extraTopOffset;
 
     // 返回按钮
     roundRect(ctx, 15, y0 + 8, 70, 32, 8);
@@ -58,7 +63,7 @@ class HeaderBar {
       ctx.fillStyle = this.opts.textColor;
       ctx.font = 'bold ' + this.opts.titleFontSize + 'px Arial, -apple-system';
       ctx.textAlign = 'center';
-      ctx.fillText(params.title, this.width / 2, y0 + 30);
+      ctx.fillText('指尖谜题:' + params.title, this.width / 2, y0 + 30);
 
       // 右侧信息
       if (params.info) {
@@ -101,7 +106,7 @@ class HeaderBar {
   }
 
   get boardStartY() {
-    return this.statusBarHeight + this.opts.height + 10;
+    return this.safeAreaTop + this.opts.extraTopOffset + this.opts.height + 10;
   }
 }
 

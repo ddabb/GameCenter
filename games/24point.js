@@ -613,6 +613,13 @@ class TwentyFourPoint {
         this._handleBottomAction(bottomAction);
         return;
       }
+
+      // 错误结果遮罩：点击游戏区域先关闭遮罩
+      if (this.showResult && !this.isCorrect && !this.victory) {
+        this.showResult = false;
+        this.draw();
+        return;
+      }
       
       if (this.showResult && this.isCorrect) {
         return;
@@ -674,6 +681,13 @@ class TwentyFourPoint {
     
     const checkX = btnStartX + btnW + btnGap;
     if (x > checkX && x < checkX + btnW && y > btnY && y < btnY + btnH) {
+      // 如果已有错误结果遮罩，先关闭它让用户修改表达式
+      if (this.showResult && !this.isCorrect) {
+        this.showResult = false;
+        sound.play('click');
+        this.draw();
+        return;
+      }
       this.checkAnswer();
       return;
     }

@@ -242,7 +242,8 @@ class Tents {
     this.headerBar.draw({ title: '⛺ 帐篷', info: '关卡 ' + this.level });
     this.drawBoard();
     this.bottomBar.setButtons([
-      { id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr && this.undoMgr.canUndo() }
+      { id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr && this.undoMgr.canUndo() },
+      { id: 'reset', text: '🔄 重置' }
     ]);
     this.bottomBar.draw();
 
@@ -489,6 +490,19 @@ class Tents {
 
   _handleBottomAction(action) {
     switch (action) {
+      case 'reset':
+        for (let r = 0; r < this.size; r++) {
+          for (let c = 0; c < this.size; c++) {
+            this.tents[r][c] = 0;
+          }
+        }
+        this.victory = false;
+        this.confetti.stop();
+        if (this.undoMgr) this.undoMgr.clear();
+        if (this.victoryPanel) this.victoryPanel.reset();
+        sound.play('click');
+        this.draw();
+        break;
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
           const state = this.undoMgr.undo();

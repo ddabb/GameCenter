@@ -107,9 +107,7 @@ class MergeABC {
     this._showModal = false;
     this.gameName = 'merge-abc';
     this.confetti = new Confetti(this.ctx, this.width, this.height);
-
-
-
+    this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this._animationTime = 0;
 

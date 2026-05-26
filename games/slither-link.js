@@ -41,9 +41,7 @@ class SlitherLink {
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = new AchievementManager();
-
-
-
+    this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.animationTime = 0;
     
@@ -64,6 +62,8 @@ class SlitherLink {
     console.log(`[SlitherLink] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
     try {
+      const url = LevelLoader.getCDNUrl('slither-link', this.level, this.difficulty);
+      console.log(`[SlitherLink] CDN URL: ${url}`);
       const data = await LevelLoader.load('slither-link', this.level, this.difficulty);
       if (data && data.grid) {
         this.size = data.size || 5;
@@ -121,10 +121,11 @@ class SlitherLink {
         this.tutorial.dismiss();
         this.draw();
         return;
-      }// 返回按钮（顶部左侧）
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      }
+      // 返回按钮（使用 HeaderBar 组件统一判断）
+      if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
-          this.switchGame('level-select', this.gameName);
+        this.switchGame('level-select', this.gameName);
         return;
       }
 
@@ -214,7 +215,7 @@ class SlitherLink {
   }
   
   checkVictory() {
-    // 简化版：不检查完整回路，只检查数字约束
+    // 1. 检查数字约束
     for (let r = 0; r < this.size; r++) {
       for (let c = 0; c < this.size; c++) {
         if (this.hints[r][c] !== null) {
@@ -227,24 +228,112 @@ class SlitherLink {
         }
       }
     }
+    // 2. 检查是否形成单一闭合回路
+    const loopResult = this.isSingleLoop();
+    if (!loopResult.valid) {
+      console.log(`[SlitherLink] 回路检查失败: ${loopResult.reason}`);
+      return;
+    }
     console.log(`[SlitherLink] 通关！关卡: ${this.level}`);
     this.victory = true;
-      this.confetti.start();
-      
-      const rewardMgr = getRewardManager();
-      const rewardResult = rewardMgr.processVictory(this.gameName, {
-        difficulty: this.difficulty || 'easy',
-        level: this.level,
-        time: this.timer || 0
-      });
-      rewardMgr.showRewardToast(rewardResult);
-      
-      let winCount = 0;
-      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
-      const newlyAchieved = this.achievement.check(this.gameName, winCount);
-      this._newAchievements = newlyAchieved;
-      sound.play('victory');
-      this.saveGameProgress(); statsManager.endGame(true);
+    this.confetti.start();
+    const rewardMgr = getRewardManager();
+    const rewardResult = rewardMgr.processVictory(this.gameName, {
+      difficulty: this.difficulty || 'easy',
+      level: this.level,
+      time: this.timer || 0
+    });
+    rewardMgr.showRewardToast(rewardResult);
+    let winCount = 0;
+    try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+    const newlyAchieved = this.achievement.check(this.gameName, winCount);
+    this._newAchievements = newlyAchieved;
+    sound.play('victory');
+    this.saveGameProgress(); statsManager.endGame(true);
+  }
+
+  // 检查是否形成单一闭合回路
+  isSingleLoop() {
+    const n = this.size; // n x n cells, (n+1) x (n+1) grid points
+
+    // 统计每个格点的度数（度数=连接边数）
+    const dotDegree = Array.from({ length: n + 1 }, () => new Array(n + 1).fill(0));
+
+    // 水平边 hEdges[r][c]：连接 (r,c) 和 (r,c+1)
+    for (let r = 0; r <= n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (this.hEdges[r][c] === 1) {
+          dotDegree[r][c]++;
+          dotDegree[r][c + 1]++;
+        }
+      }
+    }
+
+    // 垂直边 vEdges[r][c]：连接 (r,c) 和 (r+1,c)
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c <= n; c++) {
+        if (this.vEdges[r][c] === 1) {
+          dotDegree[r][c]++;
+          dotDegree[r + 1][c]++;
+        }
+      }
+    }
+
+    // 找到第一个有度数的格点作为 BFS 起点
+    let startR = -1, startC = -1;
+    let totalDotsWithDegree = 0;
+    for (let r = 0; r <= n; r++) {
+      for (let c = 0; c <= n; c++) {
+        if (dotDegree[r][c] > 0) {
+          if (startR === -1) { startR = r; startC = c; }
+          totalDotsWithDegree++;
+        }
+      }
+    }
+
+    if (totalDotsWithDegree === 0) {
+      return { valid: false, reason: '还没有画线' };
+    }
+
+    // 检查所有有连接的点度数是否恰好为2（不能分叉/死胡同）
+    for (let r = 0; r <= n; r++) {
+      for (let c = 0; c <= n; c++) {
+        if (dotDegree[r][c] > 0 && dotDegree[r][c] !== 2) {
+          return { valid: false, reason: '线条有分叉或断点' };
+        }
+      }
+    }
+
+    // BFS 检查连通性：所有有度数的点必须在同一连通分量里
+    const visited = new Set();
+    const queue = [[startR, startC]];
+    visited.add(`${startR},${startC}`);
+
+    while (queue.length > 0) {
+      const [cr, cc] = queue.shift();
+      // 右 (r,c) → (r,c+1)
+      if (cc + 1 <= n && this.hEdges[cr][cc] === 1 && !visited.has(`${cr},${cc + 1}`)) {
+        visited.add(`${cr},${cc + 1}`); queue.push([cr, cc + 1]);
+      }
+      // 左 (r,c) → (r,c-1)
+      if (cc - 1 >= 0 && this.hEdges[cr][cc - 1] === 1 && !visited.has(`${cr},${cc - 1}`)) {
+        visited.add(`${cr},${cc - 1}`); queue.push([cr, cc - 1]);
+      }
+      // 下 (r,c) → (r+1,c)
+      if (cr + 1 <= n && this.vEdges[cr][cc] === 1 && !visited.has(`${cr + 1},${cc}`)) {
+        visited.add(`${cr + 1},${cc}`); queue.push([cr + 1, cc]);
+      }
+      // 上 (r,c) → (r-1,c)
+      if (cr - 1 >= 0 && this.vEdges[cr - 1][cc] === 1 && !visited.has(`${cr - 1},${cc}`)) {
+        visited.add(`${cr - 1},${cc}`); queue.push([cr - 1, cc]);
+      }
+    }
+
+    if (visited.size !== totalDotsWithDegree) {
+      return { valid: false, reason: '线条未连成完整回路' };
+    }
+
+    return { valid: true, reason: '' };
   }
   
   showBackButton(clickX, clickY) {
@@ -357,16 +446,28 @@ class SlitherLink {
         if (this.undoMgr && this.undoMgr.canUndo()) {
           const state = this.undoMgr.undo();
           if (state) {
-            this.hLines = state.hLines;
-            this.vLines = state.vLines;
+            this.hEdges = state.hEdges;
+            this.vEdges = state.vEdges;
             sound.playClick();
             this.draw();
           }
         }
         break;
       case 'restart':
-        this.initLines();
-        this.undoMgr.clear();
+        this.hEdges = [];
+        this.vEdges = [];
+        for (let r = 0; r <= this.size; r++) {
+          this.hEdges[r] = [];
+          this.vEdges[r] = [];
+          for (let c = 0; c <= this.size; c++) {
+            this.hEdges[r][c] = 0;
+            this.vEdges[r][c] = 0;
+          }
+        }
+        this.victory = false;
+        this.confetti.stop();
+        if (this.undoMgr) this.undoMgr.clear();
+        if (this.victoryPanel) this.victoryPanel.reset();
         sound.playClick();
         this.draw();
         break;

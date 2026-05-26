@@ -50,8 +50,7 @@ class Sokoban {
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = new AchievementManager();
-
-
+    this.undoMgr = new UndoManager();
 
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     
@@ -108,7 +107,7 @@ class Sokoban {
         this.size = data.size || data.grid.length;
         this.cellSize = Math.min(this.width * 0.8 / this.size, 40);
         this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-        this.boardOffsetY = 130;
+        this.boardOffsetY = this.statusBarHeight + 130;
         
         // 转换 grid 并标记目标位置
         this.grid = data.grid.map((row, r) =>
@@ -135,7 +134,7 @@ class Sokoban {
     this.size = lvl.grid.length;
     this.cellSize = Math.min(this.width * 0.8 / this.size, 40);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = 130;
+    this.boardOffsetY = this.statusBarHeight + 130;
     
     this.grid = lvl.grid.map(row => [...row]);
     this.boxes = lvl.boxes.map(b => ({...b}));
@@ -272,7 +271,8 @@ class Sokoban {
         this.tutorial.show();
         this.draw();
         return;
-      }// 顶部返回按钮
+      }
+      // 顶部返回按钮
       if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
         sound.play('click');
           this.switchGame('level-select', this.gameName);
@@ -432,7 +432,8 @@ class Sokoban {
       this.ctx.fillText(diff.label, x + w/2, y + 6);
     }
   }
-  
+  
+
   
   drawBoard() {
     if (!this.grid || !this.grid.length) return;
@@ -531,7 +532,7 @@ class Sokoban {
         }
         break;
       case 'restart':
-        this.initLevel();
+        this.loadLevel();
         this.undoMgr.clear();
         sound.playClick();
         this.draw();
@@ -605,9 +606,9 @@ class Sokoban {
     this.ctx.textAlign = 'center';
     this.ctx.fillText(text, x + w/2, y + h/2 + 5);
   }
-  
   
 
+  
   saveGameProgress() {
     try {
       const key = 'progress_' + this.gameName;
@@ -627,9 +628,33 @@ class Sokoban {
     }
   }
 
+  showBackButton() {
+    const w = 120, h = 36, x = (this.width - w) / 2, y = this.height - 80;
+    this._nextBtn = { x, y, w, h };
+    this.ctx.fillStyle = 'rgba(76, 175, 80, 0.8)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, x, y, w, h, 18);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 16px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('下一关', x + w/2, y + h/2 + 6);
+
+    const bw = 120, bh = 36, bx = (this.width - bw) / 2, by = this.height - 40;
+    this._backBtn = { x: bx, y: by, w: bw, h: bh };
+    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    this.ctx.beginPath();
+    roundRect(this.ctx, bx, by, bw, bh, 18);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = '14px Arial';
+    this.ctx.fillText('返回选关', bx + bw/2, by + bh/2 + 5);
+  }
+
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
   }
+  
   roundRect(x, y, w, h, r) {
     this.ctx.beginPath();
     this.ctx.moveTo(x + r, y);
@@ -643,7 +668,8 @@ class Sokoban {
     this.ctx.arcTo(x, y, x + r, y, r);
     this.ctx.closePath();
   }
-
+
+
 
   _drawAchievementPopup() {
     this._newAchievements = null;

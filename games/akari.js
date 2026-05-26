@@ -82,7 +82,15 @@ class Akari {
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, {
+      bgColor: '#fef0f5',
+      textColor: '#333',
+      infoColor: '#888',
+      backColor: 'rgba(0,0,0,0.5)',
+      titleFontSize: 18,
+      infoFontSize: 12,
+      height: 48
+    });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -95,13 +103,15 @@ class Akari {
   }
 
   _calcLayout() {
+    const statsBarH = 36;
+    const headerH = this.statusBarHeight + 54 + statsBarH + 10;
     const maxW = this.width - 20;
-    const maxH = this.height - 280;
+    const maxH = this.height - (headerH + 180);
     this.cellSize = Math.min(maxW / this.size, maxH / this.size, 45);
     this.gridW = this.cellSize * this.size;
     this.gridH = this.cellSize * this.size;
     this.offsetX = (this.width - this.gridW) / 2;
-    this.offsetY = this.statusBarHeight + 100;
+    this.offsetY = headerH + (maxH - this.gridH) / 2;
   }
 
   async loadLevel() {
@@ -127,9 +137,7 @@ class Akari {
   }
 
   _applyPuzzle(puzzleData) {
-    const size = puzzleData.size || this.config.size;
-    this.size = size;
-    this._calcLayout();
+    const declaredSize = puzzleData.size || this.config.size;
 
     this.grid = puzzleData.grid.map(row => {
       if (typeof row === 'object' && row !== null && !Array.isArray(row)) {
@@ -144,6 +152,12 @@ class Akari {
         return mapCell(cell);
       });
     });
+
+    // 以实际grid行数为准，防止size与数据不匹配导致越界
+    const actualSize = Math.max(this.grid.length, this.grid[0] ? this.grid[0].length : 0);
+    const size = actualSize || declaredSize;
+    this.size = size;
+    this._calcLayout();
 
     this.lights = Array(size).fill(null).map(() => Array(size).fill(false));
     this.lit = Array(size).fill(null).map(() => Array(size).fill(false));
@@ -201,20 +215,21 @@ class Akari {
   updateLit() {
     const size = this.size;
     this.lit = Array(size).fill(null).map(() => Array(size).fill(false));
+    const rows = Math.min(size, this.grid.length);
 
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        if (this.lights[r][c]) {
-          this.lit[r][c] = true;
-          const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
-          for (const [dr, dc] of dirs) {
-            let nr = r + dr, nc = c + dc;
-            while (nr >= 0 && nr < size && nc >= 0 && nc < size) {
-              if (this.grid[nr][nc] >= CELL_BLACK) break;
-              this.lit[nr][nc] = true;
-              nr += dr;
-              nc += dc;
-            }
+    for (let r = 0; r < rows; r++) {
+      const cols = Math.min(size, this.grid[r] ? this.grid[r].length : 0);
+      for (let c = 0; c < cols; c++) {
+        if (!this.lights[r] || !this.lights[r][c]) continue;
+        this.lit[r][c] = true;
+        const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+        for (const [dr, dc] of dirs) {
+          let nr = r + dr, nc = c + dc;
+          while (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+            if (this.grid[nr][nc] >= CELL_BLACK) break;
+            this.lit[nr][nc] = true;
+            nr += dr;
+            nc += dc;
           }
         }
       }
@@ -523,10 +538,11 @@ class Akari {
   draw() {
     const ctx = this.ctx;
 
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = '#fef0f5';
     ctx.fillRect(0, 0, this.width, this.height);
 
     this._drawHeader();
+    this._drawStatsBar();
     this._drawGrid();
     this._drawBottomBar();
 
@@ -542,22 +558,50 @@ class Akari {
   }
 
   _drawHeader() {
-    const timeStr = this._formatTime(this.timer);
-    const hintText = this.hintMgr.canHint() ? `${this.hintMgr.maxHints - this.hintMgr.usedHints}次` : '0次';
-    
     this.headerBar.draw({
       title: '💡 数灯',
-      info: `${DIFFICULTY_CONFIG[this.difficulty].text} · ${this.size}×${this.size}`,
-      info2: `第${this.level}关 · ⏱ ${timeStr} · 💡 ${this.lightsCount}/${this.maxLights || '?'} · 提示${hintText}`
+      info: `${DIFFICULTY_CONFIG[this.difficulty].text} · ${this.size}×${this.size}`
     });
+  }
+
+  _drawStatsBar() {
+    const ctx = this.ctx;
+    const timeStr = this._formatTime(this.timer);
+    const hintText = this.hintMgr.canHint() ? `${this.hintMgr.maxHints - this.hintMgr.usedHints}次` : '0次';
+    const y = this.statusBarHeight + 58;
+    const tw = this.width;
+
+    // 半透明背景条
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    roundRect(ctx, 12, y, tw - 24, 36, 10);
+    ctx.fill();
+
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 13px Arial, -apple-system';
+    ctx.textAlign = 'left';
+    ctx.fillText(`第${this.level}关`, 24, y + 24);
+
+    ctx.fillStyle = '#f5576c';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 13px Arial, -apple-system';
+    ctx.fillText(`⏱ ${timeStr}`, tw / 2 - 10, y + 24);
+
+    ctx.fillStyle = '#f5576c';
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 13px Arial, -apple-system';
+    ctx.fillText(`💡 ${this.lightsCount}/${this.maxLights || '?'} · 提示${hintText}`, tw - 24, y + 24);
+
+    ctx.textAlign = 'left';
   }
 
   _drawGrid() {
     const ctx = this.ctx;
     const size = this.size;
+    const rows = Math.min(size, this.grid.length);
 
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
+    for (let r = 0; r < rows; r++) {
+      const cols = Math.min(size, this.grid[r] ? this.grid[r].length : 0);
+      for (let c = 0; c < cols; c++) {
         const x = this.offsetX + c * this.cellSize;
         const y = this.offsetY + r * this.cellSize;
         const cell = this.grid[r][c];
@@ -566,7 +610,7 @@ class Akari {
         const isWhite = cell < CELL_BLACK;
 
         if (cell >= CELL_BLACK) {
-          ctx.fillStyle = '#222';
+          ctx.fillStyle = '#333';
           ctx.fillRect(x, y, this.cellSize, this.cellSize);
           
           if (cell >= CELL_BLACK_0) {
@@ -578,15 +622,15 @@ class Akari {
             ctx.fillText(num, x + this.cellSize / 2, y + this.cellSize / 2);
           }
         } else {
-          ctx.fillStyle = isLight ? '#FFFBE0' : (isLit ? '#FFF8DC' : '#f5f5f5');
+          ctx.fillStyle = isLight ? '#ffe066' : (isLit ? '#fff3cd' : '#ffffff');
           ctx.fillRect(x, y, this.cellSize, this.cellSize);
 
           if (isLight) {
-            const glow = Math.sin(this.animationTime * 2) * 0.1 + 0.9;
+            const glow = Math.sin(this.animationTime * 2) * 0.08 + 0.92;
             ctx.globalAlpha = glow;
-            ctx.fillStyle = '#FFD700';
+            ctx.fillStyle = '#ffb300';
             ctx.beginPath();
-            ctx.arc(x + this.cellSize / 2, y + this.cellSize / 2, this.cellSize * 0.3, 0, Math.PI * 2);
+            ctx.arc(x + this.cellSize / 2, y + this.cellSize / 2, this.cellSize * 0.28, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalAlpha = 1;
             
@@ -594,8 +638,8 @@ class Akari {
           }
         }
 
-        ctx.strokeStyle = '#ccc';
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = '#d0d0d0';
+        ctx.lineWidth = 1;
         ctx.strokeRect(x, y, this.cellSize, this.cellSize);
       }
     }
@@ -603,20 +647,20 @@ class Akari {
 
   _drawLightRays(ctx, row, col) {
     const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-    ctx.strokeStyle = 'rgba(255, 215, 0, 0.25)';
-    ctx.lineWidth = Math.max(3, this.cellSize * 0.15);
+    ctx.strokeStyle = 'rgba(255, 179, 0, 0.3)';
+    ctx.lineWidth = Math.max(3, this.cellSize * 0.12);
     
     for (const [dr, dc] of dirs) {
       let r = row + dr, c = col + dc;
       while (r >= 0 && r < this.size && c >= 0 && c < this.size) {
-        if (this.grid[r][c] >= CELL_BLACK) break;
+        if (!this.grid[r] || this.grid[r][c] >= CELL_BLACK) break;
         const bx = this.offsetX + c * this.cellSize + this.cellSize / 2;
         const by = this.offsetY + r * this.cellSize + this.cellSize / 2;
         ctx.beginPath();
         ctx.moveTo(this.offsetX + col * this.cellSize + this.cellSize / 2, this.offsetY + row * this.cellSize + this.cellSize / 2);
         ctx.lineTo(bx, by);
         ctx.stroke();
-        if (this.lights[r][c]) break;
+        if (this.lights[r] && this.lights[r][c]) break;
         r += dr; c += dc;
       }
     }
@@ -635,7 +679,7 @@ class Akari {
     ]);
     this.bottomBar.draw();
 
-    this.ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
     this.ctx.font = '12px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillText('点击放置/取消灯塔 💡', this.width / 2, this.height - 15);

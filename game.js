@@ -270,14 +270,14 @@ function safeInit() {
         if (res.touches && res.touches[0]) lastTouch = res.touches[0];
         if (!res.preventDefault) res.preventDefault = function() {};
         if (!res.stopPropagation) res.stopPropagation = function() {};
-        (_touchListeners['touchstart'] || []).forEach(function(h) {
+        (_touchListeners['touchstart'] || []).slice().forEach(function(h) {
           try { h(res); } catch(e) { console.error('[polyfill touchstart]', e); }
         });
       });
       wx.onTouchMove(function(res) {
         if (!res.preventDefault) res.preventDefault = function() {};
         if (!res.stopPropagation) res.stopPropagation = function() {};
-        (_touchListeners['touchmove'] || []).forEach(function(h) {
+        (_touchListeners['touchmove'] || []).slice().forEach(function(h) {
           try { h(res); } catch(e) { console.error('[polyfill touchmove]', e); }
         });
       });
@@ -285,13 +285,15 @@ function safeInit() {
         // 确保 res 有 preventDefault/stopPropagation 方法
         if (!res.preventDefault) res.preventDefault = function() {};
         if (!res.stopPropagation) res.stopPropagation = function() {};
-        (_touchListeners['touchend'] || []).forEach(function(h) {
+        (_touchListeners['touchend'] || []).slice().forEach(function(h) {
           try { h(res); } catch(e) { console.error('[polyfill touchend]', e); }
         });
         // 模拟 click 事件
         if (lastTouch) {
           const clickEvt = createClickEvent(lastTouch);
-          (_touchListeners['click'] || []).forEach(function(h) {
+          // 快照 handler 列表，避免 switchGame 在迭代中修改同一数组导致新游戏误触
+          const handlers = (_touchListeners['click'] || []).slice();
+          handlers.forEach(function(h) {
             try { h(clickEvt); } catch(e) { console.error('[polyfill click]', e); }
           });
         }
