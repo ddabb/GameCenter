@@ -316,10 +316,7 @@ class FrogEscape {
       title: '躲避牛蛙'
     });
     
-    // 状态信息在棋盘上方
-    this._drawStatus();
-
-    const buttons = [];
+    // 状态信息在棋盘上方   const buttons = [];
     // 标记按钮：激活时高亮黄色
     buttons.push({
       id: 'flag',
@@ -340,6 +337,9 @@ class FrogEscape {
     } else {
       this._drawBoard();
     }
+
+    // 状态信息移到棋盘下方
+    this._drawStatus();
 
     // 操作提示
     ctx.fillStyle = 'rgba(255,255,255,0.4)';

@@ -45,7 +45,7 @@ class Menu {
     });
 
     this.games = [
-      { name: 'one-stroke',    title: '一笔画',    icon: '✏️', color: '#F6AD55' },
+      { name: 'one-stroke',    title: '一笔画',    icon: '✍️', color: '#F6AD55' },
       { name: 'othello',       title: '黑白棋',    icon: '⚫', color: '#4A5568' },
       { name: 'frog-escape',   title: '青蛙逃生',  icon: '🐸', color: '#48BB78' },
       { name: 'akari',         title: '灯塔',      icon: '💡', color: '#ECC94B' },
@@ -314,57 +314,17 @@ class Menu {
       _rr(ctx, bx, by, S, S, 14);
       ctx.fill();
 
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      ctx.beginPath();
-      _rr(ctx, bx + 6, by + 6, S - 12, S * 0.38, 8);
       ctx.fill();
 
       ctx.font = (S * 0.42) + 'px -apple-system';
+      ctx.textAlign = 'start';
+      const _w = ctx.measureText(game.icon).width;
+      ctx.fillText(game.icon, bx + S / 2 - _w / 2, by + S / 2 - 4);
       ctx.textAlign = 'center';
-      ctx.fillText(game.icon, bx + S / 2, by + S / 2 + 8);
 
       ctx.fillStyle = '#fff';
       ctx.font = 'bold ' + (S * 0.19) + 'px -apple-system';
-      ctx.fillText(game.title, bx + S / 2, by + S - 24);
-
-      try {
-        let done = 0;
-        let total = this.gameTotalLevels[game.name] || 30;
-        
-        if (this._difficultyGames.includes(game.name)) {
-          const levels = this.gameTotalLevels[game.name];
-          total = levels.easy + (levels.medium || 0) + (levels.hard || 0);
-          
-          const difficulties = ['easy', 'medium', 'hard'];
-          difficulties.forEach(diff => {
-            const raw = wx.getStorageSync('progress_' + game.name + '_' + diff);
-            if (raw) {
-              const prog = JSON.parse(raw);
-              done += Object.keys(prog.stars || {}).length;
-            }
-          });
-        } else {
-          const raw = wx.getStorageSync('progress_' + game.name);
-          if (raw) {
-            const prog = JSON.parse(raw);
-            done = Object.keys(prog.stars || {}).length;
-          }
-        }
-        
-        if (done > 0) {
-          ctx.fillStyle = 'rgba(255,255,255,0.75)';
-          ctx.font = (S * 0.15) + 'px -apple-system';
-          ctx.fillText(done + '/' + total, bx + S / 2, by + S - 8);
-
-          const bW = S * 0.72, bH = 3;
-          const bX = bx + (S - bW) / 2, bY = by + S - 3;
-          const r = Math.min(done / total, 1);
-          ctx.fillStyle = 'rgba(255,255,255,0.25)';
-          ctx.fillRect(bX, bY, bW, bH);
-          ctx.fillStyle = '#fff';
-          ctx.fillRect(bX, bY, bW * r, bH);
-        }
-      } catch (e) {}
+      ctx.fillText(game.title, bx + S / 2, by + S - 28);
     }
   }
 
