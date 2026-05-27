@@ -10,14 +10,14 @@
 const GAMES = [
   'othello', 'akari', 'sokoban', 'nurikabe', 'tents',
   '24point', 'slither-link', 'nonogram', 'battleship',
-  'merge-abc', 'sweep-frog', 'one-stroke'
+  'merge-abc', 'sweep-frog', 'one-stroke', 'sudoku-daily'
 ];
 
 const GAME_TITLES = {
   'othello': '黑白棋', 'akari': '灯塔', 'sokoban': '推箱子',
   'nurikabe': '数墙', 'tents': '帐篷', '24point': '24点',
   'slither-link': '数回', 'nonogram': '数织', 'battleship': '海战',
-  'merge-abc': 'ABC合成', 'sweep-frog': '扫青蛙', 'one-stroke': '一笔画'
+  'merge-abc': 'ABC合成', 'sweep-frog': '扫青蛙', 'one-stroke': '一笔画', 'sudoku-daily': '每日数独'
 };
 
 // ========== 通用成就（每个游戏自动生成） ==========
@@ -89,6 +89,11 @@ const UNIQUE_ACHIEVEMENTS = {
     { id: 'onestroke_no_undo', title: '一气呵成', desc: '不撤销完成一关', icon: '✍️' },
     { id: 'onestroke_speed', title: '行云流水', desc: '10秒内完成一关一笔画', icon: '🌊' },
     { id: 'onestroke_hard_10', title: '铁笔银钩', desc: '通关10个困难一笔画', icon: '🖊️' },
+  ],
+  'sudoku-daily': [
+    { id: 'sudoku_no_erase', title: '落笔无悔', desc: '不擦除完成一局数独', icon: '✏️' },
+    { id: 'sudoku_speed_3', title: '速算天才', desc: '3分钟内完成一局数独', icon: '⏱️' },
+    { id: 'sudoku_streak_7', title: '周周不断', desc: '连续7天完成每日数独', icon: '📅' },
   ],
 };
 
@@ -214,7 +219,7 @@ class AchievementManager {
     }
 
     if (newly.length > 0) {
-      this.data.newlyUnlocked = (this.data.newlyUnlocked || []).concat(newly.map(a => a.id));
+      this.data.newlyUnlocked = (this.data.newlyUnlocked || []).concat(newly.filter(Boolean).map(a => a.id));
       this._save();
     }
     return newly.filter(Boolean);
@@ -246,7 +251,7 @@ class AchievementManager {
       }
     });
     if (newly.length > 0) {
-      this.data.newlyUnlocked = (this.data.newlyUnlocked || []).concat(newly.map(a => a.id));
+      this.data.newlyUnlocked = (this.data.newlyUnlocked || []).concat(newly.filter(Boolean).map(a => a.id));
       this._save();
     }
     return newly.filter(Boolean);
