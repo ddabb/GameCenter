@@ -77,7 +77,7 @@ class RewardManager {
 
   _getGameType(gameName) {
     const withDifficulty = ['akari', 'tents', 'slither-link', 'one-stroke', 'nonogram', 'nurikabe', 'sokoban', 'battleship'];
-    const withLevel = ['24point', 'othello', 'frog-escape', 'merge-abc'];
+    const withLevel = ['24point', 'othello', 'sweep-frog', 'merge-abc'];
     
     if (withDifficulty.includes(gameName)) return 'withDifficulty';
     if (withLevel.includes(gameName)) return 'endless';

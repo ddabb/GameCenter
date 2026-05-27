@@ -10,14 +10,14 @@
 const GAMES = [
   'othello', 'akari', 'sokoban', 'nurikabe', 'tents',
   '24point', 'slither-link', 'nonogram', 'battleship',
-  'merge-abc', 'frog-escape', 'one-stroke'
+  'merge-abc', 'sweep-frog', 'one-stroke'
 ];
 
 const GAME_TITLES = {
   'othello': '黑白棋', 'akari': '灯塔', 'sokoban': '推箱子',
   'nurikabe': '数墙', 'tents': '帐篷', '24point': '24点',
   'slither-link': '数回', 'nonogram': '数织', 'battleship': '海战',
-  'merge-abc': 'ABC合成', 'frog-escape': '青蛙逃生', 'one-stroke': '一笔画'
+  'merge-abc': 'ABC合成', 'sweep-frog': '扫青蛙', 'one-stroke': '一笔画'
 };
 
 // ========== 通用成就（每个游戏自动生成） ==========
@@ -80,10 +80,10 @@ const UNIQUE_ACHIEVEMENTS = {
     { id: 'merge_score_1000', title: '千分玩家', desc: '单局得分超过1000', icon: '💰' },
     { id: 'merge_combo_5', title: '五连合体', desc: '单局连续合成5次', icon: '🎪' },
   ],
-  'frog-escape': [
+  'sweep-frog': [
     { id: 'frog_no_wrong', title: '安全着陆', desc: '不踩雷完成一关', icon: '🐸' },
     { id: 'frog_speed', title: '蛙跳高手', desc: '10秒内完成一关', icon: '💨' },
-    { id: 'frog_50', title: '蛙鸣四方', desc: '通关50关青蛙逃生', icon: '🌿' },
+    { id: 'frog_50', title: '蛙鸣四方', desc: '通关50关扫青蛙', icon: '🌿' },
   ],
   'one-stroke': [
     { id: 'onestroke_no_undo', title: '一气呵成', desc: '不撤销完成一关', icon: '✍️' },

@@ -25,7 +25,7 @@ class Stats {
       'slither-link': { title: '数回', icon: '🔗', color: '#2196F3' },
       'nonogram': { title: '数织', icon: '🎨', color: '#9C27B0' },
       'battleship': { title: '海战', icon: '🚢', color: '#00BCD4' },
-      'merge-abc': { title: 'ABC合成', icon: '🔤', color: '#f2b179' }
+      'merge-abc': { title: '合成ABC', icon: '🔤', color: '#f2b179' }
     };
 
     this.games = Object.keys(this.gameInfo);

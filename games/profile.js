@@ -35,8 +35,8 @@ class Profile {
       'slither-link': { title: '数回', icon: '🔗', color: '#3182CE', totalLevels: 3000 },
       'nonogram': { title: '数织', icon: '🎨', color: '#805AD5', totalLevels: 3001 },
       'battleship': { title: '海战', icon: '🚢', color: '#00B5D8', totalLevels: 3000 },
-      'merge-abc': { title: 'ABC合成', icon: '🔤', color: '#D69E2E', totalLevels: 9999 },
-      'frog-escape': { title: '青蛙逃生', icon: '🐸', color: '#48BB78', totalLevels: 9999 },
+      'merge-abc': { title: '合成ABC', icon: '🔤', color: '#D69E2E', totalLevels: 9999 },
+      'sweep-frog': { title: '扫青蛙', icon: '🐸', color: '#48BB78', totalLevels: 9999 },
       'one-stroke': { title: '一笔画', icon: '✏️', color: '#F6AD55', totalLevels: 3000 }
     };
     this.games = Object.keys(this.gameInfo).map(k => ({ name: k, ...this.gameInfo[k] }));
@@ -92,17 +92,7 @@ class Profile {
       this.gems = 0;
     }
 
-    // 签到
-    try {
-      const CheckInManager = require('./check-in.js');
-      this.checkin = new CheckInManager();
-      this.checkinStreak = this.checkin.getStreak();
-      this.checkedInToday = this.checkin.isCheckedInToday();
-    } catch (e) {
-      this.checkin = null;
-      this.checkinStreak = 0;
-      this.checkedInToday = false;
-    }
+    
 
     // 农历工具
     try {
@@ -187,9 +177,7 @@ class Profile {
   }
 
   _onFuncItemClick(key) {
-    if (key === 'checkin') {
-      this.switchGame('checkin');
-    } else if (key === 'redeem') {
+    if (key === 'redeem') {
       this.switchGame('redeem-code');
     } else if (key === 'achievements') {
       this.switchGame('achievements');
@@ -335,13 +323,7 @@ class Profile {
     ctx.font = 'bold 16px Arial';
     ctx.fillText(String(this.gems), p + 140, y + 22);
 
-    ctx.textAlign = 'right';
-    ctx.fillStyle = this.checkedInToday ? '#4CAF50' : '#FFC107';
-    ctx.font = '13px Arial';
-    const checkinText = this.checkedInToday
-      ? `✅ 已签到 🔥${this.checkinStreak}天`
-      : `📅 待签到 🔥${this.checkinStreak}天`;
-    ctx.fillText(checkinText, W - p - 12, y + 22);
+    
 
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.font = '11px Arial';
@@ -362,7 +344,6 @@ class Profile {
     const gap = 1;
 
     const funcDefs = [
-      { key: 'checkin',     icon: '📅', label: '每日签到',     badge: this.checkedInToday ? '✅' : '' },
       { key: 'redeem',      icon: '🎁', label: '兑换码',       badge: '' },
       { key: 'achievements', icon: '🏆', label: `成就 (${this.achievementUnlocked}/${this.achievementTotal})`, badge: '' },
       { key: 'leaderboard', icon: '📊', label: '排行榜',       badge: '' },

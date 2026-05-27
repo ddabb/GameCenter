@@ -11,7 +11,7 @@ const FailurePanel = require('./components/failure-panel');
 const { getInstance: getRewardManager } = require('./reward-manager');
 
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/minesweeper';
-const RECORDS_KEY = 'frog_escape_records';
+const RECORDS_KEY = 'sweep_frog_records';
 
 const DIFFICULTIES = [
   { key: 'easy', label: '简单 9×9 · 10只', rows: 9, cols: 9, mines: 10 },
@@ -26,7 +26,7 @@ class FrogEscape {
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
     this.switchGame = switchGame;
-    this.gameName = 'frog-escape';
+    this.gameName = 'sweep-frog';
     
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
 
@@ -74,7 +74,7 @@ class FrogEscape {
     });
 
     // 规则弹窗
-    this.tutorial = new TutorialOverlay(ctx, this.width, this.height, 'frog-escape');
+    this.tutorial = new TutorialOverlay(ctx, this.width, this.height, 'sweep-frog');
 
     this.loadRecord();
     this.startGame('easy');  // 初始化游戏

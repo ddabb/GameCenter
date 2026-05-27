@@ -6,7 +6,7 @@ class ShareCard {
     this.gameIcons = {
       'akari': '💡', 'battleship': '🚢', 'nonogram': '🎨', 'nurikabe': '🧱',
       'tents': '⛺', 'slither-link': '🔗', 'sokoban': '📦', '24point': '🧮',
-      'othello': '⚫', 'one-stroke': '✏️', 'frog-escape': '🐸', 'merge-abc': '🔤'
+      'othello': '⚫', 'one-stroke': '✏️', 'sweep-frog': '🐸', 'merge-abc': '🔤'
     };
   }
 

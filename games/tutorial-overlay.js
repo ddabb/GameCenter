@@ -72,7 +72,7 @@ class TutorialOverlay {
         '从A合成到Z即可过关',
         '合理利用空间'
       ]},
-      'frog-escape': { icon: '🐸', title: '躲避牛蛙', tips: [
+      'sweep-frog': { icon: '🐸', title: '扫青蛙', tips: [
         '点击格子，躲开所有牛蛙',
         '💧 安全区域会显示水花',
         '🔢 数字表示周围有多少只牛蛙',

@@ -148,7 +148,7 @@ function getGameModule(name) {
       case 'nonogram':     gameModules[name] = require('./games/nonogram.js'); break;
       case 'battleship':   gameModules[name] = require('./games/battleship.js'); break;
       case 'merge-abc':    gameModules[name] = require('./games/merge-abc.js'); break;
-      case 'frog-escape':  gameModules[name] = require('./games/frog-escape.js'); break;
+      case 'sweep-frog':   gameModules[name] = require('./games/sweep-frog.js'); break;
       case 'one-stroke':   gameModules[name] = require('./games/one-stroke.js'); break;
       case 'sudoku-daily': gameModules[name] = require('./games/sudoku-daily.js'); break;
       case 'settings':     gameModules[name] = require('./games/settings.js'); break;

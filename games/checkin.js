@@ -52,7 +52,7 @@ class Checkin {
 
       if (this.backBtn && x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.w &&
           y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.h) {
-        this.switchGame('profile');
+        this.switchGame('menu');
         return;
       }
 
@@ -143,13 +143,15 @@ class Checkin {
     ctx.fillStyle = '#F8FAFC';
     ctx.fillRect(0, 0, W, H);
 
-    this.drawHeader(ctx, W);
+    let currentY = this.drawHeader(ctx, W);
+    currentY += 12;
     
     const streak = this.checkinManager ? this.checkinManager.getStreak() : 0;
     const checkedInToday = this.checkinManager ? this.checkinManager.isCheckedInToday() : false;
-    this.drawStreakPanel(ctx, W, streak, checkedInToday);
+    currentY = this.drawStreakPanel(ctx, W, streak, checkedInToday, currentY);
+    currentY += 16;
     
-    this.drawCalendar(ctx, W, H);
+    currentY = this.drawCalendar(ctx, W, H, currentY);
     
     if (this.checkinResult) {
       this.drawCheckinResult(ctx, W);
@@ -177,13 +179,14 @@ class Checkin {
     ctx.fillText('📅 每日签到', W / 2, this.statusBarHeight + 30);
 
     const monthBarY = navH + 8;
+    const monthBarH = 40;
     
-    const monthBarGradient = ctx.createLinearGradient(0, monthBarY, 0, monthBarY + 40);
+    const monthBarGradient = ctx.createLinearGradient(0, monthBarY, 0, monthBarY + monthBarH);
     monthBarGradient.addColorStop(0, '#FFFFFF');
     monthBarGradient.addColorStop(1, '#FEF7FF');
     ctx.fillStyle = monthBarGradient;
     ctx.beginPath();
-    roundRect(ctx, this.padding, monthBarY, W - this.padding * 2, 40, 12);
+    roundRect(ctx, this.padding, monthBarY, W - this.padding * 2, monthBarH, 12);
     ctx.fill();
 
     const btnSize = 36;
@@ -207,18 +210,19 @@ class Checkin {
     ctx.font = 'bold 22px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('›', this.nextMonthBtn.x + btnSize / 2, monthBarY + 26);
+
+    return monthBarY + monthBarH;
   }
 
-  drawStreakPanel(ctx, W, streak, checkedInToday) {
-    const panelY = this.statusBarHeight + 110;
+  drawStreakPanel(ctx, W, streak, checkedInToday, startY) {
     const panelH = 64;
     
-    const panelGradient = ctx.createLinearGradient(0, panelY, 0, panelY + panelH);
+    const panelGradient = ctx.createLinearGradient(0, startY, 0, startY + panelH);
     panelGradient.addColorStop(0, '#FDF2F8');
     panelGradient.addColorStop(1, '#FCE7F3');
     ctx.fillStyle = panelGradient;
     ctx.beginPath();
-    roundRect(ctx, this.padding, panelY, W - this.padding * 2, panelH, 16);
+    roundRect(ctx, this.padding, startY, W - this.padding * 2, panelH, 16);
     ctx.fill();
 
     ctx.shadowColor = 'rgba(244, 114, 182, 0.15)';
@@ -226,7 +230,7 @@ class Checkin {
     ctx.shadowOffsetY = 4;
     ctx.fillStyle = panelGradient;
     ctx.beginPath();
-    roundRect(ctx, this.padding, panelY, W - this.padding * 2, panelH, 16);
+    roundRect(ctx, this.padding, startY, W - this.padding * 2, panelH, 16);
     ctx.fill();
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
@@ -242,25 +246,27 @@ class Checkin {
     } else {
       statusText = `📅 待签到 🔥${streak}天`;
     }
-    ctx.fillText(statusText, W / 2, panelY + 24);
+    ctx.fillText(statusText, W / 2, startY + 24);
 
     ctx.fillStyle = '#EC4899';
     ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
-    ctx.fillText(`连续签到奖励：7天=20💰 / 14天=30💰 / 21天=40💰 / 28天=50💰`, W / 2, panelY + 46);
+    ctx.fillText(`连续签到奖励：7天=20💰 / 14天=30💰 / 21天=40💰 / 28天=50💰`, W / 2, startY + 46);
+
+    return startY + panelH;
   }
 
-  drawCalendar(ctx, W, H) {
-    if (!this.checkinManager) return;
+  drawCalendar(ctx, W, H, startY) {
+    if (!this.checkinManager) return startY;
 
-    const calStartY = this.statusBarHeight + 190;
-    const daySize = (W - this.padding * 2 - 24) / 7;
+    const daySize = Math.min(48, (W - this.padding * 2 - 24) / 7);
     const dayGap = 4;
+    const weekHeaderH = 34;
 
     const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
     
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    roundRect(ctx, this.padding, calStartY - 38, W - this.padding * 2, 34, 10);
+    roundRect(ctx, this.padding, startY, W - this.padding * 2, weekHeaderH, 10);
     ctx.fill();
     
     weekDays.forEach((day, i) => {
@@ -268,9 +274,10 @@ class Checkin {
       ctx.fillStyle = '#94A3B8';
       ctx.font = 'bold 12px -apple-system,BlinkMacSystemFont,sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(day, x + daySize / 2, calStartY - 18);
+      ctx.fillText(day, x + daySize / 2, startY + 20);
     });
 
+    const calBodyStartY = startY + weekHeaderH + 8;
     const monthData = this.checkinManager.getMonthStatus(this.currentYear, this.currentMonth);
     const today = new Date();
     const isCurrentMonth = this.currentYear === today.getFullYear() && 
@@ -281,11 +288,13 @@ class Checkin {
     const firstWeekday = monthData[0] ? monthData[0].weekday : 1;
     const startOffset = firstWeekday;
 
+    const rows = Math.ceil((monthData.length + startOffset) / 7);
+
     monthData.forEach((day, idx) => {
       const row = Math.floor((idx + startOffset) / 7);
       const col = (idx + startOffset) % 7;
       const cellX = this.padding + 12 + col * daySize;
-      const cellY = calStartY + row * (daySize + dayGap);
+      const cellY = calBodyStartY + row * (daySize + dayGap);
 
       const isToday = isCurrentMonth && day.day === today.getDate();
       const isChecked = day.checked;
@@ -389,14 +398,20 @@ class Checkin {
       }
     });
 
-    const btnY = calStartY + Math.ceil((monthData.length + startOffset) / 7) * (daySize + dayGap) + 35;
+    const btnW = 150;
+    const btnH = 46;
+    const btnPadding = 30;
+    
+    const calEndY = calBodyStartY + rows * (daySize + dayGap) + btnPadding;
+    const btnY = Math.min(calEndY, H - btnH - 20);
+    
     const canCheckin = this.checkinManager && !this.checkinManager.isCheckedInToday() && isCurrentMonth;
     
     this.checkinBtn = {
-      x: (W - 150) / 2,
+      x: (W - btnW) / 2,
       y: btnY,
-      w: 150,
-      h: 46
+      w: btnW,
+      h: btnH
     };
 
     if (canCheckin) {
@@ -430,6 +445,8 @@ class Checkin {
       ctx.textAlign = 'center';
       ctx.fillText(isCurrentMonth ? '今日已签到' : '该月已过期', this.checkinBtn.x + this.checkinBtn.w / 2, this.checkinBtn.y + this.checkinBtn.h / 2 + 6);
     }
+
+    return btnY + btnH;
   }
 
   drawCheckinResult(ctx, W) {

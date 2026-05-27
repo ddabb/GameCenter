@@ -44,7 +44,7 @@ class Menu {
     this.games = [
       { name: 'one-stroke',    title: '一笔画',    icon: '✍️', color: '#F6AD55', cardImage: null },
       { name: 'othello',       title: '黑白棋',    icon: '⚫', color: '#4A5568', cardImage: null },
-      { name: 'frog-escape',   title: '找青蛙',    icon: '🐸', color: '#48BB78', cardImage: null },
+      { name: 'sweep-frog',    title: '扫青蛙',    icon: '🐸', color: '#48BB78', cardImage: null },
       { name: 'akari',         title: '灯塔',      icon: '💡', color: '#ECC94B', cardImage: null },
       { name: 'sokoban',       title: '推箱子',    icon: '📦', color: '#ED8936', cardImage: null },
       { name: 'nurikabe',      title: '数墙',      icon: '🧱', color: '#718096', cardImage: null },
@@ -53,7 +53,7 @@ class Menu {
       { name: 'slither-link', title: '数回',      icon: '🔗', color: '#3182CE', cardImage: null },
       { name: 'nonogram',      title: '数织',      icon: '🎨', color: '#805AD5', cardImage: null },
       { name: 'battleship',    title: '海战',      icon: '🚢', color: '#00B5D8', cardImage: null },
-      { name: 'merge-abc',     title: '拼字母',    icon: '🔤', color: '#D69E2E', cardImage: null },
+      { name: 'merge-abc',     title: '合成ABC',   icon: '🔤', color: '#D69E2E', cardImage: null },
     ];
 
     this._loadGameCardImages();
@@ -67,28 +67,35 @@ class Menu {
       'slither-link': { easy: 1000, medium: 1000, hard: 1000 },
       'nonogram': { easy: 1000, medium: 1000, hard: 1000 },
       'battleship': { easy: 1000, medium: 1000, hard: 1000 },
-      'merge-abc': 9999, 'frog-escape': 9999, 'one-stroke': { easy: 1000, medium: 1000, hard: 1000 },
+      'merge-abc': 9999, 'sweep-frog': 9999, 'one-stroke': { easy: 1000, medium: 1000, hard: 1000 },
     };
     this._difficultyGames = ['akari', 'tents', 'slither-link', 'one-stroke', 'nonogram', 'nurikabe', 'sokoban', 'battleship', '24point'];
 
     this.padding = 16;
-    this.gridGap = 10;
     this.cols = this._calculateCols();
+    this.rows = Math.ceil(this.games.length / this.cols);
     this.headerH = this.safeAreaTop + this.statusBarHeight + 52;
     this.sudokuBannerH = 50;
     this.contentTop = this.headerH + this.sudokuBannerH + 8;
     this.contentBottom = this._bottomBarY - 8;
     this.contentH = this.contentBottom - this.contentTop;
-    this.rowH = 90;
-    this.rows = Math.ceil(this.games.length / this.cols);
-    this.buttonSize = Math.min(
-      (this.width - this.padding * 2 - this.gridGap * (this.cols - 1)) / this.cols,
-      (this.contentH - this.gridGap * (this.rows - 1)) / this.rows
-    );
-    const totalGridH = this.rows * this.buttonSize + (this.rows - 1) * this.gridGap;
-    this.startY = this.contentTop; // 菜单按钮区域靠顶部显示，不再居中
 
-    this.gridOffsetX = (this.width - (this.cols * this.buttonSize + (this.cols - 1) * this.gridGap)) / 2;
+    // iOS 风格图标布局：一行四个，图标占宽度约 22%
+    const availW = this.width - this.padding * 2;
+    this.iconSize = Math.min(Math.floor(availW * 0.22), 72);
+    this.hGap = Math.max(8, Math.floor((availW - this.cols * this.iconSize) / (this.cols - 1)));
+    this.vGap = 24;
+    this.labelGap = 6;
+    this.labelFontSize = Math.max(10, Math.floor(this.iconSize * 0.16));
+    this.rowHeight = this.iconSize + this.labelGap + this.labelFontSize + 2;
+
+    const totalGridH = this.rows * this.rowHeight + (this.rows - 1) * this.vGap;
+    this.gridOffsetX = (this.width - (this.cols * this.iconSize + (this.cols - 1) * this.hGap)) / 2;
+    this.startY = this.contentTop + Math.max(0, (this.contentBottom - this.contentTop - totalGridH) / 2);
+
+    // 兼容旧变量名
+    this.buttonSize = this.iconSize;
+    this.gridGap = this.hGap;
     this.animationTime = 0;
     this.bindEvents();
     this.draw();
@@ -110,9 +117,7 @@ class Menu {
   }
 
   _calculateCols() {
-    if (this.width < 320) return 2;
-    if (this.width < 400) return 3;
-    return 3;
+    return 4;
   }
 
   bindEvents() {
@@ -135,14 +140,22 @@ class Menu {
         return;
       }
 
+      const cb = this._checkinBtn;
+      if (cb && x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
+        sound.play('click');
+        this.switchGame('checkin');
+        return;
+      }
+
       for (let i = 0; i < this.games.length; i++) {
         const col = i % this.cols;
         const row = Math.floor(i / this.cols);
-        const bx = this.gridOffsetX + col * (this.buttonSize + this.gridGap);
-        const by = this.startY + row * (this.buttonSize + this.gridGap);
-        if (x >= bx && x <= bx + this.buttonSize && y >= by && y <= by + this.buttonSize) {
+        const bx = this.gridOffsetX + col * (this.iconSize + this.hGap);
+        const by = this.startY + row * (this.rowHeight + this.vGap);
+        const hitH = this.iconSize + this.labelGap + this.labelFontSize + 8;
+        if (x >= bx && x <= bx + this.iconSize && y >= by && y <= by + hitH) {
           const gameName = this.games[i].name;
-          const noLevelSelect = ['othello', 'frog-escape', 'merge-abc'];
+          const noLevelSelect = ['othello', 'sweep-frog', 'merge-abc'];
           this.switchGame(noLevelSelect.includes(gameName) ? gameName : 'level-select', gameName);
           return;
         }
@@ -220,31 +233,63 @@ class Menu {
     const bw = W - this.padding * 2;
     const bh = this.sudokuBannerH - 6;
 
-    this._sudokuBanner = { x: bx, y: by, w: bw, h: bh };
+    const checkinBtnW = 85;
+    const sudokuW = bw - checkinBtnW - 8;
 
+    this._checkinBtn = { x: bx, y: by, w: checkinBtnW, h: bh };
+    this._sudokuBanner = { x: bx + checkinBtnW + 8, y: by, w: sudokuW, h: bh };
+
+    const checkinX = bx;
+    const checkinY = by;
+    const checkinChecked = this.checkin.isCheckedInToday();
+    
+    const checkinGradient = ctx.createLinearGradient(checkinX, checkinY, checkinX, checkinY + bh);
+    if (checkinChecked) {
+      checkinGradient.addColorStop(0, '#E8F5E9');
+      checkinGradient.addColorStop(1, '#C8E6C9');
+    } else {
+      checkinGradient.addColorStop(0, '#FCE4EC');
+      checkinGradient.addColorStop(1, '#F8BBD9');
+    }
+    ctx.fillStyle = checkinGradient;
+    ctx.beginPath();
+    _rr(ctx, checkinX, checkinY, checkinBtnW, bh, 12);
+    ctx.fill();
+
+    ctx.fillStyle = checkinChecked ? '#4CAF50' : '#EC407A';
+    ctx.font = '18px -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(checkinChecked ? '✅' : '📅', checkinX + checkinBtnW / 2, checkinY + 18);
+
+    ctx.fillStyle = checkinChecked ? '#2E7D32' : '#C2185B';
+    ctx.font = 'bold 11px -apple-system';
+    ctx.fillText(checkinChecked ? '已签到' : '签到', checkinX + checkinBtnW / 2, checkinY + 38);
+
+    const sudokuX = bx + checkinBtnW + 8;
+    
     ctx.fillStyle = completed ? 'rgba(76,175,80,0.08)' : 'rgba(156,39,176,0.08)';
     ctx.beginPath();
-    _rr(ctx, bx, by, bw, bh, 12);
+    _rr(ctx, sudokuX, by, sudokuW, bh, 12);
     ctx.fill();
 
     ctx.fillStyle = completed ? '#4CAF50' : '#9C27B0';
     ctx.beginPath();
-    _rr(ctx, bx, by, 4, bh, [12, 0, 0, 12]);
+    _rr(ctx, sudokuX, by, 4, bh, [12, 0, 0, 12]);
     ctx.fill();
 
     ctx.textAlign = 'left';
     ctx.fillStyle = completed ? '#2E7D32' : '#444';
     ctx.font = 'bold 13px -apple-system';
-    ctx.fillText(completed ? '✅ 今日数独已完成' : '🧩 每日数独', bx + 14, by + 20);
+    ctx.fillText(completed ? '✅ 今日数独已完成' : '🧩 每日数独', sudokuX + 14, by + 20);
 
     ctx.fillStyle = '#888';
     ctx.font = '12px -apple-system';
-    ctx.fillText('数独挑战 · 思维训练', bx + 14, by + 38);
+    ctx.fillText('数独挑战 · 思维训练', sudokuX + 14, by + 38);
 
     ctx.textAlign = 'right';
     ctx.fillStyle = completed ? '#4CAF50' : '#9C27B0';
     ctx.font = 'bold 13px -apple-system';
-    ctx.fillText(completed ? '已完成 ✓' : '去挑战 >', bx + bw - 14, by + 30);
+    ctx.fillText(completed ? '已完成 ✓' : '去挑战 >', sudokuX + sudokuW - 14, by + 30);
   }
 
   _getTodayDate() {
@@ -258,21 +303,19 @@ class Menu {
       const game = this.games[i];
       const col = i % this.cols;
       const row = Math.floor(i / this.cols);
-      const bx = this.gridOffsetX + col * (this.buttonSize + this.gridGap);
+      const bx = this.gridOffsetX + col * (this.iconSize + this.hGap);
       const hover = Math.sin(this.animationTime + i * 0.6) * 2;
-      const by = this.startY + row * (this.buttonSize + this.gridGap + 28) + hover;
-      const S = this.buttonSize;
+      const by = this.startY + row * (this.rowHeight + this.vGap) + hover;
+      const S = this.iconSize;
 
-      // 绘制图片卡片（只包含图标）
       if (game.cardImage) {
         ctx.drawImage(game.cardImage, bx, by, S, S);
       }
 
-      // 在卡片下方绘制黑色文字（游戏名称）
       ctx.fillStyle = '#333333';
-      ctx.font = 'bold ' + (S * 0.18) + 'px -apple-system';
+      ctx.font = `${this.labelFontSize}px -apple-system, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(game.title, bx + S / 2, by + S + 20);
+      ctx.fillText(game.title, bx + S / 2, by + S + this.labelGap + this.labelFontSize * 0.8);
     }
   }
 

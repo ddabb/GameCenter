@@ -9,7 +9,7 @@ const GAME_NAMES = {
   'one-stroke': '一笔画', 'othello': '黑白棋', 'akari': '灯塔', 'sokoban': '推箱子',
   'nurikabe': '数墙', 'tents': '帐篷', '24point': '24点',
   'slither-link': '数回', 'nonogram': '数织', 'battleship': '战舰',
-  'merge-abc': 'ABC合成'
+  'merge-abc': '合成ABC'
 };
 
 const SUPPORT_DIFFICULTY = ['akari', 'tents', 'slither-link', 'one-stroke', 'nonogram', 'nurikabe', 'sokoban', 'battleship', '24point'];
