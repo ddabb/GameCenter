@@ -23,9 +23,6 @@ class Menu {
     this._showCheckin = false;
     this._checkinResult = null;
 
-    const { DailyChallenge } = require('./daily-challenge');
-    this.dailyChallenge = new DailyChallenge();
-    this._dailyBanner = null;
     this._sudokuBanner = null;
 
     this._bottomBarH = 60 + this.safeAreaBottom;
@@ -45,19 +42,21 @@ class Menu {
     });
 
     this.games = [
-      { name: 'one-stroke',    title: '一笔画',    icon: '✍️', color: '#F6AD55' },
-      { name: 'othello',       title: '黑白棋',    icon: '⚫', color: '#4A5568' },
-      { name: 'frog-escape',   title: '青蛙逃生',  icon: '🐸', color: '#48BB78' },
-      { name: 'akari',         title: '灯塔',      icon: '💡', color: '#ECC94B' },
-      { name: 'sokoban',       title: '推箱子',    icon: '📦', color: '#ED8936' },
-      { name: 'nurikabe',      title: '数墙',      icon: '🧱', color: '#718096' },
-      { name: 'tents',         title: '帐篷',      icon: '⛺', color: '#38A169' },
-      { name: '24point',       title: '24点',      icon: '🧮', color: '#E53E3E' },
-      { name: 'slither-link', title: '数回',      icon: '🔗', color: '#3182CE' },
-      { name: 'nonogram',      title: '数织',      icon: '🎨', color: '#805AD5' },
-      { name: 'battleship',    title: '海战',      icon: '🚢', color: '#00B5D8' },
-      { name: 'merge-abc',     title: 'ABC合成',   icon: '🔤', color: '#D69E2E' },
+      { name: 'one-stroke',    title: '一笔画',    icon: '✍️', color: '#F6AD55', cardImage: null },
+      { name: 'othello',       title: '黑白棋',    icon: '⚫', color: '#4A5568', cardImage: null },
+      { name: 'frog-escape',   title: '找青蛙',    icon: '🐸', color: '#48BB78', cardImage: null },
+      { name: 'akari',         title: '灯塔',      icon: '💡', color: '#ECC94B', cardImage: null },
+      { name: 'sokoban',       title: '推箱子',    icon: '📦', color: '#ED8936', cardImage: null },
+      { name: 'nurikabe',      title: '数墙',      icon: '🧱', color: '#718096', cardImage: null },
+      { name: 'tents',         title: '帐篷',      icon: '⛺', color: '#38A169', cardImage: null },
+      { name: '24point',       title: '24点',      icon: '🧮', color: '#E53E3E', cardImage: null },
+      { name: 'slither-link', title: '数回',      icon: '🔗', color: '#3182CE', cardImage: null },
+      { name: 'nonogram',      title: '数织',      icon: '🎨', color: '#805AD5', cardImage: null },
+      { name: 'battleship',    title: '海战',      icon: '🚢', color: '#00B5D8', cardImage: null },
+      { name: 'merge-abc',     title: '拼字母',    icon: '🔤', color: '#D69E2E', cardImage: null },
     ];
+
+    this._loadGameCardImages();
 
     this.gameTotalLevels = {
       'othello': 30, 'akari': { easy: 1000, medium: 1000, hard: 1000 },
@@ -76,9 +75,8 @@ class Menu {
     this.gridGap = 10;
     this.cols = this._calculateCols();
     this.headerH = this.safeAreaTop + this.statusBarHeight + 52;
-    this.bannerH = 50;
     this.sudokuBannerH = 50;
-    this.contentTop = this.headerH + this.bannerH + this.sudokuBannerH + 10;
+    this.contentTop = this.headerH + this.sudokuBannerH + 8;
     this.contentBottom = this._bottomBarY - 8;
     this.contentH = this.contentBottom - this.contentTop;
     this.rowH = 90;
@@ -88,12 +86,27 @@ class Menu {
       (this.contentH - this.gridGap * (this.rows - 1)) / this.rows
     );
     const totalGridH = this.rows * this.buttonSize + (this.rows - 1) * this.gridGap;
-    this.startY = this.contentTop + (this.contentH - totalGridH) / 2;
+    this.startY = this.contentTop; // 菜单按钮区域靠顶部显示，不再居中
 
     this.gridOffsetX = (this.width - (this.cols * this.buttonSize + (this.cols - 1) * this.gridGap)) / 2;
     this.animationTime = 0;
     this.bindEvents();
     this.draw();
+  }
+
+  _loadGameCardImages() {
+    this.games.forEach(game => {
+      const img = wx.createImage();
+      img.onload = () => {
+        game.cardImage = img;
+        console.log(`[Menu] 加载卡片图片成功: ${game.name}`);
+      };
+      img.onerror = () => {
+        console.warn(`[Menu] 加载卡片图片失败: ${game.name}`);
+        game.cardImage = null;
+      };
+      img.src = `assets/images/games/${game.name}/menu-card.png`;
+    });
   }
 
   _calculateCols() {
@@ -113,14 +126,6 @@ class Menu {
           if (item.key !== 'home') this.switchGame(item.key);
           return;
         }
-      }
-
-      const db = this._dailyBanner;
-      if (db && x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
-        const dc = this.dailyChallenge.getToday();
-        const noLevelSelect = ['othello', 'frog-escape', 'merge-abc'];
-        this.switchGame(noLevelSelect.includes(dc.game) ? dc.game : 'level-select', dc.game);
-        return;
       }
 
       const sb = this._sudokuBanner;
@@ -165,7 +170,6 @@ class Menu {
     ctx.fillRect(0, 0, W, H);
 
     this._drawHeader();
-    this._drawDailyBanner();
     this._drawSudokuBanner();
     this._drawGrid();
     this._drawBottomBar();
@@ -196,48 +200,6 @@ class Menu {
     ctx.fillText('🎮 指尖谜题', this.padding, SAT + SH + 34);
   }
 
-  _drawDailyBanner() {
-    const ctx = this.ctx;
-    const W = this.width;
-    const dc = this.dailyChallenge.getToday();
-    const streak = this.dailyChallenge.getStreak();
-    const bx = this.padding, by = this.headerH + 6;
-    const bw = W - this.padding * 2, bh = this.bannerH - 6;
-
-    this._dailyBanner = { x: bx, y: by, w: bw, h: bh };
-
-    ctx.fillStyle = dc.completed ? 'rgba(76,175,80,0.08)' : 'rgba(102,126,234,0.08)';
-    ctx.beginPath();
-    _rr(ctx, bx, by, bw, bh, 12);
-    ctx.fill();
-
-    ctx.fillStyle = dc.completed ? '#4CAF50' : '#6677FC';
-    ctx.beginPath();
-    _rr(ctx, bx, by, 4, bh, [12, 0, 0, 12]);
-    ctx.fill();
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = dc.completed ? '#2E7D32' : '#444';
-    ctx.font = 'bold 13px -apple-system';
-    ctx.fillText(dc.completed ? '✅ 今日挑战已完成' : '📅 每日挑战', bx + 14, by + 20);
-
-    ctx.fillStyle = '#888';
-    ctx.font = '12px -apple-system';
-    ctx.fillText(dc.gameTitle + ' · 第' + dc.level + '关', bx + 14, by + 38);
-
-    if (streak > 0) {
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#FF6B6B';
-      ctx.font = 'bold 13px -apple-system';
-      ctx.fillText('🔥 ' + streak + '天', bx + bw - 14, by + 30);
-    } else {
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#AAA';
-      ctx.font = '12px -apple-system';
-      ctx.fillText('去挑战 >', bx + bw - 14, by + 30);
-    }
-  }
-
   _drawSudokuBanner() {
     const ctx = this.ctx;
     const W = this.width;
@@ -254,7 +216,7 @@ class Menu {
     } catch (e) {}
 
     const bx = this.padding;
-    const by = this.headerH + this.bannerH + 6;
+    const by = this.headerH + 6;
     const bw = W - this.padding * 2;
     const bh = this.sudokuBannerH - 6;
 
@@ -298,33 +260,19 @@ class Menu {
       const row = Math.floor(i / this.cols);
       const bx = this.gridOffsetX + col * (this.buttonSize + this.gridGap);
       const hover = Math.sin(this.animationTime + i * 0.6) * 2;
-      const by = this.startY + row * (this.buttonSize + this.gridGap) + hover;
+      const by = this.startY + row * (this.buttonSize + this.gridGap + 28) + hover;
       const S = this.buttonSize;
 
-      ctx.fillStyle = 'rgba(102,126,234,0.15)';
-      ctx.beginPath();
-      _rr(ctx, bx + 2, by + 3, S, S, 14);
-      ctx.fill();
+      // 绘制图片卡片（只包含图标）
+      if (game.cardImage) {
+        ctx.drawImage(game.cardImage, bx, by, S, S);
+      }
 
-      const grad = ctx.createLinearGradient(bx, by, bx + S, by + S);
-      grad.addColorStop(0, this._lighten(game.color, 20));
-      grad.addColorStop(1, game.color);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      _rr(ctx, bx, by, S, S, 14);
-      ctx.fill();
-
-      ctx.fill();
-
-      ctx.font = (S * 0.42) + 'px -apple-system';
-      ctx.textAlign = 'start';
-      const _w = ctx.measureText(game.icon).width;
-      ctx.fillText(game.icon, bx + S / 2 - _w / 2, by + S / 2 - 4);
+      // 在卡片下方绘制黑色文字（游戏名称）
+      ctx.fillStyle = '#333333';
+      ctx.font = 'bold ' + (S * 0.18) + 'px -apple-system';
       ctx.textAlign = 'center';
-
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold ' + (S * 0.19) + 'px -apple-system';
-      ctx.fillText(game.title, bx + S / 2, by + S - 28);
+      ctx.fillText(game.title, bx + S / 2, by + S + 20);
     }
   }
 

@@ -60,6 +60,10 @@ class Othello {
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.undoMgr = new UndoManager();
     
+    // 棋子图片资源
+    this.pieceImages = { black: null, white: null };
+    this._loadPieceImages();
+    
     if (!this.loadState()) {
       this.initBoard();
     } else {
@@ -69,6 +73,9 @@ class Othello {
     }
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
+    
+    // 加载棋子图片
+    this._loadPieceImages();
     
     // 共享 UI 组件
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
@@ -124,6 +131,20 @@ class Othello {
     } catch (e) { /* ignore */ }
   }
   
+  _loadPieceImages() {
+    if (this.pieceImages.black && this.pieceImages.white) return;
+    
+    const blackImg = wx.createImage();
+    blackImg.onload = () => { this.pieceImages.black = blackImg; };
+    blackImg.onerror = () => { console.warn('[Othello] 加载黑棋图片失败'); };
+    blackImg.src = 'assets/images/games/othello/piece-black.png';
+    
+    const whiteImg = wx.createImage();
+    whiteImg.onload = () => { this.pieceImages.white = whiteImg; };
+    whiteImg.onerror = () => { console.warn('[Othello] 加载白棋图片失败'); };
+    whiteImg.src = 'assets/images/games/othello/piece-white.png';
+  }
+
   loadState() {
     try {
       const saved = wx.getStorageSync('othello_saved');
@@ -694,38 +715,49 @@ class Othello {
           let isLast = this.lastMove && this.lastMove.row === r && this.lastMove.col === c;
           let pulse = isLast ? Math.sin(this.animationTime * 3) * 3 : 0;
           
-          // 棋子阴影
-          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-          this.ctx.beginPath();
-          this.ctx.arc(cx + 2, cy + 3, radius + pulse, 0, Math.PI * 2);
-          this.ctx.fill();
+          const isBlack = this.board[r][c] === this.BLACK;
+          const img = isBlack ? this.pieceImages.black : this.pieceImages.white;
           
-          // 棋子渐变
-          let grad = this.ctx.createRadialGradient(
-            cx - radius * 0.3, cy - radius * 0.3, 0,
-            cx, cy, radius + pulse
-          );
-          
-          if (this.board[r][c] === this.BLACK) {
-            grad.addColorStop(0, '#555');
-            grad.addColorStop(0.5, '#222');
-            grad.addColorStop(1, '#000');
+          if (img) {
+            // 使用图片绘制棋子
+            const padding = 6;
+            const size = this.cellSize - padding * 2;
+            this.ctx.drawImage(img, cx - size/2 + pulse, cy - size/2 + pulse, size, size);
           } else {
-            grad.addColorStop(0, '#fff');
-            grad.addColorStop(0.5, '#eee');
-            grad.addColorStop(1, '#ccc');
+            // 降级：Canvas 绘制
+            // 棋子阴影
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            this.ctx.beginPath();
+            this.ctx.arc(cx + 2, cy + 3, radius + pulse, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // 棋子渐变
+            let grad = this.ctx.createRadialGradient(
+              cx - radius * 0.3, cy - radius * 0.3, 0,
+              cx, cy, radius + pulse
+            );
+            
+            if (isBlack) {
+              grad.addColorStop(0, '#555');
+              grad.addColorStop(0.5, '#222');
+              grad.addColorStop(1, '#000');
+            } else {
+              grad.addColorStop(0, '#fff');
+              grad.addColorStop(0.5, '#eee');
+              grad.addColorStop(1, '#ccc');
+            }
+            
+            this.ctx.fillStyle = grad;
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy, radius + pulse, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // 高光
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            this.ctx.beginPath();
+            this.ctx.arc(cx - radius * 0.3, cy - radius * 0.3, radius * 0.3, 0, Math.PI * 2);
+            this.ctx.fill();
           }
-          
-          this.ctx.fillStyle = grad;
-          this.ctx.beginPath();
-          this.ctx.arc(cx, cy, radius + pulse, 0, Math.PI * 2);
-          this.ctx.fill();
-          
-          // 高光
-          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-          this.ctx.beginPath();
-          this.ctx.arc(cx - radius * 0.3, cy - radius * 0.3, radius * 0.3, 0, Math.PI * 2);
-          this.ctx.fill();
         }
       }
     }

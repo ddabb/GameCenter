@@ -567,7 +567,9 @@ class Battleship {
 
 function roundRect(ctx, x, y, w, h, r) {
   if (ctx.roundRect) {
-    ctx.roundRect(x, y, w, h, r);
+    // 浏览器原生 roundRect 要求半径参数为数组
+    const radii = Array.isArray(r) ? r : [r, r, r, r];
+    ctx.roundRect(x, y, w, h, radii);
   } else {
     ctx.moveTo(x + r, y);
     ctx.lineTo(x + w - r, y);

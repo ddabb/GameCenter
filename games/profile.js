@@ -17,7 +17,6 @@ class Profile {
     this.height = systemInfo.windowHeight;
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     this.padding = 15;
-    this._checkinResult = null;
 
     // 设置
     try {
@@ -46,7 +45,6 @@ class Profile {
     this.scrollY = 0;
     this.maxScroll = 0;
     this.animationTime = 0;
-    this._showingCheckin = false;
     this.bindEvents();
   }
 
@@ -105,6 +103,16 @@ class Profile {
       this.checkinStreak = 0;
       this.checkedInToday = false;
     }
+
+    // 农历工具
+    try {
+      const { Solar, Lunar } = require('./lunar-javascript.js');
+      this.Solar = Solar;
+      this.Lunar = Lunar;
+    } catch (e) {
+      this.Solar = null;
+      this.Lunar = null;
+    }
   }
 
   bindEvents() {
@@ -112,12 +120,6 @@ class Profile {
       const touch = e.touches ? e.touches[0] : e;
       const x = touch.clientX;
       const y = touch.clientY;
-
-      // 签到弹窗模式
-      if (this._showingCheckin) {
-        this._handleCheckinClick(x, y);
-        return;
-      }
 
       // 返回按钮
       if (this.backBtn && x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.w && y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.h) {
@@ -169,13 +171,11 @@ class Profile {
     this.touchStartY = 0;
     this.touchStartScrollY = 0;
     this.touchStartHandler = (e) => {
-      if (this._showingCheckin) return;
       const t = e.touches ? e.touches[0] : e;
       this.touchStartY = t.clientY;
       this.touchStartScrollY = this.scrollY;
     };
     this.touchMoveHandler = (e) => {
-      if (this._showingCheckin) return;
       const t = e.touches ? e.touches[0] : e;
       const dy = this.touchStartY - t.clientY;
       this.scrollY = Math.max(0, Math.min(this.maxScroll, this.touchStartScrollY + dy));
@@ -188,7 +188,7 @@ class Profile {
 
   _onFuncItemClick(key) {
     if (key === 'checkin') {
-      this._showCheckinPopup();
+      this.switchGame('checkin');
     } else if (key === 'redeem') {
       this.switchGame('redeem-code');
     } else if (key === 'achievements') {
@@ -198,40 +198,7 @@ class Profile {
     }
   }
 
-  _showCheckinPopup() {
-    if (!this.checkin) return;
-    this._showingCheckin = true;
-    const W = this.width, H = this.height;
-    this._checkinPop = {
-      popW: W * 0.82, popH: 320,
-      popX: (W - W * 0.82) / 2, popY: (H - 320) / 2 - 40,
-      btnW: 120, btnH: 40,
-    };
-    this._checkinPop.btnX = (W - 120) / 2;
-    this._checkinPop.btnY = this._checkinPop.popY + this._checkinPop.popH - 60;
-    this.draw();
-  }
-
-  _handleCheckinClick(x, y) {
-    const p = this._checkinPop;
-    // 签到按钮
-    if (x >= p.btnX && x <= p.btnX + p.btnW && y >= p.btnY && y <= p.btnY + p.btnH) {
-      if (this.checkin && !this.checkin.isCheckedInToday()) {
-        const result = this.checkin.checkIn();
-        this._checkinResult = result.success ? result : this._checkinResult;
-        this.checkinStreak = this.checkin.getStreak();
-        this.checkedInToday = this.checkin.isCheckedInToday();
-      }
-      this.draw();
-      return;
-    }
-    // 点击遮罩关闭
-    if (x < p.popX || x > p.popX + p.popW || y < p.popY || y > p.popY + p.popH) {
-      this._showingCheckin = false;
-      this._checkinResult = null;
-      this.draw();
-    }
-  }
+  
 
   _setSetting(key, val) {
     this.settings[key] = val;
@@ -262,10 +229,6 @@ class Profile {
     y = this.drawGameListHeader(y);
     y = this.drawSettings(y);
     y = this.drawFooter(y);
-
-    if (this._showingCheckin) {
-      this._drawCheckinOverlay();
-    }
   }
 
   drawBackground() {
@@ -546,84 +509,7 @@ class Profile {
     // 不再需要单独的隐私政策按钮，已合入设置区
   }
 
-  _drawCheckinOverlay() {
-    if (!this.checkin || !this._checkinPop) return;
-    const ctx = this.ctx;
-    const W = this.width;
-    const p = this._checkinPop;
-
-    // 遮罩
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, 0, W, this.height);
-
-    // 卡片
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    roundRect(ctx, p.popX, p.popY, p.popW, p.popH, 16);
-    ctx.fill();
-
-    // 标题
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 18px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('📅 每日签到', W / 2, p.popY + 38);
-
-    // 连续天数
-    const streak = this.checkin.getStreak();
-    ctx.fillStyle = '#FF6B6B';
-    ctx.font = 'bold 14px -apple-system';
-    ctx.fillText('🔥 连续 ' + streak + ' 天', W / 2, p.popY + 60);
-
-    // 星期网格
-    const week = this.checkin.getWeekStatus();
-    const dayW = (p.popW - 40) / 7;
-    const dayStartX = p.popX + 20;
-    ['一','二','三','四','五','六','日'].forEach((d, i) => {
-      const cx = dayStartX + i * dayW + dayW / 2;
-      ctx.fillStyle = '#999';
-      ctx.font = '12px -apple-system';
-      ctx.textAlign = 'center';
-      ctx.fillText(d, cx, p.popY + 82);
-
-      const isChecked = week[i] && week[i].checked;
-      ctx.fillStyle = isChecked ? '#4CAF50' : '#ddd';
-      ctx.beginPath();
-      ctx.arc(cx, p.popY + 105, 14, 0, Math.PI * 2);
-      ctx.fill();
-
-      if (isChecked) {
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 12px -apple-system';
-        ctx.fillText('✓', cx, p.popY + 110);
-      }
-    });
-
-    // 签到结果
-    if (this._checkinResult && this._checkinResult.success) {
-      const r = this._checkinResult;
-      ctx.fillStyle = '#4CAF50';
-      ctx.font = 'bold 16px -apple-system';
-      ctx.fillText('✅ 签到成功！', W / 2, p.popY + 170);
-      ctx.fillStyle = '#555';
-      ctx.font = '14px -apple-system';
-      ctx.fillText('获得 ' + (r.reward ? r.reward.coins : 0) + ' 💰', W / 2, p.popY + 195);
-    } else if (this.checkin.isCheckedInToday()) {
-      ctx.fillStyle = '#999';
-      ctx.font = '14px -apple-system';
-      ctx.fillText('今日已签到 ✅', W / 2, p.popY + 185);
-    }
-
-    // 签到按钮
-    const done = this.checkin.isCheckedInToday();
-    ctx.fillStyle = done ? '#E0E0E0' : '#6677FC';
-    ctx.beginPath();
-    roundRect(ctx, p.btnX, p.btnY, p.btnW, p.btnH, p.btnH / 2);
-    ctx.fill();
-    ctx.fillStyle = done ? '#999' : '#fff';
-    ctx.font = 'bold 14px -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText(done ? '已签到' : '签到', p.btnX + p.btnW / 2, p.btnY + p.btnH / 2 + 5);
-  }
+  
 
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);

@@ -27,6 +27,10 @@ class Sokoban {
 
     // 安全区域适配
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
+    
+    // 箱子图片资源
+    this.boxImage = null;
+    this.loadBoxImage();
 
     this.difficulty = 'easy';
     this.difficulties = [
@@ -110,6 +114,26 @@ class Sokoban {
     this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
+  }
+
+  loadBoxImage() {
+    if (this.boxImage) return;
+    try {
+      // 使用橙色箱子图片（本地资源）
+      // 微信小游戏使用 wx.createImage() 而不是 new Image()
+      const img = wx.createImage();
+      img.onload = () => {
+        this.boxImage = img;
+        console.log('[Sokoban] 箱子图片加载成功');
+      };
+      img.onerror = () => {
+        console.warn('[Sokoban] 箱子图片加载失败，使用默认绘制');
+        this.boxImage = null;
+      };
+      img.src = 'assets/images/sokoban/box-orange.png';
+    } catch (e) {
+      console.warn('[Sokoban] 加载箱子图片异常:', e.message);
+    }
   }
 
   async loadLevel() {
@@ -538,25 +562,32 @@ class Sokoban {
       roundRect(this.ctx,x + 3, y + 4, this.cellSize - 4, this.cellSize - 4, 6);
       this.ctx.fill();
 
-      // 箱子
-      let grad = this.ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
-      if (onTarget) {
-        grad.addColorStop(0, '#6BCB77');
-        grad.addColorStop(1, '#4CAF50');
+      // 使用图片绘制箱子（如果加载成功）
+      if (this.boxImage) {
+        const padding = 4;
+        this.ctx.drawImage(this.boxImage, x + padding, y + padding, 
+          this.cellSize - padding * 2, this.cellSize - padding * 2);
       } else {
-        grad.addColorStop(0, '#CD853F');
-        grad.addColorStop(1, '#8B4513');
-      }
-      this.ctx.fillStyle = grad;
-      this.ctx.beginPath();
-      roundRect(this.ctx,x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
-      this.ctx.fill();
+        // 降级：使用默认绘制
+        let grad = this.ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
+        if (onTarget) {
+          grad.addColorStop(0, '#6BCB77');
+          grad.addColorStop(1, '#4CAF50');
+        } else {
+          grad.addColorStop(0, '#CD853F');
+          grad.addColorStop(1, '#8B4513');
+        }
+        this.ctx.fillStyle = grad;
+        this.ctx.beginPath();
+        roundRect(this.ctx,x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
+        this.ctx.fill();
 
-      // 箱子图标
-      this.ctx.fillStyle = '#fff';
-      this.ctx.font = (this.cellSize * 0.5) + 'px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('📦', x + this.cellSize/2, y + this.cellSize/2 + 5);
+        // 箱子图标
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = (this.cellSize * 0.5) + 'px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('📦', x + this.cellSize/2, y + this.cellSize/2 + 5);
+      }
     }
 
     // 玩家

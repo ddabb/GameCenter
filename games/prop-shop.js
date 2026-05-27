@@ -16,18 +16,29 @@ class PropShop {
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     this.propMgr = getInstance();
 
-    // roundRect polyfill（微信小游戏原生不支持）
+    // roundRect polyfill（处理原生API和自定义实现）
     if (!ctx.roundRect) {
       ctx.roundRect = function(x, y, w, h, r) {
-        if (w < 2 * r) r = w / 2;
-        if (h < 2 * r) r = h / 2;
+        const radii = Array.isArray(r) ? r : [r, r, r, r];
+        const [tl, tr, br, bl] = radii;
         ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.arcTo(x + w, y, x + w, y + h, r);
-        ctx.arcTo(x + w, y + h, x, y + h, r);
-        ctx.arcTo(x, y + h, x, y, r);
-        ctx.arcTo(x, y, x + w, y, r);
+        ctx.moveTo(x + tl, y);
+        ctx.lineTo(x + w - tr, y);
+        ctx.arcTo(x + w, y, x + w, y + h, tr);
+        ctx.lineTo(x + w, y + h - br);
+        ctx.arcTo(x + w, y + h, x, y + h, br);
+        ctx.lineTo(x + bl, y + h);
+        ctx.arcTo(x, y + h, x, y, bl);
+        ctx.lineTo(x, y + tl);
+        ctx.arcTo(x, y, x + w, y, tl);
         ctx.closePath();
+      };
+    } else {
+      // 原生 roundRect 需要数组格式的半径参数
+      const originalRoundRect = ctx.roundRect.bind(ctx);
+      ctx.roundRect = function(x, y, w, h, r) {
+        const radii = Array.isArray(r) ? r : [r, r, r, r];
+        originalRoundRect(x, y, w, h, radii);
       };
     }
 
@@ -174,7 +185,7 @@ class PropShop {
     if (x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.w &&
         y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.h) {
       this.canvas.removeEventListener('click', this._clickHandler);
-      this.switchGame('profile');  // 返回「我的」页面
+      this.switchGame('menu');  // 返回菜单页面
       return;
     }
 

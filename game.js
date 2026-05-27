@@ -135,6 +135,7 @@ function getGameModule(name) {
       case 'menu':         gameModules[name] = require('./games/menu.js'); break;
       case 'level-select': gameModules[name] = require('./games/level-select.js'); break;
       case 'profile':      gameModules[name] = require('./games/profile.js'); break;
+      case 'checkin':      gameModules[name] = require('./games/checkin.js'); break;
       case 'privacy':      gameModules[name] = require('./games/privacy.js'); break;
       case 'stats':        gameModules[name] = require('./games/stats.js'); break;
       case 'othello':      gameModules[name] = require('./games/othello.js'); break;
@@ -154,7 +155,7 @@ function getGameModule(name) {
       case 'achievements': gameModules[name] = require('./games/achievements.js'); break;
       case 'leaderboard':  gameModules[name] = require('./games/leaderboard.js'); break;
       case 'prop-shop':    gameModules[name] = require('./games/prop-shop.js'); break;
-      case 'redeem-code':  gameModules[name] = require('./games/redeem-code.js').RedeemCodeUI; break;
+      case 'redeem-code':  gameModules[name] = require('./games/redeem-code.js'); break;
       default:
         console.warn('[getGameModule] 未知游戏:', name);
         gameModules[name] = require('./games/menu.js');

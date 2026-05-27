@@ -1,1 +1,5 @@
-{"deviceOrientation": "portrait", "scripts": ["utils/round-rect.js", "game.js"], "subpackages": [{"name": "games", "root": "games/"}]}
+{
+  "deviceOrientation": "portrait",
+  "scripts": ["utils/round-rect.js", "game.js"],
+  "subpackages": [{ "name": "games", "root": "games/" }]
+}
