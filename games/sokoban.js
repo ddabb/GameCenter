@@ -12,7 +12,7 @@ const BottomBar = require('./components/bottom-bar');
 const { getInstance: getRewardManager } = require('./reward-manager');
 
 class Sokoban {
-  constructor(ctx, canvas, systemInfo, switchGame, level) {
+  constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
     console.log(`[Sokoban] 初始化游戏, 关卡: ${level}`);
     this.ctx = ctx;
     this.canvas = canvas;
@@ -32,7 +32,7 @@ class Sokoban {
     this.boxImage = null;
     this.loadBoxImage();
 
-    this.difficulty = 'easy';
+    this.difficulty = difficulty;
     this.difficulties = [
       { name: 'easy', label: '简单', size: 6 },
       { name: 'medium', label: '中等', size: 8 },
@@ -421,6 +421,7 @@ class Sokoban {
   }
 
   destroy() {
+    if (this.confetti) this.confetti.stop();
     this.canvas.removeEventListener('touchstart', this.touchStartHandler);
     this.canvas.removeEventListener('touchend', this.touchEndHandler);
   }
@@ -475,10 +476,12 @@ class Sokoban {
 
 
   drawBackground() {
-    let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#2d2d2d');
-    gradient.addColorStop(1, '#1a1a1a');
-    this.ctx.fillStyle = gradient;
+    if (!this._bgGradient) {
+      this._bgGradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
+      this._bgGradient.addColorStop(0, '#2d2d2d');
+      this._bgGradient.addColorStop(1, '#1a1a1a');
+    }
+    this.ctx.fillStyle = this._bgGradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
 
@@ -568,16 +571,24 @@ class Sokoban {
         this.ctx.drawImage(this.boxImage, x + padding, y + padding, 
           this.cellSize - padding * 2, this.cellSize - padding * 2);
       } else {
-        // 降级：使用默认绘制
-        let grad = this.ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
+        // 降级：使用默认绘制（缓存渐变）
         if (onTarget) {
-          grad.addColorStop(0, '#6BCB77');
-          grad.addColorStop(1, '#4CAF50');
+          if (!this._boxOnTargetGrad || this._boxOnTargetGrad._cs !== this.cellSize) {
+            this._boxOnTargetGrad = this.ctx.createLinearGradient(0, 0, this.cellSize, this.cellSize);
+            this._boxOnTargetGrad.addColorStop(0, '#6BCB77');
+            this._boxOnTargetGrad.addColorStop(1, '#4CAF50');
+            this._boxOnTargetGrad._cs = this.cellSize;
+          }
+          this.ctx.fillStyle = this._boxOnTargetGrad;
         } else {
-          grad.addColorStop(0, '#CD853F');
-          grad.addColorStop(1, '#8B4513');
+          if (!this._boxGrad || this._boxGrad._cs !== this.cellSize) {
+            this._boxGrad = this.ctx.createLinearGradient(0, 0, this.cellSize, this.cellSize);
+            this._boxGrad.addColorStop(0, '#CD853F');
+            this._boxGrad.addColorStop(1, '#8B4513');
+            this._boxGrad._cs = this.cellSize;
+          }
+          this.ctx.fillStyle = this._boxGrad;
         }
-        this.ctx.fillStyle = grad;
         this.ctx.beginPath();
         roundRect(this.ctx,x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
         this.ctx.fill();

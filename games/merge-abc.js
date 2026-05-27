@@ -90,20 +90,26 @@ class MergeABC {
     this.btnY = this.boardOffsetY + this.cellSize * 4 + this.gridGap * 3 + this.boardPadding * 2 + 30;
 
     // 尝试恢复存档
-    const saved = wx.getStorageSync('merge_abc_saved');
+    let saved = null;
+    try {
+      const raw = wx.getStorageSync('merge_abc_saved');
+      saved = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (e) { /* ignore */ }
     if (saved && saved.board && saved.board.length === 16) {
       this._board = saved.board;
       this._score = saved.score || 0;
       this._bestScore = saved.bestScore || 0;
+      this._gameOver = saved.gameOver || false;
+      this._history = saved.history || [];
     } else {
       this._board = new Array(16).fill('');
       this._score = 0;
       this._bestScore = 0;
+      this._gameOver = false;
+      this._history = [];
       this.addNewTile();
       this.addNewTile();
     }
-    this._history = [];
-    this._gameOver = false;
     this._showModal = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.undoMgr = new UndoManager();
@@ -127,8 +133,8 @@ class MergeABC {
       }
     });
     
-    // 动态计算棋盘位置（HeaderBar + _drawStatus + 间隙）
-    this.boardOffsetY = this.headerBar.boardStartY + 25; // headerBar底部 + 状态文字高度
+    // 动态计算棋盘位置（HeaderBar + 分数卡片 + 间隙）
+    this.boardOffsetY = this.headerBar.boardStartY + 46; // 分数卡片36 + 间距10
     this.btnY = this.boardOffsetY + this.cellSize * 4 + this.gridGap * 3 + this.boardPadding * 2 + 30;
     
     this.bindEvents();
@@ -174,9 +180,13 @@ class MergeABC {
     };
 
     this.touchEndHandler = (e) => {
+      let touch = e.changedTouches ? e.changedTouches[0] : e;
+      let endX = touch.clientX;
+      let endY = touch.clientY;
+
       if (this._showModal) {
-        const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-        const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+        const x = endX;
+        const y = endY;
         if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
           this.level++;
           this.restart();
@@ -192,9 +202,6 @@ class MergeABC {
         }
         return;
       }
-      let touch = e.changedTouches ? e.changedTouches[0] : e;
-      let endX = touch.clientX;
-      let endY = touch.clientY;
       let dx = endX - this._startX;
       let dy = endY - this._startY;
       let absDx = Math.abs(dx);
@@ -203,6 +210,7 @@ class MergeABC {
       // 顶部返回按钮
       if (this.headerBar.isBackButton(endX, endY)) {
         sound.play('click');
+        this.saveGame();
         this.switchGame('menu');
         return;
       }
@@ -258,6 +266,7 @@ class MergeABC {
   }
 
   destroy() {
+    this.saveGame();
     this.canvas.removeEventListener('touchstart', this.touchStartHandler);
     this.canvas.removeEventListener('touchend', this.touchEndHandler);
   }
@@ -416,6 +425,7 @@ class MergeABC {
     if (this._history.length > 0) {
       this._board = this._history.pop();
       this._score = this.getScore();
+      this.saveGame();
     }
   }
 
@@ -453,11 +463,14 @@ class MergeABC {
   }
 
   saveGame() {
-    wx.setStorageSync('merge_abc_saved', {
+    const data = JSON.stringify({
       board: this._board,
       score: this._score,
-      bestScore: this._bestScore
+      bestScore: this._bestScore,
+      gameOver: this._gameOver,
+      history: this._history
     });
+    wx.setStorageSync('merge_abc_saved', data);
   }
 
   restart() {
@@ -476,7 +489,43 @@ class MergeABC {
   }
   
   _drawStatus() {
-    // 不显示关卡信息（用户要求）
+    const ctx = this.ctx;
+    const y = this.headerBar.boardStartY;
+
+    // 两个分数卡片
+    const cardW = (this.width - this.padding * 2 - 10) / 2;
+    const cardH = 36;
+
+    // 当前分
+    const cx = this.padding;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    this.roundRect(ctx, cx, y, cardW, cardH, 6);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '11px Arial, -apple-system';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('当前分', cx + 10, y + cardH / 2 - 1);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial, -apple-system';
+    ctx.textAlign = 'right';
+    ctx.fillText(this._score, cx + cardW - 10, y + cardH / 2 - 1);
+
+    // 最高分
+    const bx = this.padding + cardW + 10;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    this.roundRect(ctx, bx, y, cardW, cardH, 6);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '11px Arial, -apple-system';
+    ctx.textAlign = 'left';
+    ctx.fillText('最高分', bx + 10, y + cardH / 2 - 1);
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 14px Arial, -apple-system';
+    ctx.textAlign = 'right';
+    ctx.fillText(this._bestScore, bx + cardW - 10, y + cardH / 2 - 1);
+
+    ctx.textAlign = 'left';
   }
 
   drawBoard() {
@@ -569,6 +618,7 @@ class MergeABC {
           if (state) {
             this._board = state.board;
             sound.playClick();
+            this.saveGame();
             this.draw();
           }
         }

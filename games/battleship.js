@@ -62,7 +62,7 @@ class Battleship {
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       title: '🎉 恭喜通关！',
       onConfettiDraw: () => this.confetti.draw(),
-      onAchievementDraw: () => this._drawAchievementPopup()
+      onAchievementDraw: () => { this._newAchievements = null; }
     });
 
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
@@ -145,10 +145,10 @@ class Battleship {
     const grid = Array(rows).fill(null).map(() => Array(cols).fill(CELL_EMPTY));
     
     const shipTypes = this.difficulty === 'easy' 
-      ? [3, 2, 2, 1, 1]
+      ? [4, 3, 2, 1]
       : this.difficulty === 'medium' 
-        ? [4, 3, 2, 2, 1, 1]
-        : [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+        ? [4, 4, 3, 3, 2, 1]
+        : [4, 4, 3, 3, 3, 2, 1];
     
     for (const length of shipTypes) {
       let placed = false;
@@ -343,30 +343,90 @@ class Battleship {
   }
 
   _checkCompletion() {
-    for (let r = 0; r < this.size; r++) {
-      for (let c = 0; c < this.size; c++) {
-        if (this.grid[r][c] === CELL_SHIP && this.solution[r][c] !== CELL_SHIP) return;
-        if (this.grid[r][c] !== CELL_SHIP && this.solution[r][c] === CELL_SHIP) return;
-      }
-    }
-    
+    this._errorHint = null;
+
+    // 1. 行列战舰数匹配边缘提示
     for (let r = 0; r < this.size; r++) {
       let cnt = 0;
-      for (let c = 0; c < this.size; c++) {
-        if (this.grid[r][c] === CELL_SHIP) cnt++;
+      for (let c = 0; c < this.size; c++) if (this.grid[r][c] === CELL_SHIP) cnt++;
+      if (cnt !== this.rowHints[r]) {
+        if (this.shipCount === this.totalShips) this._setError(`第${r + 1}行战舰数应为${this.rowHints[r]}，当前${cnt}`);
+        return;
       }
-      if (cnt !== this.rowHints[r]) return;
     }
-    
     for (let c = 0; c < this.size; c++) {
       let cnt = 0;
-      for (let r = 0; r < this.size; r++) {
-        if (this.grid[r][c] === CELL_SHIP) cnt++;
+      for (let r = 0; r < this.size; r++) if (this.grid[r][c] === CELL_SHIP) cnt++;
+      if (cnt !== this.colHints[c]) {
+        if (this.shipCount === this.totalShips) this._setError(`第${c + 1}列战舰数应为${this.colHints[c]}，当前${cnt}`);
+        return;
       }
-      if (cnt !== this.colHints[c]) return;
     }
-    
+
+    // 2. 收集所有战舰格子
+    const ships = [];
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.grid[r][c] === CELL_SHIP) ships.push({ r, c });
+      }
+    }
+    if (ships.length !== this.totalShips) return;
+
+    // 3. BFS 找出所有正交连通的战舰组件
+    const visited = new Set();
+    const components = [];
+    for (const { r, c } of ships) {
+      const key = r + ',' + c;
+      if (visited.has(key)) continue;
+      const comp = [];
+      const queue = [{ r, c }];
+      visited.add(key);
+      while (queue.length) {
+        const { r: cr, c: cc } = queue.shift();
+        comp.push({ r: cr, c: cc });
+        for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+          const nr = cr + dr, nc = cc + dc;
+          const nkey = nr + ',' + nc;
+          if (nr >= 0 && nr < this.size && nc >= 0 && nc < this.size &&
+              this.grid[nr][nc] === CELL_SHIP && !visited.has(nkey)) {
+            visited.add(nkey);
+            queue.push({ r: nr, c: nc });
+          }
+        }
+      }
+      components.push(comp);
+    }
+
+    // 4. 每个组件必须是直线（同一行或同一列）
+    for (const comp of components) {
+      const rows = new Set(comp.map(p => p.r));
+      const cols = new Set(comp.map(p => p.c));
+      if (rows.size > 1 && cols.size > 1) {
+        this._setError('存在非直线的战舰形状');
+        return;
+      }
+    }
+
+    // 5. 不同组件之间不能相邻（8方向）
+    for (let i = 0; i < components.length; i++) {
+      for (let j = i + 1; j < components.length; j++) {
+        for (const a of components[i]) {
+          for (const b of components[j]) {
+            if (Math.abs(a.r - b.r) <= 1 && Math.abs(a.c - b.c) <= 1) {
+              this._setError('战舰之间不能相邻');
+              return;
+            }
+          }
+        }
+      }
+    }
+
     this._onVictory();
+  }
+
+  _setError(msg) {
+    this._errorHint = msg;
+    this._errorHintTime = Date.now();
   }
 
   _onVictory() {
@@ -418,6 +478,32 @@ class Battleship {
     this.animationTime += 0.05;
   }
 
+  _drawErrorHint(msg) {
+    const ctx = this.ctx;
+    const elapsed = Date.now() - this._errorHintTime;
+    const alpha = elapsed < 2500 ? 0.92 : 0.92 * (1 - (elapsed - 2500) / 500);
+    if (alpha <= 0) return;
+
+    const panelW = Math.min(this.width - 40, 260);
+    const panelH = 56;
+    const panelX = (this.width - panelW) / 2;
+    const panelY = this.boardOffsetY + this.hintAreaSize + this.cellSize * this.size + 10;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#d32f2f';
+    ctx.beginPath();
+    roundRect(ctx, panelX, panelY, panelW, panelH, 12);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText('❌ ' + msg, this.width / 2, panelY + 34);
+    ctx.textAlign = 'left';
+    ctx.restore();
+  }
+
   draw() {
     if (this.grid.length === 0) return;
     this._drawBackground();
@@ -432,6 +518,13 @@ class Battleship {
       this.victoryPanel.setAchievements(this._newAchievements);
       this.victoryPanel.draw();
     }
+
+    // 战舰数满但未通关时显示错误提示
+    if (this._errorHint && this._errorHintTime && Date.now() - this._errorHintTime < 3000) {
+      this._drawErrorHint(this._errorHint);
+    } else {
+      this._errorHint = null;
+    }
     
     if (this.tutorial.shouldShow()) {
       this.tutorial.draw();
@@ -439,10 +532,12 @@ class Battleship {
   }
 
   _drawBackground() {
-    const gradient = this.ctx.createLinearGradient(0, 0, this.width, this.height);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(1, '#16213e');
-    this.ctx.fillStyle = gradient;
+    if (!this._bgGradient) {
+      this._bgGradient = this.ctx.createLinearGradient(0, 0, this.width, this.height);
+      this._bgGradient.addColorStop(0, '#1a1a2e');
+      this._bgGradient.addColorStop(1, '#16213e');
+    }
+    this.ctx.fillStyle = this._bgGradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
 
@@ -561,6 +656,7 @@ class Battleship {
 
   destroy() {
     this.stopTimer();
+    if (this.confetti) this.confetti.stop();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 }

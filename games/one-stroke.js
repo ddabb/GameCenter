@@ -96,7 +96,7 @@ class GridPathFinder {
 // =========================================================================
 
 class OneStroke {
-  constructor(ctx, canvas, systemInfo, switchGame, level) {
+  constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
     this.ctx = ctx;
     this.canvas = canvas;
     this.systemInfo = systemInfo;
@@ -107,7 +107,7 @@ class OneStroke {
 
     this.gameName = 'one-stroke';
     this.level = level || 1;
-    this.difficulty = 'easy';
+    this.difficulty = difficulty;
 
     this.grid = [];       // 0=有效, 1=洞
     this.rows = 6;
@@ -144,7 +144,7 @@ class OneStroke {
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
-      onAchievementDraw: () => this._drawAchievementPopup()
+      onAchievementDraw: () => { this._newAchievements = null; }
     });
     this.bindEvents();
     this.loadLevel();
@@ -503,10 +503,8 @@ class OneStroke {
       }
 
       if (this.tutorial && this.tutorial.shouldShow()) {
-        if (this.tutorial.hitTest(x, y)) {
-          this.tutorial.dismiss();
-          this.draw();
-        }
+        this.tutorial.dismiss();
+        this.draw();
         return;
       }
 

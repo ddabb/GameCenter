@@ -13,7 +13,7 @@ const BottomBar = require('./components/bottom-bar');
 const { getInstance: getRewardManager } = require('./reward-manager');
 
 class Nonogram {
-  constructor(ctx, canvas, systemInfo, switchGame, level) {
+  constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
     this.ctx = ctx;
     this.canvas = canvas;
     this.systemInfo = systemInfo;
@@ -23,11 +23,12 @@ class Nonogram {
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
 
     this.level = level;
+    this.difficulty = difficulty;
     this.gameName = 'nonogram';
     statsManager.startGame(this.gameName, level) || 1;
 
     this.size = 6;
-    this.cellSize = Math.min(this.width * 0.8 / this.size, 45);
+    this.cellSize = 0;
     this.boardOffsetX = 0;
     this.boardOffsetY = 0;
 
@@ -35,7 +36,6 @@ class Nonogram {
     this.rowHints = [];
     this.colHints = [];
     this.answer = [];
-    this._calcLayout();
 
     this.mode = 'fill';
     this.victory = false;
@@ -48,10 +48,6 @@ class Nonogram {
     this.undoMgr = new UndoManager();
     this.hintMgr = new HintManager();
 
-    this.loadLevel();
-    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
-    this.bindEvents();
-
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
@@ -60,23 +56,58 @@ class Nonogram {
       showNext: false,
       backText: '返回选关'
     });
+
+    this.loadLevel();
+    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+    this.bindEvents();
   }
 
   _calcLayout() {
+    const headerBottom = this.headerBar ? this.headerBar.boardStartY : (this.statusBarHeight + 77);
+    const footerTop = this.bottomBar ? this.bottomBar.topY : (this.height - 76);
+
     const maxRowLen = Math.max(...this.rowHints.map(h => h.length || 0), 0);
     const maxColLen = Math.max(...this.colHints.map(h => h.length || 0), 0);
-    const numFont = Math.floor(this.cellSize * 0.35);
-    const rowHintW = Math.max(42, maxRowLen * (numFont + 4) + 8);
-    const colHintH = Math.max(22, maxColLen * (numFont + 2) + 6);
 
-    this.cellSize = Math.min(
-      Math.floor((this.width - rowHintW - 32) / this.size),
-      Math.floor((this.height - this.statusBarHeight - 150 - colHintH) / this.size),
-      45
+    // 垂直固定区域（自上而下紧凑排列）
+    const modeBtnH = 32;
+    const topGap = 6;
+    const btnToStatus = 4;
+    const statusToHints = 6;
+    const bottomGap = 12;
+
+    const availH = footerTop - headerBottom - topGap - modeBtnH - btnToStatus - 14 - statusToHints - bottomGap;
+    const availW = this.width - 12;
+
+    // 先估算 cellSize
+    const roughCellSize = Math.min(
+      Math.floor(availW / this.size),
+      Math.floor(availH / this.size),
+      36
     );
 
-    this.boardOffsetX = 16 + rowHintW;
-    this.boardOffsetY = this.statusBarHeight + 80 + colHintH;
+    this._hintFontSize = Math.max(9, Math.floor(roughCellSize * 0.32));
+    this._rowHintW = Math.max(30, maxRowLen * (this._hintFontSize + 3) + 6);
+    this._colHintH = Math.max(16, maxColLen * (this._hintFontSize + 2) + 4);
+
+    // 根据 hint 区域反推最终 cellSize
+    const maxCellW = Math.floor((availW - this._rowHintW) / this.size);
+    const maxCellH = Math.floor((availH - this._colHintH) / this.size);
+    this.cellSize = Math.max(16, Math.min(maxCellW, maxCellH, 36));
+
+    // 重新校准 hint 尺寸
+    this._hintFontSize = Math.max(9, Math.floor(this.cellSize * 0.32));
+    this._rowHintW = Math.max(30, maxRowLen * (this._hintFontSize + 3) + 6);
+    this._colHintH = Math.max(16, maxColLen * (this._hintFontSize + 2) + 4);
+
+    // 水平居中
+    const totalW = this._rowHintW + this.cellSize * this.size;
+    this.boardOffsetX = (this.width - totalW) / 2 + this._rowHintW;
+
+    // 垂直位置（自上而下紧凑排列，不再居中）
+    this._modeBtnY = headerBottom + topGap;
+    this._statusY = this._modeBtnY + modeBtnH + btnToStatus + 12;
+    this.boardOffsetY = this._statusY + statusToHints + this._colHintH;
   }
 
   async loadLevel() {
@@ -149,38 +180,42 @@ class Nonogram {
     let changed = false;
 
     const rowHints = this.rowHints[r];
-    const rowSum = rowHints.reduce((a, b) => a + b, 0);
-    let rowFilled = 0, rowEmpty = 0;
-    for (let cc = 0; cc < size; cc++) {
-      if (this.grid[r][cc] === 1) rowFilled++;
-      else if (this.grid[r][cc] === 2) rowEmpty++;
-    }
+    if (rowHints && rowHints.length) {
+      const rowSum = rowHints.reduce((a, b) => a + b, 0);
+      let rowFilled = 0, rowEmpty = 0;
+      for (let cc = 0; cc < size; cc++) {
+        if (this.grid[r][cc] === 1) rowFilled++;
+        else if (this.grid[r][cc] === 2) rowEmpty++;
+      }
 
-    if (rowFilled === rowSum && rowFilled + rowEmpty < size) {
-      if (this._checkLineMatch(this.grid[r], rowHints)) {
-        for (let cc = 0; cc < size; cc++) {
-          if (this.grid[r][cc] === 0) {
-            this.grid[r][cc] = 2;
-            changed = true;
+      if (rowFilled === rowSum && rowFilled + rowEmpty < size) {
+        if (this._checkLineMatch(this.grid[r], rowHints)) {
+          for (let cc = 0; cc < size; cc++) {
+            if (this.grid[r][cc] === 0) {
+              this.grid[r][cc] = 2;
+              changed = true;
+            }
           }
         }
       }
     }
 
     const colHints = this.colHints[c];
-    const colSum = colHints.reduce((a, b) => a + b, 0);
-    let colFilled = 0, colEmpty = 0;
-    for (let rr = 0; rr < size; rr++) {
-      if (this.grid[rr][c] === 1) colFilled++;
-      else if (this.grid[rr][c] === 2) colEmpty++;
-    }
+    if (colHints && colHints.length) {
+      const colSum = colHints.reduce((a, b) => a + b, 0);
+      let colFilled = 0, colEmpty = 0;
+      for (let rr = 0; rr < size; rr++) {
+        if (this.grid[rr][c] === 1) colFilled++;
+        else if (this.grid[rr][c] === 2) colEmpty++;
+      }
 
-    if (colFilled === colSum && colFilled + colEmpty < size) {
-      if (this._checkLineMatch(this.grid.map(g => g[c]), colHints)) {
-        for (let rr = 0; rr < size; rr++) {
-          if (this.grid[rr][c] === 0) {
-            this.grid[rr][c] = 2;
-            changed = true;
+      if (colFilled === colSum && colFilled + colEmpty < size) {
+        if (this._checkLineMatch(this.grid.map(g => g[c]), colHints)) {
+          for (let rr = 0; rr < size; rr++) {
+            if (this.grid[rr][c] === 0) {
+              this.grid[rr][c] = 2;
+              changed = true;
+            }
           }
         }
       }
@@ -190,6 +225,7 @@ class Nonogram {
   }
 
   _fillCell(r, c) {
+    console.log(`[Nonogram] _fillCell enter r=${r} c=${c} size=${this.size} victory=${this.victory} grid=${!!this.grid}`);
     if (r < 0 || r >= this.size || c < 0 || c >= this.size) return false;
     if (this.victory) return false;
 
@@ -206,13 +242,14 @@ class Nonogram {
       newVal = old === 2 ? 0 : 2;
     }
 
-    if (old === newVal) return false;
+    if (old === newVal) { console.log(`[Nonogram] _fillCell skip: old===newVal=${old}`); return false; }
 
     if (!this.undoMgr || !this.undoMgr._stack || !this.undoMgr._stack.length || this.undoMgr._stack[this.undoMgr._stack.length - 1] !== this.undoMgr._lastState) {
       this.undoMgr.save({ grid: this.grid.map(row => [...row]) });
     }
 
     this.grid[r][c] = newVal;
+    console.log(`[Nonogram] _fillCell r=${r} c=${c} old=${old} newVal=${newVal} mode=${this.mode}`);
     this._checkAndMarkEmpty(r, c);
     sound.playClick();
     this.draw();
@@ -274,9 +311,11 @@ class Nonogram {
       const touch = e.touches ? e.touches[0] : e;
       const x = touch.clientX;
       const y = touch.clientY;
+      console.log(`[Nonogram] click x=${x} y=${y} victory=${this.victory} size=${this.size} cellSize=${this.cellSize} boardOffset=(${this.boardOffsetX},${this.boardOffsetY})`);
 
       if (this.victory) {
         const action = this.victoryPanel.handleClick(x, y);
+        console.log(`[Nonogram] victory panel action=${action}`);
         if (action === 'back') {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
@@ -288,16 +327,21 @@ class Nonogram {
       }
 
       if (this.tutorial && this.tutorial.shouldShow()) {
-        if (this.tutorial.hitTest(x, y)) {
-          this.tutorial.dismiss();
-          this.draw();
-        }
+        this.tutorial.dismiss();
+        this.draw();
         return;
       }
 
       const action = this.bottomBar.handleClick(x, y);
       if (action) {
+        console.log(`[Nonogram] bottomBar action=${action}`);
         this._handleBottomAction(action);
+        return;
+      }
+
+      if (this.headerBar.isBackButton(x, y)) {
+        sound.play('click');
+        this.switchGame('level-select', this.gameName);
         return;
       }
 
@@ -319,6 +363,7 @@ class Nonogram {
 
       const col = Math.floor((x - this.boardOffsetX) / this.cellSize);
       const row = Math.floor((y - this.boardOffsetY) / this.cellSize);
+      console.log(`[Nonogram] board hit row=${row} col=${col} inRange=${row >= 0 && row < this.size && col >= 0 && col < this.size}`);
 
       if (row >= 0 && row < this.size && col >= 0 && col < this.size) {
         this._touchStartCell = { r: row, c: col };
@@ -384,11 +429,10 @@ class Nonogram {
   _drawStatus() {
     const ctx = this.ctx;
     const modeText = this.mode === 'fill' ? '填充模式' : '标记模式';
-    const y = this.boardOffsetY - 10;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.font = '13px Arial, -apple-system';
     ctx.textAlign = 'center';
-    ctx.fillText(`第${this.level}关 · ${modeText}`, this.width / 2, y);
+    ctx.fillText(`第${this.level}关 · ${modeText}`, this.width / 2, this._statusY);
     ctx.textAlign = 'left';
   }
 
@@ -425,7 +469,7 @@ class Nonogram {
     const gap = 10;
     const totalW = btnW * 2 + gap;
     const startX = (this.width - totalW) / 2;
-    const y = this.statusBarHeight + 45;
+    const y = this._modeBtnY || (this.statusBarHeight + 45);
 
     const modes = [
       { id: 'fill', text: '🖊️ 填充', color: '#6BCB77' },
@@ -465,7 +509,7 @@ class Nonogram {
   drawHints() {
     if (!this.colHints || !this.rowHints || !this.size) return;
 
-    const fontSize = Math.max(10, Math.floor(this.cellSize * 0.32));
+    const fontSize = this._hintFontSize || Math.max(10, Math.floor(this.cellSize * 0.32));
     this.ctx.font = fontSize + 'px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -491,56 +535,70 @@ class Nonogram {
 
   drawBoard() {
     if (!this.grid || !this.size) return;
+    const ctx = this.ctx;
+    const cs = this.cellSize;
+    const bx = this.boardOffsetX;
+    const by = this.boardOffsetY;
+    const n = this.size;
 
-    for (let r = 0; r < this.size; r++) {
+    // 1. Board background
+    ctx.fillStyle = '#2a2a4a';
+    ctx.fillRect(bx, by, cs * n, cs * n);
+
+    // 2. Filled cells
+    if (!this._fillGradient || this._fillGradient._cs !== cs) {
+      this._fillGradient = ctx.createLinearGradient(0, 0, cs, cs);
+      this._fillGradient.addColorStop(0, '#6BCB77');
+      this._fillGradient.addColorStop(1, '#4CAF50');
+      this._fillGradient._cs = cs;
+    }
+    for (let r = 0; r < n; r++) {
       if (!this.grid[r]) continue;
-      for (let c = 0; c < this.size; c++) {
-        const x = this.boardOffsetX + c * this.cellSize;
-        const y = this.boardOffsetY + r * this.cellSize;
-        const val = this.grid[r][c];
-
-        this.ctx.fillStyle = '#2a2a4a';
-        this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
-
-        if (val === 1) {
-          const gradient = this.ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
-          gradient.addColorStop(0, '#6BCB77');
-          gradient.addColorStop(1, '#4CAF50');
-          this.ctx.fillStyle = gradient;
-          this.ctx.fillRect(x + 2, y + 2, this.cellSize - 4, this.cellSize - 4);
-        } else if (val === 2) {
-          this.ctx.strokeStyle = '#FF6B6B';
-          this.ctx.lineWidth = 2;
-          this.ctx.beginPath();
-          this.ctx.moveTo(x + 4, y + 4);
-          this.ctx.lineTo(x + this.cellSize - 4, y + this.cellSize - 4);
-          this.ctx.moveTo(x + this.cellSize - 4, y + 4);
-          this.ctx.lineTo(x + 4, y + this.cellSize - 4);
-          this.ctx.stroke();
-        }
-
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
-
-        if (c === this.size - 1) {
-          this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-          this.ctx.lineWidth = 2;
-          this.ctx.beginPath();
-          this.ctx.moveTo(x + this.cellSize, y);
-          this.ctx.lineTo(x + this.cellSize, y + this.cellSize);
-          this.ctx.stroke();
-        }
-        if (r === this.size - 1) {
-          this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-          this.ctx.lineWidth = 2;
-          this.ctx.beginPath();
-          this.ctx.moveTo(x, y + this.cellSize);
-          this.ctx.lineTo(x + this.cellSize, y + this.cellSize);
-          this.ctx.stroke();
+      for (let c = 0; c < n; c++) {
+        if (this.grid[r][c] === 1) {
+          const x = bx + c * cs;
+          const y = by + r * cs;
+          ctx.fillStyle = this._fillGradient;
+          ctx.fillRect(x + 2, y + 2, cs - 4, cs - 4);
         }
       }
     }
+
+    // 3. Mark X
+    ctx.strokeStyle = '#FF6B6B';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let r = 0; r < n; r++) {
+      if (!this.grid[r]) continue;
+      for (let c = 0; c < n; c++) {
+        if (this.grid[r][c] === 2) {
+          const x = bx + c * cs;
+          const y = by + r * cs;
+          ctx.moveTo(x + 4, y + 4);
+          ctx.lineTo(x + cs - 4, y + cs - 4);
+          ctx.moveTo(x + cs - 4, y + 4);
+          ctx.lineTo(x + 4, y + cs - 4);
+        }
+      }
+    }
+    ctx.stroke();
+
+    // 4. Grid lines (batch)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      ctx.moveTo(bx, by + i * cs);
+      ctx.lineTo(bx + n * cs, by + i * cs);
+      ctx.moveTo(bx + i * cs, by);
+      ctx.lineTo(bx + i * cs, by + n * cs);
+    }
+    ctx.stroke();
+
+    // 5. Outer border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, n * cs, n * cs);
   }
 
   _drawAchievementPopup() {
@@ -562,6 +620,7 @@ class Nonogram {
   }
 
   destroy() {
+    if (this.confetti) this.confetti.stop();
     if (this._clickHandler) this.canvas.removeEventListener('click', this._clickHandler);
     if (this._touchMoveHandler) this.canvas.removeEventListener('touchmove', this._touchMoveHandler);
     if (this._touchEndHandler) {

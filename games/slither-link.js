@@ -16,7 +16,7 @@ const { getInstance: getRewardManager } = require('./reward-manager');
  * 规则：在格点间画线，形成一条闭合回路，数字表示该格周围的线段数
  */
 class SlitherLink {
-  constructor(ctx, canvas, systemInfo, switchGame, level) {
+  constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
     console.log(`[SlitherLink] 初始化游戏, 关卡: ${level}`);
     this.ctx = ctx;
     this.canvas = canvas;
@@ -29,6 +29,7 @@ class SlitherLink {
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     
     this.level = level;
+    this.difficulty = difficulty;
     statsManager.startGame(this.gameName, level) || 1;
     this.gameName = 'slither-link';
     this.cellSize = Math.min(this.width * 0.85 / this.size, 50);
@@ -53,7 +54,7 @@ class SlitherLink {
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
-      onAchievementDraw: () => this._drawAchievementPopup()
+      onAchievementDraw: () => { this._newAchievements = null; }
     });
     this.bindEvents();
   }
@@ -66,28 +67,34 @@ class SlitherLink {
       console.log(`[SlitherLink] CDN URL: ${url}`);
       const data = await LevelLoader.load('slither-link', this.level, this.difficulty);
       if (data && data.grid) {
-        this.size = data.size || 5;
-        this.cellSize = Math.min(this.width * 0.85 / this.size, 50);
-        this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-        this.hints = data.grid;
-        this.victory = false;
-        this.undoMgr.clear();
-        this.draw();
+        this._applyPuzzleData(data);
         return;
       }
-    } catch (e) { /* CDN失败，走内置题 */ }
-    
+    } catch (e) { console.log(`[SlitherLink] CDN失败: ${e.message}`); }
+
     // 内置题目（保底）
-    this.hints = [
-      [3, 2, 1, 1, 2],
-      [1, 2, 1, 1, 2],
-      [1, 2, 2, 2, 1],
-      [2, 1, 1, 2, 1],
-      [2, 2, 1, 2, 3]
-    ];
-    this.size = 5;
+    this._applyPuzzleData({
+      size: 5,
+      grid: [
+        [3, 2, 1, 1, 2],
+        [1, 2, 1, 1, 2],
+        [1, 2, 2, 2, 1],
+        [2, 1, 1, 2, 1],
+        [2, 2, 1, 2, 3]
+      ],
+      answer: null
+    });
+  }
+
+  /** 应用题目数据（CDN 或内置） */
+  _applyPuzzleData(data) {
+    this.size = data.size || 5;
+    this.hints = data.grid;
+    this.rows = this.size;
+    this.cols = this.size;
     this.cellSize = Math.min(this.width * 0.85 / this.size, 50);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
+    this.boardOffsetY = this.statusBarHeight + 175;
     this.victory = false;
     this.undoMgr.clear();
     // 初始化边状态
@@ -101,6 +108,8 @@ class SlitherLink {
         this.vEdges[r][c] = 0;
       }
     }
+    // 保存答案数据（用于提示）
+    this._answer = data.answer || null;
     this.draw();
   }
   
@@ -137,45 +146,19 @@ class SlitherLink {
       }
       
       // 通关面板
-      // 规则按钮（右上角）
-    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
-    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
-
-    if (this.victory) {
-        // 检查是否点击了下一关按钮
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
+      if (this.victory) {
+        const result = this.victoryPanel.handleClick(x, y);
+        if (result === 'next') {
+          sound.play('click');
           this.level++;
           this.loadLevel();
-          sound.play('click');
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
-          this._victoryPanel = null;
           return;
         }
-        // 检查是否点击了返回选关按钮
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
+        if (result === 'back') {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
           return;
         }
-        // 面板未显示，显示面板
-        if (!this._nextBtn || !this._backBtn) {
-          this.showBackButton(x, y);
-        }
-        return;
-      }
-      
-      // 重置按钮
-      if (x > this.width - 80 && y > this.height - 60) {
-        this.loadLevel();
         return;
       }
       
@@ -245,7 +228,7 @@ class SlitherLink {
     });
     rewardMgr.showRewardToast(rewardResult);
     let winCount = 0;
-    try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+    try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_' + (this.difficulty || 'easy')) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
     const newlyAchieved = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newlyAchieved;
     sound.play('victory');
@@ -336,66 +319,7 @@ class SlitherLink {
     return { valid: true, reason: '' };
   }
   
-  showBackButton(clickX, clickY) {
-    let panelW = this.width * 0.85;
-    let panelH = 260;
-    let panelX = (this.width - panelW) / 2;
-    let panelY = this.height / 2 - panelH / 2;
-    
-    this.ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-    
-    this.ctx.fillStyle = '#fff';
-    this.ctx.strokeStyle = '#FFD700';
-    this.ctx.lineWidth = 3;
-    roundRect(this.ctx, panelX, panelY, panelW, panelH, 16);
-    this.ctx.fill();
-    this.ctx.stroke();
-    
-    this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = 'bold ' + (this.width / 10) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('🎉 通关！', this.width / 2, panelY + 55);
-    
-    this.ctx.fillStyle = '#aaa';
-    this.ctx.font = (this.width / 26) + 'px Arial';
-    this.ctx.fillText('第 ' + this.level + ' 关', this.width / 2, panelY + 90);
-    
-    let btnY = panelY + 115;
-    let btnW = panelW - 40;
-    let btnH = 50;
-    let btnX = 20;
-    
-    // 下一关按钮
-    this.ctx.fillStyle = '#4CAF50';
-    roundRect(this.ctx, btnX, btnY, btnW, btnH, 10);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold ' + (this.width / 22) + 'px Arial';
-    this.ctx.fillText('▶ 下一关', this.width / 2, btnY + 33);
-    
-    // 返回选关按钮
-    this.ctx.fillStyle = '#555';
-    roundRect(this.ctx, btnX, btnY + btnH + 12, btnW, btnH, 10);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = (this.width / 22) + 'px Arial';
-    this.ctx.fillText('🏠 返回选关', this.width / 2, btnY + btnH + 12 + 33);
-    
-            
-    // 分享按钮
-    const shareBtnY = btnY + (btnH + 12) * 2;
-    this.ctx.fillStyle = '#1976D2';
-    roundRect(this.ctx, btnX, shareBtnY, btnW, 40, 10);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = (this.width / 24) + 'px Arial';
-    this.ctx.fillText('📤 分享战绩', this.width / 2, shareBtnY + 27);
-    this._shareBtn = { x: btnX, y: shareBtnY, w: btnW, h: 40 };
-    
-    this._victoryPanel = { x: panelX, y: panelY, w: panelW, h: panelH };
-  }
-    
+  
   update() {
     this.animationTime += 0.08;
   }
@@ -445,10 +369,12 @@ class SlitherLink {
 
   
   drawBackground() {
-    let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(1, '#16213e');
-    this.ctx.fillStyle = gradient;
+    if (!this._bgGradient) {
+      this._bgGradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
+      this._bgGradient.addColorStop(0, '#1a1a2e');
+      this._bgGradient.addColorStop(1, '#16213e');
+    }
+    this.ctx.fillStyle = this._bgGradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
 
@@ -586,7 +512,7 @@ class SlitherLink {
 
   saveGameProgress() {
     try {
-      const key = 'progress_' + this.gameName;
+      const key = 'progress_' + this.gameName + '_' + (this.difficulty || 'easy');
       const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       // 解锁下一关
@@ -604,6 +530,7 @@ class SlitherLink {
   }
 
   destroy() {
+    if (this.confetti) this.confetti.stop();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 }

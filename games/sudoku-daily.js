@@ -452,7 +452,21 @@ class SudokuDaily {
       }
       
       if (this.victory) {
-        if (this.victoryPanel.handleClick(x, y)) return;
+        const result = this.victoryPanel.handleClick(x, y);
+        if (result === 'next') {
+          sound.play('click');
+          this.victory = false;
+          this.initBoard();
+          this.loadTodaySudoku();
+          this.victoryPanel.reset();
+          this.draw();
+          return;
+        }
+        if (result === 'back') {
+          sound.play('click');
+          this.switchGame('menu');
+          return;
+        }
         return;
       }
       

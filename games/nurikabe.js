@@ -1,85 +1,128 @@
+/**
+ * 数墙 (Nurikabe) Canvas 版
+ * 规则（参考 freetools 实现）：
+ * 1. 点击非数字格切换：白 ↔ 黑
+ * 2. 每个数字格属于一个大小等于该数字的白色连通区域
+ * 3. 所有黑色格子连通
+ * 4. 没有 2×2 的全黑区域
+ */
 const LevelLoader = require('./level-loader');
+const roundRect = require('../utils/round-rect.js');
 const statsManager = require('./stats-manager.js').getInstance();
 const Confetti = require('./confetti');
 const sound = require('./sound-manager');
 const TutorialOverlay = require('./tutorial-overlay');
 const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
-const { ShareCard } = require('./share-card');
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
 const BottomBar = require('./components/bottom-bar');
 const { getInstance: getRewardManager } = require('./reward-manager');
 
+const CELL_WHITE = 0;
+const CELL_BLACK = 1;
+
 class Nurikabe {
-  constructor(ctx, canvas, systemInfo, switchGame, level) {
-    console.log(`[Nurikabe] 初始化游戏, 关卡: ${level}`);
+  constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
     this.ctx = ctx;
     this.canvas = canvas;
     this.systemInfo = systemInfo;
     this.switchGame = switchGame;
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
-    
-    // 安全区域适配
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
-    
-    this.level = level;
-    statsManager.startGame(this.gameName, level) || 1; // 关卡号
+
     this.gameName = 'nurikabe';
-    
-    this.cellSize = Math.min(this.width * 0.9 / 7, 50);
-    this.boardOffsetX = (this.width - this.cellSize * 7) / 2;
-    this.boardOffsetY = this.statusBarHeight + 100;
-    
-    this.board = [];
-    this.marks = [];
-    this.animationTime = 0;
+    this.level = level || 1;
+    this.difficulty = difficulty;
+    statsManager.startGame(this.gameName, this.level);
+
+    this.size = 5;
+    this.numbers = [];   // 数字提示（CDN grid）
+    this.board = [];     // 玩家状态：0=白, 1=黑
+    this.solution = [];  // 答案（可选，用于提示）
+    this._dataReady = false;
+
+    this.cellSize = 50;
+    this.boardOffsetX = 0;
+    this.boardOffsetY = (this.headerBar ? this.headerBar.boardStartY : 100) + 65;
+
     this.victory = false;
-    this.confetti = new Confetti(this.ctx, this.width, this.height);
+    this.animationTime = 0;
+    this.timer = 0;
+    this.timerInterval = null;
+
+    this.confetti = new Confetti(ctx, this.width, this.height);
     this.achievement = new AchievementManager();
     this.undoMgr = new UndoManager();
-    this.shareCard = new ShareCard(this.ctx, this.width, this.height);
-    
-    this.loadLevel();
-    this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+
+    this.tutorial = new TutorialOverlay(ctx, this.width, this.height, this.gameName);
 
     // 共享 UI 组件
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
-    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
-    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+    this.headerBar = new HeaderBar(ctx, this.width, this.statusBarHeight, {
+      bgColor: '#e0f7fa',
+      textColor: '#00695c',
+      infoColor: '#4db6ac',
+      backColor: 'rgba(0, 105, 90, 0.12)',
+      titleFontSize: 18,
+      infoFontSize: 12,
+      height: 48
+    });
+    this.bottomBar = new BottomBar(ctx, this.width, this.height, this.statusBarHeight, {
+      bgColor: 'rgba(0, 105, 90, 0.10)',
+      textColor: '#00796b',
+      disabledColor: 'rgba(0, 105, 90, 0.25)',
+      activeColor: '#00897b'
+    });
+    this.victoryPanel = new VictoryPanel(ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
       onAchievementDraw: () => this._drawAchievementPopup()
     });
+
+    this.loadLevel();
     this.bindEvents();
   }
-  
+
+  calcCellSize() {
+    const maxGridPx = this.width * 0.85;
+    const rawSize = Math.floor(maxGridPx / this.size);
+    return Math.max(20, Math.min(rawSize, 45));
+  }
+
   async loadLevel() {
-    console.log(`[Nurikabe] 加载关卡: ${this.level}`);
-    if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
+    if (this.confetti) this.confetti.stop();
+    if (this.undoMgr) this.undoMgr.clear();
+    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+    this.timer = 0;
+    this._dataReady = false;
+    this.victory = false;
+
     try {
-      const data = await LevelLoader.load('nurikabe', this.level);
+      const data = await LevelLoader.load('nurikabe', this.level, this.difficulty);
       if (data && data.grid) {
         this.size = data.size || 5;
-        this.cellSize = Math.min(this.width * 0.9 / this.size, 50);
-        this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-        this.boardOffsetY = 100;
-        
-        this.board = data.grid;
-        this.marks = [];
+        this.numbers = data.grid;
+        this.solution = data.solution || null;
+
+        // 初始化：所有格为白
+        this.board = [];
         for (let r = 0; r < this.size; r++) {
-          this.marks[r] = [];
+          this.board[r] = [];
           for (let c = 0; c < this.size; c++) {
-            this.marks[r][c] = 0;
+            this.board[r][c] = CELL_WHITE;
           }
         }
-        this.victory = false;
+
+        this._updateLayout();
+        this._dataReady = true;
+        this.startTimer();
         return;
       }
-    } catch (e) { /* CDN失败，走内置题 */ }
-    
-    // 内置题目
-    this.board = [
+    } catch (e) { /* CDN 失败 */ }
+
+    // 内置 fallback
+    this.size = 7;
+    this.numbers = [
       [0,0,1,0,0,2,0],
       [0,0,0,0,0,0,0],
       [0,3,0,0,0,0,0],
@@ -88,295 +131,408 @@ class Nurikabe {
       [0,1,0,0,0,0,0],
       [0,0,0,0,0,0,0]
     ];
-    
-    this.marks = [];
-    for (let r = 0; r < 7; r++) {
-      this.marks[r] = [];
-      for (let c = 0; c < 7; c++) {
-        this.marks[r][c] = 0; // 0=空, 1=黑色(墙), 2=白色(岛)
+    this.solution = null;
+    this.board = [];
+    for (let r = 0; r < this.size; r++) {
+      this.board[r] = [];
+      for (let c = 0; c < this.size; c++) {
+        this.board[r][c] = CELL_WHITE;
       }
     }
-    this.victory = false;
+    this._updateLayout();
+    this._dataReady = true;
+    this.startTimer();
   }
-  
+
+  _updateLayout() {
+    this.cellSize = this.calcCellSize();
+    this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
+    this.boardOffsetY = this.headerBar.boardStartY + 65;
+  }
+
+  startTimer() {
+    if (this.timerInterval) return;
+    this.timerInterval = setInterval(() => { this.timer++; }, 1000);
+  }
+
+  formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  }
+
+  // ── 事件 ──────────────────────────────────────────────────────────────
+
   bindEvents() {
     this.clickHandler = (e) => {
-      let touch = e.touches ? e.touches[0] : e;
-      let x = touch.clientX;
-      let y = touch.clientY;
-      
-      // 底部工具栏按钮检测（使用共享组件）
-      const action = this.bottomBar.handleClick(x, y);
-      if (action) {
-        this._handleBottomAction(action);
-        return;
-      }
-      
-      if (this.tutorial && this.tutorial.shouldShow() && this.tutorial.hitTest(x, y)) {
+      const touch = e.touches ? e.touches[0] : e;
+      const x = touch.clientX, y = touch.clientY;
+
+      // 规则弹窗优先
+      if (this.tutorial && this.tutorial.shouldShow()) {
         this.tutorial.dismiss();
         this.draw();
         return;
-      }// 顶部返回按钮
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      }
+
+      // 底部工具栏
+      const action = this.bottomBar.handleClick(x, y);
+      if (action) { this._handleBottomAction(action); return; }
+
+      // 返回按钮
+      if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
+        this.switchGame('level-select', this.gameName);
+        return;
+      }
+
+      // 胜利面板
+      if (this.victory) {
+        const vpAction = this.victoryPanel.handleClick(x, y);
+        if (vpAction === 'back') {
+          sound.play('click');
           this.switchGame('level-select', this.gameName);
-        return;
-      }
-
-      // 规则按钮
-      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
-        this.tutorial.show();
-        this.draw();
-        return;
-      }
-      
-      // 通关面板
-      // 规则按钮（右上角）
-    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
-    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
-
-    if (this.victory) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
+        } else if (vpAction === 'next') {
+          sound.play('click');
           this.level++;
           this.loadLevel();
-          sound.play('click');
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
-          return;
-        }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
-          sound.play('click');
-          this.switchGame('level-select', this.gameName);
-          return;
-        }
-        if (!this._nextBtn || !this._backBtn) {
-          this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
         }
         return;
       }
-      
-      // 重置按钮
-      if (x > this.width - 80 && y > this.height - 60) {
-        this.loadLevel();
-        return;
-      }
-      
-      let col = Math.floor((x - this.boardOffsetX) / this.cellSize);
-      let row = Math.floor((y - this.boardOffsetY) / this.cellSize);
-      
-      if (row >= 0 && row < 7 && col >= 0 && col < 7) {
-        if (this.board[row][col] === 0) {
-          // 循环切换：空 → 黑 → 白 → 空
-          if (this.undoMgr) this.undoMgr.save({ marks: this.marks.map(r => [...r]) });
-          this.marks[row][col] = (this.marks[row][col] + 1) % 3;
-          this.checkVictory();
-        }
-      }
+
+      // 棋盘点击
+      if (!this._dataReady) return;
+      const col = Math.floor((x - this.boardOffsetX) / this.cellSize);
+      const row = Math.floor((y - this.boardOffsetY) / this.cellSize);
+      if (row < 0 || row >= this.size || col < 0 || col >= this.size) return;
+
+      // 数字格不能切换
+      if (this.numbers[row] && this.numbers[row][col] > 0) return;
+
+      // 保存撤销
+      if (this.undoMgr) this.undoMgr.save({ board: this.board.map(r => [...r]) });
+
+      // 切换：白 ↔ 黑
+      this.board[row][col] = this.board[row][col] === CELL_WHITE ? CELL_BLACK : CELL_WHITE;
+      sound.play('click');
+      this.checkCompletion();
     };
     this.canvas.addEventListener('click', this.clickHandler);
   }
-  
-  update() {
-    this.animationTime += 0.08;
+
+  // ── 胜利检查（参考 freetools 实现） ──────────────────────────────────
+
+  checkCompletion() {
+    const { size, numbers, board } = this;
+    if (!board || board.length === 0) return;
+
+    // 1. 检查 2×2 全黑
+    for (let r = 0; r < size - 1; r++) {
+      for (let c = 0; c < size - 1; c++) {
+        if (board[r][c] === CELL_BLACK &&
+            board[r][c + 1] === CELL_BLACK &&
+            board[r + 1][c] === CELL_BLACK &&
+            board[r + 1][c + 1] === CELL_BLACK) {
+          return;
+        }
+      }
+    }
+
+    // 2. BFS 找白色连通区域
+    const visited = Array.from({ length: size }, () => Array(size).fill(false));
+    const regionOf = Array.from({ length: size }, () => Array(size).fill(-1));
+    let regionId = 0;
+
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (!visited[r][c] && board[r][c] === CELL_WHITE) {
+          const queue = [[r, c]];
+          visited[r][c] = true;
+          const cells = [];
+          while (queue.length > 0) {
+            const [cr, cc] = queue.shift();
+            cells.push([cr, cc]);
+            for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+              const nr = cr + dr, nc = cc + dc;
+              if (nr >= 0 && nr < size && nc >= 0 && nc < size &&
+                  !visited[nr][nc] && board[nr][nc] === CELL_WHITE) {
+                visited[nr][nc] = true;
+                queue.push([nr, nc]);
+              }
+            }
+          }
+          for (const [cr, cc] of cells) regionOf[cr][cc] = regionId;
+          regionId++;
+        }
+      }
+    }
+
+    // 3. 每个白色区域恰好有一个数字，且区域大小=数字
+    const numberInRegion = {};
+    let numberCount = 0;
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (numbers[r] && numbers[r][c] > 0) {
+          numberCount++;
+          const rid = regionOf[r][c];
+          if (rid === -1) return;                    // 数字格在黑格中
+          if (numberInRegion[rid] !== undefined) return; // 一区域多数字
+          numberInRegion[rid] = numbers[r][c];
+        }
+      }
+    }
+
+    if (Object.keys(numberInRegion).length !== numberCount) return; // 有数字不在白区域
+    if (regionId !== numberCount) return; // 白区域数≠数字数
+
+    const regionSizeMap = {};
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (regionOf[r][c] !== -1) {
+          regionSizeMap[regionOf[r][c]] = (regionSizeMap[regionOf[r][c]] || 0) + 1;
+        }
+      }
+    }
+    for (const rid in numberInRegion) {
+      if (regionSizeMap[rid] !== numberInRegion[rid]) return; // 区域大小≠数字
+    }
+
+    // 4. 黑格连通
+    if (!this._areBlackCellsConnected()) return;
+
+    // 全部通过
+    this._onVictory();
   }
-  
-  _drawStatus() {
-    const ctx = this.ctx;
-    const y = this.boardOffsetY - 15;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '13px Arial, -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText(`第${this.level}关 · ${this.size}×${this.size}`, this.width / 2, y);
-    ctx.textAlign = 'left';
+
+  _areBlackCellsConnected() {
+    const { size, board } = this;
+    let startR = -1, startC = -1;
+    for (let r = 0; r < size && startR === -1; r++) {
+      for (let c = 0; c < size; c++) {
+        if (board[r][c] === CELL_BLACK) { startR = r; startC = c; break; }
+      }
+    }
+    if (startR === -1) return false;
+
+    const visited = Array.from({ length: size }, () => Array(size).fill(false));
+    const queue = [[startR, startC]];
+    let count = 0;
+    while (queue.length > 0) {
+      const [r, c] = queue.shift();
+      if (r < 0 || r >= size || c < 0 || c >= size) continue;
+      if (visited[r][c] || board[r][c] !== CELL_BLACK) continue;
+      visited[r][c] = true;
+      count++;
+      queue.push([r-1,c],[r+1,c],[r,c-1],[r,c+1]);
+    }
+
+    let totalBlack = 0;
+    for (let r = 0; r < size; r++)
+      for (let c = 0; c < size; c++)
+        if (board[r][c] === CELL_BLACK) totalBlack++;
+    return count === totalBlack;
+  }
+
+  _onVictory() {
+    this.victory = true;
+    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+    this.confetti.start();
+    sound.play('victory');
+
+    const rewardMgr = getRewardManager();
+    const rewardResult = rewardMgr.processVictory(this.gameName, {
+      difficulty: this.difficulty || 'easy',
+      level: this.level,
+      time: this.timer || 0
+    });
+    rewardMgr.showRewardToast(rewardResult);
+
+    let winCount = 0;
+    try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_' + (this.difficulty || 'easy')) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
+    this._newAchievements = this.achievement.check(this.gameName, winCount);
+    this.saveGameProgress();
+    statsManager.endGame(true);
+  }
+
+  // ── 绘制 ──────────────────────────────────────────────────────────────
+
+  update() {
+    this.animationTime += 0.05;
   }
 
   draw() {
-    this.ctx.fillStyle = '#0a1628';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-    // 使用共享组件
-    this.headerBar.draw({
-      title: '数连'
-    });
-    
-    // 状态信息在棋盘上方
-    this._drawStatus();
-    
-    this.drawBoard();
-    const buttons = [];
-    if (this.undoMgr && this.undoMgr.canUndo()) {
-      buttons.push({ id: 'undo', text: '撤销' });
+    const ctx = this.ctx;
+    const W = this.width, H = this.height;
+
+    // 背景
+    if (!this._bgGradient) {
+      this._bgGradient = ctx.createLinearGradient(0, 0, 0, H);
+      this._bgGradient.addColorStop(0, '#e0f7fa');
+      this._bgGradient.addColorStop(1, '#80deea');
     }
+    ctx.fillStyle = this._bgGradient;
+    ctx.fillRect(0, 0, W, H);
+
+    // 头部
+    this.headerBar.draw({ title: '数墙' });
+
+    // 状态栏
+    this._drawStatus();
+
+    // 棋盘
+    if (!this._dataReady) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('⏳ 加载中...', W / 2, this.boardOffsetY + 80);
+    } else {
+      this._drawBoard();
+    }
+
+    // 底部工具栏
+    const buttons = [];
+    if (this.undoMgr && this.undoMgr.canUndo()) buttons.push({ id: 'undo', text: '撤销' });
     buttons.push({ id: 'restart', text: '重开' });
     this.bottomBar.setButtons(buttons);
     this.bottomBar.draw();
-    
+
+    // 规则弹窗
+    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
+
+    // 胜利面板
     if (this.victory) {
       this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
       this.victoryPanel.setAchievements(this._newAchievements);
       this.victoryPanel.draw();
     }
-    
-    if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
   }
 
-
-  
-  checkVictory() {
-    for (let r = 0; r < this.size; r++) {
-      for (let c = 0; c < this.size; c++) {
-        if (this.board[r][c] === 0 && this.marks[r][c] === 0) return;
-      }
-    }
-    console.log(`[Nurikabe] 通关！关卡: ${this.level}`);
-    this.victory = true;
-      this.confetti.start();
-      
-      const rewardMgr = getRewardManager();
-      const rewardResult = rewardMgr.processVictory(this.gameName, {
-        difficulty: this.difficulty || 'easy',
-        level: this.level,
-        time: this.timer || 0
-      });
-      rewardMgr.showRewardToast(rewardResult);
-      
-      let winCount = 0;
-      try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
-      const newlyAchieved = this.achievement.check(this.gameName, winCount);
-      this._newAchievements = newlyAchieved;
-      sound.play('victory');
-      this.saveGameProgress(); statsManager.endGame(true);
+  _drawStatus() {
+    const ctx = this.ctx;
+    const y = this.boardOffsetY - 20;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    roundRect(ctx, this.width * 0.1, y - 12, this.width * 0.8, 22, 11);
+    ctx.fill();
+    ctx.fillStyle = '#00796b';
+    ctx.font = 'bold 12px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`第${this.level}关 · ${this.size}×${this.size}  ⏱ ${this.formatTime(this.timer)}`, this.width / 2, y);
+    ctx.textAlign = 'left';
   }
 
-  drawBackground() {
-    let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(1, '#0f0f1a');
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.width, this.height);
-  }
-  
-  
-  drawBoard() {
-    // 棋盘阴影
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,this.boardOffsetX + 3, this.boardOffsetY + 5, 
-                       this.cellSize * 7, this.cellSize * 7, 8);
-    this.ctx.fill();
-    
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        let x = this.boardOffsetX + c * this.cellSize;
-        let y = this.boardOffsetY + r * this.cellSize;
-        
-        // 背景
-        if (this.board[r][c] > 0) {
-          // 数字格（岛屿）
-          let pulse = Math.sin(this.animationTime) * 0.1 + 0.3;
-          this.ctx.fillStyle = `rgba(107, 203, 119, ${pulse + 0.1})`;
-          this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
-        } else if (this.marks[r][c] === 1) {
-          // 黑色墙壁
-          this.ctx.fillStyle = '#1a1a1a';
-          this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
-        } else if (this.marks[r][c] === 2) {
-          // 白色岛屿
-          this.ctx.fillStyle = '#e8f5e9';
-          this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
+  _drawBoard() {
+    if (!this.board || this.board.length === 0 || !this.numbers || this.numbers.length === 0) return;
+    const ctx = this.ctx;
+    const { size, cellSize, boardOffsetX, boardOffsetY } = this;
+
+    // 棋盘阴影 + 白色底板
+    ctx.fillStyle = 'rgba(0, 105, 90, 0.15)';
+    ctx.beginPath();
+    roundRect(ctx, boardOffsetX + 3, boardOffsetY + 5, cellSize * size, cellSize * size, 12);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    roundRect(ctx, boardOffsetX, boardOffsetY, cellSize * size, cellSize * size, 12);
+    ctx.fill();
+
+    // 裁剪到圆角区域内
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, boardOffsetX, boardOffsetY, cellSize * size, cellSize * size, 12);
+    ctx.clip();
+
+    for (let r = 0; r < size; r++) {
+      if (!this.board[r]) continue;
+      for (let c = 0; c < size; c++) {
+        const x = boardOffsetX + c * cellSize;
+        const y = boardOffsetY + r * cellSize;
+        const isNumber = this.numbers[r] && this.numbers[r][c] > 0;
+        const isBlack = this.board[r][c] === CELL_BLACK;
+
+        // 格子背景
+        if (isBlack) {
+          // 黑格：深色渐变（参考 wxss: #37474f → #263238）
+          const grad = ctx.createLinearGradient(x, y, x + cellSize, y + cellSize);
+          grad.addColorStop(0, '#37474f');
+          grad.addColorStop(1, '#263238');
+          ctx.fillStyle = grad;
+        } else if (isNumber) {
+          // 数字格：淡青绿背景（参考 wxss: #e0f2f1）
+          ctx.fillStyle = '#e0f2f1';
         } else {
-          // 空格
-          this.ctx.fillStyle = '#2a2a3a';
-          this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
+          // 白格：微微泛青的白色
+          ctx.fillStyle = '#fafffe';
         }
-        
-        // 数字
-        if (this.board[r][c] > 0) {
-          this.ctx.fillStyle = '#2E7D32';
-          this.ctx.font = 'bold ' + (this.cellSize * 0.5) + 'px Arial';
-          this.ctx.textAlign = 'center';
-          this.ctx.fillText(this.board[r][c], 
-                            x + this.cellSize / 2, 
-                            y + this.cellSize / 2 + this.cellSize * 0.15);
-        }
-        
+        ctx.fillRect(x, y, cellSize, cellSize);
+
         // 网格线
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+
+        // 数字
+        if (isNumber) {
+          ctx.fillStyle = '#00695c';
+          ctx.font = `bold ${Math.floor(cellSize * 0.55)}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(this.numbers[r][c], x + cellSize / 2, y + cellSize / 2 + 1);
+          ctx.textBaseline = 'alphabetic';
+        }
       }
     }
+
+    ctx.restore();
   }
+
+  // ── 底部操作 ──────────────────────────────────────────────────────────
 
   _handleBottomAction(action) {
     switch (action) {
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
           const state = this.undoMgr.undo();
-          if (state) {
+          if (state && state.board) {
             this.board = state.board;
-            this.marks = state.marks;
-            sound.playClick();
-            this.draw();
+            sound.play('click');
           }
         }
         break;
       case 'restart':
-        this.initBoard();
+        this._resetBoard();
         this.undoMgr.clear();
-        sound.playClick();
-        this.draw();
-        break;
-      case 'hint':
-        if (this.hintMgr) {
-          this.hintMgr.showHint();
-          sound.playSuccess();
-        }
+        sound.play('click');
         break;
       case 'rule':
         sound.play('click');
         this.tutorial.show();
-        this.draw();
         break;
     }
   }
-  
-  
-  drawButton(x, y, w, h, text) {
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,x, y, w, h, 20);
-    this.ctx.fill();
-    
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = (this.width / 32) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(text, x + w / 2, y + 26);
+
+  _resetBoard() {
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        this.board[r][c] = CELL_WHITE;
+      }
+    }
+    this.victory = false;
+    if (this.confetti) this.confetti.stop();
+    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+    this.timer = 0;
+    this.startTimer();
   }
-  
-  
+
+  // ── 进度保存 ──────────────────────────────────────────────────────────
 
   saveGameProgress() {
     try {
-      const key = 'progress_' + this.gameName;
+      const key = 'progress_' + this.gameName + '_' + (this.difficulty || 'easy');
       const saved = wx.getStorageSync(key);
-      let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
-      // 解锁下一关
-      if (this.level >= progress.unlocked) {
-        progress.unlocked = this.level + 1;
-      }
-      // 记录通关（1星，后续可扩展星级评分）
-      if (!progress.stars[this.level]) {
-        progress.stars[this.level] = 1;
-      }
+      const progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
+      if (this.level >= progress.unlocked) progress.unlocked = this.level + 1;
+      if (!progress.stars[this.level]) progress.stars[this.level] = 1;
       wx.setStorageSync(key, JSON.stringify(progress));
     } catch (e) {
       console.log('保存进度失败', e);
@@ -384,13 +540,14 @@ class Nurikabe {
   }
 
   destroy() {
+    if (this.confetti) this.confetti.stop();
+    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 
   _drawAchievementPopup() {
     this._newAchievements = null;
   }
-
 }
 
 module.exports = Nurikabe;

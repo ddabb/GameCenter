@@ -13,7 +13,7 @@ const BottomBar = require('./components/bottom-bar');
 const { getInstance: getRewardManager } = require('./reward-manager');
 
 class Tents {
-  constructor(ctx, canvas, systemInfo, switchGame, level) {
+  constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
     console.log(`[Tents] 初始化游戏, 关卡: ${level}`);
     this.ctx = ctx;
     this.canvas = canvas;
@@ -23,11 +23,11 @@ class Tents {
     this.height = systemInfo.windowHeight;
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     this.level = level || 1;
+    this.difficulty = difficulty;
     this.gameName = 'tents';
 
     // 布局初始化（loadLevel 会覆盖）
-    this.cellSize = Math.min(this.width * 0.85 / 7, 55);
-    this.boardOffsetX = (this.width - this.cellSize * 7) / 2;
+    this._calcLayout(7);
     this.boardOffsetY = this.statusBarHeight + 110;
 
     this.tents = [];
@@ -53,6 +53,25 @@ class Tents {
     this.bindEvents();
   }
 
+  _calcLayout(size) {
+    // 可用空间计算
+    const topY = (this.headerBar ? this.headerBar.boardStartY : this.statusBarHeight + 79);
+    const bottomY = this.height - 76; // 底部栏上方
+    const hintMargin = 25; // 行/列提示占用空间
+    const statusH = 35;   // 状态栏 + 间距
+
+    const availH = bottomY - topY - statusH - hintMargin; // 可用高度
+    const availW = this.width - hintMargin * 2 - 20;      // 可用宽度（两侧留提示空间）
+
+    const maxCellH = availH / size;
+    const maxCellW = availW / size;
+    this.cellSize = Math.floor(Math.min(maxCellH, maxCellW, 50));
+    this.cellSize = Math.max(this.cellSize, 20); // 最小 20px
+
+    this.boardOffsetX = (this.width - this.cellSize * size) / 2 + hintMargin / 2;
+    this.boardOffsetY = topY + statusH + hintMargin;
+  }
+
   async loadLevel() {
     console.log(`[Tents] 加载关卡: ${this.level}`);
     this.confetti.stop();
@@ -65,9 +84,7 @@ class Tents {
       const data = await LevelLoader.load('tents', this.level, this.difficulty || 'easy');
       if (data && data.grid) {
         this.size = data.size || 7;
-        this.cellSize = Math.min(this.width * 0.85 / this.size, 55);
-        this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-        this.boardOffsetY = this.statusBarHeight + 110;
+        this._calcLayout(this.size);
 
         this.board = [];
         for (let r = 0; r < this.size; r++) {
@@ -92,9 +109,7 @@ class Tents {
     } catch (e) { /* 使用内置题 */ }
 
     this.size = 7;
-    this.cellSize = Math.min(this.width * 0.85 / this.size, 55);
-    this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-    this.boardOffsetY = this.statusBarHeight + 110;
+    this._calcLayout(this.size);
 
     this.board = [
       [0,0,1,0,0,1,0],
@@ -239,7 +254,8 @@ class Tents {
   
   _drawStatus() {
     const ctx = this.ctx;
-    const y = this.boardOffsetY - 15;
+    const topY = (this.headerBar ? this.headerBar.boardStartY : this.statusBarHeight + 79);
+    const y = topY + 20;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.font = '13px Arial, -apple-system';
     ctx.textAlign = 'center';
@@ -352,7 +368,7 @@ class Tents {
     rewardMgr.showRewardToast(rewardResult);
     
     let winCount = 0;
-    try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch (e) {}
+    try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_' + (this.difficulty || 'easy')) || '{}'); winCount = p.unlocked || 0; } catch (e) {}
     const newly = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newly;
     sound.play('victory');
@@ -362,10 +378,12 @@ class Tents {
 
   drawBackground() {
     const ctx = this.ctx;
-    const bg = ctx.createLinearGradient(0, 0, 0, this.height);
-    bg.addColorStop(0, '#1B4332');
-    bg.addColorStop(1, '#0D2818');
-    ctx.fillStyle = bg;
+    if (!this._bgGradient) {
+      this._bgGradient = ctx.createLinearGradient(0, 0, 0, this.height);
+      this._bgGradient.addColorStop(0, '#1B4332');
+      this._bgGradient.addColorStop(1, '#0D2818');
+    }
+    ctx.fillStyle = this._bgGradient;
     ctx.fillRect(0, 0, this.width, this.height);
 
     for (let i = 0; i < 20; i++) {
@@ -411,16 +429,21 @@ class Tents {
     roundRect(ctx, this.boardOffsetX + 3, this.boardOffsetY + 4, this.cellSize * this.size, this.cellSize * this.size, 8);
     ctx.fill();
 
+    // 缓存草地渐变（同方向同尺寸，只需创建一次）
+    if (!this._grassGradient || this._grassGradient._cs !== this.cellSize) {
+      this._grassGradient = ctx.createLinearGradient(0, 0, this.cellSize, this.cellSize);
+      this._grassGradient.addColorStop(0, '#2D5A27');
+      this._grassGradient.addColorStop(1, '#1A3A18');
+      this._grassGradient._cs = this.cellSize;
+    }
+
     for (let r = 0; r < this.size; r++) {
       for (let c = 0; c < this.size; c++) {
         const x = this.boardOffsetX + c * this.cellSize;
         const y = this.boardOffsetY + r * this.cellSize;
 
         // 草地
-        const g = ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
-        g.addColorStop(0, '#2D5A27');
-        g.addColorStop(1, '#1A3A18');
-        ctx.fillStyle = g;
+        ctx.fillStyle = this._grassGradient;
         ctx.fillRect(x, y, this.cellSize, this.cellSize);
 
         // 树
@@ -457,10 +480,13 @@ class Tents {
           ctx.closePath();
           ctx.fill();
 
-          const tg = ctx.createLinearGradient(tx, y, tx, y + this.cellSize);
-          tg.addColorStop(0, '#F5F5DC');
-          tg.addColorStop(1, '#D2B48C');
-          ctx.fillStyle = tg;
+          if (!this._tentGradient || this._tentGradient._cs !== this.cellSize) {
+            this._tentGradient = ctx.createLinearGradient(0, 0, 0, this.cellSize);
+            this._tentGradient.addColorStop(0, '#F5F5DC');
+            this._tentGradient.addColorStop(1, '#D2B48C');
+            this._tentGradient._cs = this.cellSize;
+          }
+          ctx.fillStyle = this._tentGradient;
           ctx.beginPath();
           ctx.moveTo(tx, y + 8 + pulse);
           ctx.lineTo(x + this.cellSize - 5, y + this.cellSize - 5);
@@ -487,7 +513,7 @@ class Tents {
 
   saveGameProgress() {
     try {
-      const key = 'progress_' + this.gameName;
+      const key = 'progress_' + this.gameName + '_' + (this.difficulty || 'easy');
       const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       if (this.level >= progress.unlocked) {
@@ -536,6 +562,7 @@ class Tents {
   }
 
   destroy() {
+    if (this.confetti) this.confetti.stop();
     if (this.clickHandler) {
       this.canvas.removeEventListener('click', this.clickHandler);
     }

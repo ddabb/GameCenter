@@ -263,6 +263,7 @@ class Akari {
       if (this.victory) {
         const result = this.victoryPanel.handleClick(x, y);
         if (result === 'next') {
+          sound.play('click');
           this.level++;
           this.loadLevel();
           this.victoryPanel.reset();
@@ -687,6 +688,7 @@ class Akari {
 
   destroy() {
     this.stopTimer();
+    if (this.confetti) this.confetti.stop();
     this.canvas.removeEventListener('click', this._clickHandler);
   }
 }

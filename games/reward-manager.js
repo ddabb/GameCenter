@@ -70,8 +70,12 @@ class RewardManager {
 
   _addCurrency(coins, gems) {
     if (coins > 0 || gems > 0) {
-      CheckInManager.addCoins(coins);
-      CheckInManager.addGems(gems);
+      try {
+        const cur = JSON.parse(wx.getStorageSync('currency') || '{"coins":0,"gems":0}');
+        cur.coins = (cur.coins || 0) + coins;
+        cur.gems = (cur.gems || 0) + gems;
+        wx.setStorageSync('currency', JSON.stringify(cur));
+      } catch (e) { /* ignore */ }
     }
   }
 

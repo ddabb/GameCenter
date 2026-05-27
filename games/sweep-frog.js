@@ -64,7 +64,7 @@ class FrogEscape {
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
-      onAchievementDraw: () => this._drawAchievementPopup(),
+      onAchievementDraw: () => { this._newAchievements = null; },
       showNext: false,
       backText: '返回菜单'
     });
@@ -316,7 +316,8 @@ class FrogEscape {
       title: '躲避牛蛙'
     });
     
-    // 状态信息在棋盘上方   const buttons = [];
+    // 状态信息在棋盘上方
+    const buttons = [];
     // 标记按钮：激活时高亮黄色
     buttons.push({
       id: 'flag',
@@ -460,12 +461,8 @@ class FrogEscape {
 
       // 规则弹窗优先处理
       if (this.tutorial.shouldShow()) {
-        console.log('[FrogEscape] tutorial showing, checking click');
-        if (this.tutorial.hitTest(x, y)) {
-          console.log('[FrogEscape] clicked dismiss button');
-          this.tutorial.dismiss();
-          this.draw();
-        }
+        this.tutorial.dismiss();
+        this.draw();
         return;
       }
 

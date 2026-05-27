@@ -343,6 +343,11 @@ function loadGame(gameName, level, difficulty) {
     for (let type in _touchListeners) _touchListeners[type] = [];
   }
 
+  // 若 draw 循环之前因异常停止，重启它
+  if (_drawErrorOccurred) {
+    requestAnimationFrame(draw);
+  }
+
   try {
     const Module = getGameModule(gameName);
     if (!Module) {

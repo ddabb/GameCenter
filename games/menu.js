@@ -91,7 +91,7 @@ class Menu {
 
     const totalGridH = this.rows * this.rowHeight + (this.rows - 1) * this.vGap;
     this.gridOffsetX = (this.width - (this.cols * this.iconSize + (this.cols - 1) * this.hGap)) / 2;
-    this.startY = this.contentTop + Math.max(0, (this.contentBottom - this.contentTop - totalGridH) / 2);
+    this.startY = this.contentTop + 4;
 
     // 兼容旧变量名
     this.buttonSize = this.iconSize;
@@ -176,10 +176,12 @@ class Menu {
     const W = this.width, H = this.height;
 
     ctx.clearRect(0, 0, W, H);
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#EEF2FF');
-    bg.addColorStop(1, '#E8EAF6');
-    ctx.fillStyle = bg;
+    if (!this._bgGradient) {
+      this._bgGradient = ctx.createLinearGradient(0, 0, 0, H);
+      this._bgGradient.addColorStop(0, '#EEF2FF');
+      this._bgGradient.addColorStop(1, '#E8EAF6');
+    }
+    ctx.fillStyle = this._bgGradient;
     ctx.fillRect(0, 0, W, H);
 
     this._drawHeader();
@@ -324,10 +326,12 @@ class Menu {
     const W = this.width, H = this.height;
     const by = this._bottomBarY, bh = this._bottomBarH;
 
-    const bgGradient = ctx.createLinearGradient(0, by, 0, by + bh);
-    bgGradient.addColorStop(0, '#FFFFFF');
-    bgGradient.addColorStop(1, '#F8F9FA');
-    ctx.fillStyle = bgGradient;
+    if (!this._bottomBarGradient) {
+      this._bottomBarGradient = ctx.createLinearGradient(0, by, 0, by + bh);
+      this._bottomBarGradient.addColorStop(0, '#FFFFFF');
+      this._bottomBarGradient.addColorStop(1, '#F8F9FA');
+    }
+    ctx.fillStyle = this._bottomBarGradient;
     ctx.fillRect(0, by, W, bh);
     
     ctx.strokeStyle = '#E8ECF0';

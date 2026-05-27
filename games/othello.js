@@ -118,7 +118,7 @@ class Othello {
   
   saveState() {
     try {
-      wx.setStorageSync('othello_saved', {
+      wx.setStorageSync('othello_saved', JSON.stringify({
         board: this.board,
         currentPlayer: this.currentPlayer,
         difficulty: this.difficulty,
@@ -126,8 +126,9 @@ class Othello {
         whiteCount: this.whiteCount,
         gameOver: this.gameOver,
         winner: this.winner,
-        level: this.level
-      });
+        level: this.level,
+        lastMove: this.lastMove
+      }));
     } catch (e) { /* ignore */ }
   }
   
@@ -147,7 +148,8 @@ class Othello {
 
   loadState() {
     try {
-      const saved = wx.getStorageSync('othello_saved');
+      const raw = wx.getStorageSync('othello_saved');
+      const saved = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (saved && saved.board && saved.board.length === 8) {
         this.board = saved.board;
         this.currentPlayer = saved.currentPlayer || this.BLACK;
@@ -157,6 +159,7 @@ class Othello {
         this.gameOver = saved.gameOver || false;
         this.winner = saved.winner || null;
         this.level = saved.level || 1;
+        this.lastMove = saved.lastMove || null;
         return true;
       }
     } catch (e) { /* ignore */ }
@@ -185,8 +188,23 @@ class Othello {
 
       // 通关面板（使用共享组件）
       if (this.gameOver) {
-        if (this.victoryPanel.handleClick(x, y)) {
-          // handleClick 内部已处理下一关/返回/重新开始逻辑
+        const result = this.victoryPanel.handleClick(x, y);
+        if (result === 'next') {
+          sound.play('click');
+          this.initBoard();
+          this.currentPlayer = this.BLACK;
+          this.gameOver = false;
+          this.winner = null;
+          this.aiThinking = false;
+          this.lastMove = null;
+          this.skipMessage = null;
+          this.victoryPanel.reset();
+          this.draw();
+          return;
+        }
+        if (result === 'back') {
+          sound.play('click');
+          this.switchGame('menu');
           return;
         }
         return;
@@ -661,8 +679,15 @@ class Othello {
         break;
       case 'restart':
         this.initBoard();
+        this.currentPlayer = this.BLACK;
+        this.gameOver = false;
+        this.winner = null;
+        this.aiThinking = false;
+        this.lastMove = null;
+        this.skipMessage = null;
         this.undoMgr.clear();
-        sound.playClick();
+        this.victoryPanel.reset();
+        sound.play('click');
         this.draw();
         break;
       case 'hint':
@@ -820,6 +845,7 @@ class Othello {
   }
 
   destroy() {
+    this.saveState();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 

@@ -138,7 +138,13 @@ class TwentyFourPoint {
     this.achievement = new AchievementManager();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, {
+      bgColor: '#1a1a2e',
+      textColor: '#fff',
+      infoColor: 'rgba(255,255,255,0.6)',
+      backColor: 'rgba(255,255,255,0.12)',
+      height: 44
+    });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -598,7 +604,19 @@ class TwentyFourPoint {
       }
       
       if (this.victory) {
-        if (this.victoryPanel.handleClick(x, y)) return;
+        const result = this.victoryPanel.handleClick(x, y);
+        if (result === 'next') {
+          sound.play('click');
+          this.level++;
+          this.generateNewGame();
+          this.victoryPanel.reset();
+          return;
+        }
+        if (result === 'back') {
+          sound.play('click');
+          this.switchGame('menu');
+          return;
+        }
         return;
       }
       
@@ -614,11 +632,10 @@ class TwentyFourPoint {
         return;
       }
 
-      // 错误结果遮罩：点击游戏区域先关闭遮罩
+      // 错误结果提示：点击任意位置关闭提示，继续编辑
       if (this.showResult && !this.isCorrect && !this.victory) {
         this.showResult = false;
-        this.draw();
-        return;
+        // 继续处理点击，不要 return
       }
       
       if (this.showResult && this.isCorrect) {
@@ -633,7 +650,7 @@ class TwentyFourPoint {
   
   // 处理游戏区域点击
   _handleGameClick(x, y) {
-    const cardY = this.statusBarHeight + 100;
+    const cardY = this._contentStartY() + 40;
     const cardW = Math.min(70, this.width * 0.18);
     const cardH = cardW;
     const gap = 15;
@@ -665,7 +682,7 @@ class TwentyFourPoint {
       }
     }
     
-    const btnY = opY + opH + 30;
+    const btnY = this._contentStartY() + 40 + cardW + 40 + opH + 40 + 50 + 30;
     const btnH = 45;
     const btnW = Math.min(60, this.width * 0.15);
     const btnGap = 20;
@@ -681,13 +698,6 @@ class TwentyFourPoint {
     
     const checkX = btnStartX + btnW + btnGap;
     if (x > checkX && x < checkX + btnW && y > btnY && y < btnY + btnH) {
-      // 如果已有错误结果遮罩，先关闭它让用户修改表达式
-      if (this.showResult && !this.isCorrect) {
-        this.showResult = false;
-        sound.play('click');
-        this.draw();
-        return;
-      }
       this.checkAnswer();
       return;
     }
@@ -725,9 +735,14 @@ class TwentyFourPoint {
     this.animationTime += 0.08;
   }
   
+  // 内容区域起始 Y（headerBar 下方）
+  _contentStartY() {
+    return this.headerBar ? this.headerBar.boardStartY : this.statusBarHeight + 80;
+  }
+
   _drawStatus() {
     const ctx = this.ctx;
-    const y = this.statusBarHeight + 55;
+    const y = this._contentStartY() + 15;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.font = '13px Arial, -apple-system';
     ctx.textAlign = 'center';
@@ -752,10 +767,6 @@ class TwentyFourPoint {
     this.drawOperators();
     this.drawExpression();
     this.drawActionButtons();
-    
-    this.headerBar.draw({
-      title: '24点速算'
-    });
     
     this.bottomBar.setButtons([
       { id: 'undo', text: '退格' },
@@ -806,7 +817,7 @@ class TwentyFourPoint {
     const cardH = cardW;
     const gap = 15;
     const startX = (this.width - (cardW * 4 + gap * 3)) / 2;
-    const startY = this.statusBarHeight + 100;
+    const startY = this._contentStartY() + 40;
     
     for (let i = 0; i < 4; i++) {
       const x = startX + i * (cardW + gap);
@@ -839,7 +850,7 @@ class TwentyFourPoint {
     const opH = opW * 0.8;
     const gap = 15;
     const startX = (this.width - (opW * 6 + gap * 5)) / 2;
-    const startY = this.statusBarHeight + 100 + Math.min(70, this.width * 0.18) + 40;
+    const startY = this._contentStartY() + 40 + Math.min(70, this.width * 0.18) + 40;
     
     for (let i = 0; i < 6; i++) {
       const x = startX + i * (opW + gap);
@@ -858,7 +869,7 @@ class TwentyFourPoint {
   }
   
   drawExpression() {
-    const exprY = this.statusBarHeight + 100 + Math.min(70, this.width * 0.18) + 40 + 
+    const exprY = this._contentStartY() + 40 + Math.min(70, this.width * 0.18) + 40 + 
                  Math.min(50, this.width * 0.13) * 0.8 + 40;
     const boxH = 50;
     const padding = 15;
@@ -882,7 +893,7 @@ class TwentyFourPoint {
     const opW = Math.min(50, this.width * 0.13);
     const opH = opW * 0.8;
     const cardW = Math.min(70, this.width * 0.18);
-    const btnY = this.statusBarHeight + 100 + cardW + 40 + opH + 40 + 50 + 30;
+    const btnY = this._contentStartY() + 40 + cardW + 40 + opH + 40 + 50 + 30;
     const btnH = 45;
     const btnW = Math.min(60, this.width * 0.15);
     const btnGap = 20;
@@ -908,29 +919,28 @@ class TwentyFourPoint {
   }
   
   drawResult() {
+    const opW = Math.min(50, this.width * 0.13);
+    const opH = opW * 0.8;
+    const cardW = Math.min(70, this.width * 0.18);
+    const btnY = this._contentStartY() + 40 + cardW + 40 + opH + 40 + 50 + 30;
+    const btnH = 45;
+
     const boxW = this.width * 0.8;
-    const boxH = 120;
+    const boxH = 60;
     const boxX = (this.width - boxW) / 2;
-    const boxY = this.height / 2 - boxH / 2 - 50;
-    
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    this.ctx.fillRect(0, 0, this.width, this.height);
-    
+    const boxY = btnY + btnH + 12;
+
     this.ctx.fillStyle = this.isCorrect ? 'rgba(107, 203, 119, 0.95)' : 'rgba(255, 107, 107, 0.95)';
     this.ctx.beginPath();
-    roundRect(this.ctx, boxX, boxY, boxW, boxH, 16);
+    roundRect(this.ctx, boxX, boxY, boxW, boxH, 12);
     this.ctx.fill();
-    
+
     this.ctx.fillStyle = '#fff';
-    this.ctx.font = `bold ${this.width / 16}px Arial`;
+    this.ctx.font = `bold ${this.width / 22}px Arial`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText(this.resultMessage, this.width / 2, boxY + boxH / 2 - 10);
-    
-    if (this.isCorrect) {
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      this.ctx.font = `${this.width / 30}px Arial`;
-      this.ctx.fillText('点击"新题"继续挑战', this.width / 2, boxY + boxH / 2 + 25);
-    }
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText(this.resultMessage, this.width / 2, boxY + boxH / 2);
+    this.ctx.textBaseline = 'alphabetic';
   }
   
   drawHint() {
@@ -994,7 +1004,7 @@ class TwentyFourPoint {
   
   saveGameProgress() {
     try {
-      const key = 'progress_' + this.gameName;
+      const key = 'progress_' + this.gameName + '_' + (this.difficulty || 'easy');
       const saved = wx.getStorageSync(key);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
       if (this.level >= progress.unlocked) {
