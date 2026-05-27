@@ -725,29 +725,43 @@ class TwentyFourPoint {
     this.animationTime += 0.08;
   }
   
+  _drawStatus() {
+    const ctx = this.ctx;
+    const y = this.statusBarHeight + 55;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${this.config.name} · 第${this.level}关 · ${this.stats.gamesPlayed || 0}题 · ${this.stats.accuracy || 0}%正确率`, this.width / 2, y);
+    ctx.textAlign = 'left';
+  }
+
   draw() {
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.width, this.height);
     
     this.drawBackground();
-    this.drawStats();
+    
+    this.headerBar.draw({
+      title: '24点速算'
+    });
+    
+    // 状态信息
+    this._drawStatus();
+    
     this.drawNumberCards();
     this.drawOperators();
     this.drawExpression();
     this.drawActionButtons();
     
     this.headerBar.draw({
-      title: '24点速算',
-      info: `${this.config.name} · 第 ${this.level} 关`,
-      info2: `${this.stats.gamesPlayed || 0} 题 · ${this.stats.accuracy || 0}% 正确率`
+      title: '24点速算'
     });
     
     this.bottomBar.setButtons([
       { id: 'undo', text: '退格' },
       { id: 'restart', text: '新题' },
       { id: 'hint', text: '提示' },
-      { id: 'answer', text: '答案' },
-      { id: 'rule', text: '规则' }
+      { id: 'answer', text: '答案' }
     ]);
     this.bottomBar.draw();
     

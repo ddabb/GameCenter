@@ -294,6 +294,16 @@ class FrogEscape {
     return `${m}:${String(sec).padStart(2, '0')}`;
   }
 
+  _drawStatus() {
+    const ctx = this.ctx;
+    const y = this.boardOffsetY + 20 - 18;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`剩余 ${this.totalMines - this.flaggedCount}  ·  ⏱ ${this.formatTime(this.time)}`, this.width / 2, y);
+    ctx.textAlign = 'left';
+  }
+
   draw() {
     const ctx = this.ctx;
 
@@ -303,10 +313,11 @@ class FrogEscape {
 
     // 使用共享组件
     this.headerBar.draw({
-      title: '躲避牛蛙',
-      info: '剩余: ' + (this.totalMines - this.flaggedCount),
-      info2: '时间: ' + this.formatTime(this.time)
+      title: '躲避牛蛙'
     });
+    
+    // 状态信息在棋盘上方
+    this._drawStatus();
 
     const buttons = [];
     // 标记按钮：激活时高亮黄色

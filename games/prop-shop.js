@@ -16,11 +16,27 @@ class PropShop {
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     this.propMgr = getInstance();
 
+    // roundRect polyfill（微信小游戏原生不支持）
+    if (!ctx.roundRect) {
+      ctx.roundRect = function(x, y, w, h, r) {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      };
+    }
+
     this.backBtn = { x: 10, y: this.statusBarHeight + 8, w: 70, h: 32 };
 
     this.currency = CheckInManager.getCurrency();
     this.props = Object.entries(PROP_CONFIG).map(([key, config]) => ({
       key,
+      name: config.name,
       title: config.icon + ' ' + config.name,
       desc: config.desc,
       price: config.price,
@@ -50,6 +66,7 @@ class PropShop {
     ctx.fillStyle = '#F5F5F5';
     ctx.fillRect(0, 0, tw, this.height);
 
+    // 顶部导航栏
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, tw, this.statusBarHeight + 50);
     ctx.fillStyle = '#333333';
@@ -61,31 +78,36 @@ class PropShop {
     ctx.textAlign = 'left';
     ctx.fillText('‹ 返回', this.backBtn.x, this.statusBarHeight + 30);
 
+    // 余额显示
     const curY = this.statusBarHeight + 58;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.roundRect(15, curY, tw - 30, 44, 8);
     ctx.fill();
 
-    ctx.fillStyle = '#F6AD55';
-    ctx.font = 'bold 18px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillStyle = '#333333';
+    ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('💰 ' + this.currency.coins, tw / 2 - 60, curY + 30);
+    ctx.fillText('余额', 25, curY + 30);
+
+    ctx.fillStyle = '#F6AD55';
+    ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('💰' + this.currency.coins, 60, curY + 30);
 
     ctx.fillStyle = '#9F7AEA';
-    ctx.fillText('💎 ' + this.currency.gems, tw / 2 + 60, curY + 30);
-
-    ctx.fillStyle = '#5677FC';
-    ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('余额', tw / 2 - 30, curY + 30);
+    ctx.fillText('💎' + this.currency.gems + ' ', tw - 25, curY + 30);
 
+    // 提示文字
     const tipY = curY + 52;
     ctx.fillStyle = '#888888';
     ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('道具在游戏中使用，道具商城仅供购买储备', tw / 2, tipY);
 
+    // 道具列表
     const listY = tipY + 18;
     const cardH = 76;
     const cardGap = 10;
@@ -95,30 +117,36 @@ class PropShop {
       const ry = listY + idx * (cardH + cardGap);
       if (ry + cardH > this.height - 20) return;
 
+      // 卡片背景
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.roundRect(padding, ry, tw - padding * 2, cardH, 10);
       ctx.fill();
 
+      // 左侧彩色条
       ctx.fillStyle = prop.color;
       ctx.beginPath();
       ctx.roundRect(padding, ry, 4, cardH, 2);
       ctx.fill();
 
+      // 图标
       ctx.font = '32px -apple-system';
       ctx.textAlign = 'center';
       ctx.fillText(prop.icon, padding + 38, ry + 48);
 
+      // 标题
       ctx.fillStyle = '#333333';
       ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(prop.title, padding + 68, ry + 28);
+      ctx.fillText(prop.name, padding + 68, ry + 28);
 
+      // 描述
       ctx.fillStyle = '#888888';
       ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
       const stockText = prop.count > 0 ? `库存${prop.count} · ` : '';
       ctx.fillText(stockText + prop.desc + ' · ' + prop.limit, padding + 68, ry + 48);
 
+      // 购买按钮
       const btnW = 68, btnH = 32;
       const btnX = tw - padding - btnW;
       const btnY = ry + (cardH - btnH) / 2;
@@ -142,12 +170,15 @@ class PropShop {
     const t = e.touches ? e.touches[0] : e;
     const x = t.clientX, y = t.clientY;
 
-    if (this._hit(this.backBtn, x, y)) {
+    // 返回按钮
+    if (x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.w &&
+        y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.h) {
       this.canvas.removeEventListener('click', this._clickHandler);
-      this.switchGame('menu');
+      this.switchGame('profile');  // 返回「我的」页面
       return;
     }
 
+    // 购买按钮
     for (let i = 0; i < this.props.length; i++) {
       const prop = this.props[i];
       if (prop._buyBtn) {

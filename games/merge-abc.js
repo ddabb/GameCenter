@@ -69,6 +69,7 @@ class MergeABC {
     this.height = systemInfo.windowHeight;
 
     this.level = level;
+    this.gameName = 'merge-abc';
     statsManager.startGame(this.gameName, level) || 1; // 关卡号
 
     // 安全区域适配 - 获取状态栏高度
@@ -76,7 +77,6 @@ class MergeABC {
     
     // 布局参数
     this.padding = 15;
-    this.boardOffsetY = this.statusBarHeight + 150;
     this.boardPadding = 12;
     this.gridGap = 10;
 
@@ -105,7 +105,6 @@ class MergeABC {
     this._history = [];
     this._gameOver = false;
     this._showModal = false;
-    this.gameName = 'merge-abc';
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
@@ -116,6 +115,22 @@ class MergeABC {
     if (storedBest) this._bestScore = storedBest;
 
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+    
+    // 初始化共享组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      onRestart: () => this.restart(),
+      onNextLevel: () => {
+        this.level++;
+        this.restart();
+      }
+    });
+    
+    // 动态计算棋盘位置（HeaderBar + _drawStatus + 间隙）
+    this.boardOffsetY = this.headerBar.boardStartY + 25; // headerBar底部 + 状态文字高度
+    this.btnY = this.boardOffsetY + this.cellSize * 4 + this.gridGap * 3 + this.boardPadding * 2 + 30;
+    
     this.bindEvents();
   }
 
@@ -185,8 +200,8 @@ class MergeABC {
       let absDx = Math.abs(dx);
       let absDy = Math.abs(dy);
 
-      // 顶部返回按钮（考虑状态栏高度）
-      if (endX >= 15 && endX <= 85 && endY >= this.statusBarHeight + 8 && endY <= this.statusBarHeight + 40) {
+      // 顶部返回按钮
+      if (this.headerBar.isBackButton(endX, endY)) {
         sound.play('click');
         this.switchGame('menu');
         return;
@@ -217,7 +232,8 @@ class MergeABC {
   }
 
 
-
+
+
 
 
 
@@ -458,22 +474,34 @@ class MergeABC {
   update() {
     this._animationTime += 16;
   }
+  
+  _drawStatus() {
+    // 不显示关卡信息（用户要求）
+  }
 
   drawBoard() {
     const ctx = this.ctx;
     const padding = 10;
     const tileSize = (this.width - padding * 5) / 4;
-    const boardY = this.statusBarHeight + 60;
+    const boardY = this.boardOffsetY; // 使用动态计算的棋盘起始位置
     
+    // 棋盘背景
     ctx.fillStyle = '#1a1a2e';
     this.roundRect(ctx, padding, boardY, this.width - padding * 2, this.width - padding * 2, 8);
     ctx.fill();
     
+    // 绘制格子边框
     for (let i = 0; i < 16; i++) {
       const row = Math.floor(i / 4);
       const col = i % 4;
       const x = padding + col * (tileSize + padding);
       const y = boardY + row * (tileSize + padding);
+      
+      // 空格子边框
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
+      this.roundRect(ctx, x, y, tileSize, tileSize, 6);
+      ctx.stroke();
       
       const tile = this._board[i];
       if (tile) {
@@ -485,6 +513,12 @@ class MergeABC {
         ctx.fillStyle = colors[tile] || '#777';
         this.roundRect(ctx, x, y, tileSize, tileSize, 6);
         ctx.fill();
+        
+        // 方块边框
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        this.roundRect(ctx, x, y, tileSize, tileSize, 6);
+        ctx.stroke();
         
         ctx.fillStyle = '#fff';
         ctx.font = `bold ${tileSize * 0.4}px Arial`;
@@ -499,13 +533,15 @@ class MergeABC {
   draw() {
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
-    this.drawBoard();
     // 使用共享组件
     this.headerBar.draw({
-      title: 'ABC 合成记',
-      info: '第 ' + this.level + ' 关',
-      info2: '目标: ' + (this.targetLetter || '?')
+      title: 'ABC 合成记'
     });
+    
+    // 状态信息在棋盘上方
+    this._drawStatus();
+    
+    this.drawBoard();
     const buttons = [];
     if (this.undoMgr && this.undoMgr.canUndo()) {
       buttons.push({ id: 'undo', text: '撤销' });

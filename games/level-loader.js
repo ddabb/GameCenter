@@ -53,9 +53,9 @@ class LevelLoader {
       case 'nonogram':
         return base + '/nonogram/' + difficulty + '-' + pad + '.json';
       case 'sokoban':
-        return base + '/' + gameName + '/sokoban-' + pad + '.json';
+        return base + '/' + gameName + '/' + difficulty + '-' + pad + '.json';
       case 'nurikabe':
-        return base + '/' + gameName + '/nurikabe-' + pad + '.json';
+        return base + '/nurikabe/' + difficulty + '-' + pad + '.json';
       case '24point':
       case 'merge-abc':
       case 'othello':
@@ -167,8 +167,16 @@ class LevelLoader {
       const pad = String(level).padStart(4, '0');
       const dir = difficulty || 'easy';
       const file = require('./sokoban/' + dir + '-' + pad + '.json');
-      return { id: file.id, grid: file.grid, moves: file.moves,
-               difficulty: dir };
+      return {
+        id: file.id,
+        grid: file.grid,
+        rows: file.rows,
+        cols: file.cols,
+        playerStart: file.playerStart,
+        boxes: file.boxes,
+        goals: file.goals,
+        difficulty: dir
+      };
     } catch (e) { return null; }
   }
 

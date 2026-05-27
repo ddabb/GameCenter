@@ -263,16 +263,29 @@ class OneStroke {
     }
   }
 
+  _drawStatus() {
+    const ctx = this.ctx;
+    const difficultyText = this.difficulty === 'easy' ? '简单' : (this.difficulty === 'medium' ? '中等' : '困难');
+    const y = this.boardOffsetY - 15;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`第${this.level}关 · ${difficultyText}`, this.width / 2, y);
+    ctx.textAlign = 'left';
+  }
+
   draw() {
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
-    this.drawBoard();
     // 使用共享组件
     this.headerBar.draw({
-      title: '一笔画',
-      info: '第 ' + this.level + ' 关',
-      info2: '难度: ' + (this.difficulty || 'easy')
+      title: '一笔画'
     });
+    
+    // 状态信息在棋盘上方
+    this._drawStatus();
+    
+    this.drawBoard();
     const buttons = [];
     if (this.undoMgr && this.undoMgr.canUndo()) {
       buttons.push({ id: 'undo', text: '撤销' });
@@ -498,7 +511,7 @@ class OneStroke {
       }
 
       // 返回按钮
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      if (this.headerBar.isBackButton(x, y)) {
         this.stopTimer();
         if (this._answerAnimTimer) clearInterval(this._answerAnimTimer);
         this.switchGame('level-select', this.gameName);
@@ -529,7 +542,7 @@ class OneStroke {
       const touch = e.touches[0];
       const x = touch.clientX, y = touch.clientY;
       // 返回按钮
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      if (this.headerBar.isBackButton(x, y)) {
         this.stopTimer();
         if (this._answerAnimTimer) clearInterval(this._answerAnimTimer);
         this.switchGame('level-select', this.gameName);

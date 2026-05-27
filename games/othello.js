@@ -537,17 +537,33 @@ class Othello {
     this.animationTime += 0.06;
   }
   
+  _drawStatus() {
+    const ctx = this.ctx;
+    const y = this.boardOffsetY - 15;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    
+    if (this.gameOver) {
+      const result = this.winner === this.BLACK ? '🎉 你赢了！' : this.winner === this.WHITE ? '💪 AI获胜' : '🤝 平局！';
+      ctx.fillText(`⚫${this.blackCount} vs ${this.whiteCount}⚪ · ${result}`, this.width / 2, y);
+    } else {
+      const turn = this.currentPlayer === this.BLACK ? '🎯 你的回合' : (this.skipMessage || '🤔 AI思考中...');
+      ctx.fillText(`⚫${this.blackCount} vs ${this.whiteCount}⚪ · ${turn}`, this.width / 2, y);
+    }
+    ctx.textAlign = 'left';
+  }
+
   draw() {
     this.drawBackground();
       
     // 顶部栏（使用共享组件）
     this.headerBar.draw({
-      title: '⚫ 黑白棋',
-      info: `⚫ ${this.blackCount}  vs  ${this.whiteCount} ⚪`,
-      info2: this.gameOver
-        ? (this.winner === this.BLACK ? '🎉 你赢了！' : this.winner === this.WHITE ? '💪 AI获胜' : '🤝 平局！')
-        : (this.currentPlayer === this.BLACK ? '🎯 你的回合' : this.skipMessage || '🤔 AI思考中...')
+      title: '⚫ 黑白棋'
     });
+    
+    // 状态信息在棋盘上方
+    this._drawStatus();
     
     this.drawDifficultyBar();
     this.drawBoard();

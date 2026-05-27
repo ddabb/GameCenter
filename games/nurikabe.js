@@ -190,16 +190,28 @@ class Nurikabe {
     this.animationTime += 0.08;
   }
   
+  _drawStatus() {
+    const ctx = this.ctx;
+    const y = this.boardOffsetY - 15;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`第${this.level}关 · ${this.size}×${this.size}`, this.width / 2, y);
+    ctx.textAlign = 'left';
+  }
+
   draw() {
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
-    this.drawBoard();
     // 使用共享组件
     this.headerBar.draw({
-      title: '数连',
-      info: '第 ' + this.level + ' 关',
-      info2: this.size + '×' + this.size
+      title: '数连'
     });
+    
+    // 状态信息在棋盘上方
+    this._drawStatus();
+    
+    this.drawBoard();
     const buttons = [];
     if (this.undoMgr && this.undoMgr.canUndo()) {
       buttons.push({ id: 'undo', text: '撤销' });

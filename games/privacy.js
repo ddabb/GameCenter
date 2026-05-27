@@ -1,203 +1,140 @@
 /**
- * 隐私政策页面 - Canvas渲染
+ * privacy.js - 隐私政策页面
  */
-const roundRect = require('../utils/round-rect.js');
 const sound = require('./sound-manager');
 
-class PrivacyPolicy {
+class Privacy {
   constructor(ctx, canvas, systemInfo, switchGame) {
     this.ctx = ctx;
     this.canvas = canvas;
-    this.systemInfo = systemInfo;
     this.switchGame = switchGame;
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
-    this.padding = 16;
+    this.statusBarHeight = systemInfo.statusBarHeight || 44;
 
-    this.policyText = [
+    this.backBtn = { x: 10, y: this.statusBarHeight + 8, w: 70, h: 32 };
+
+    // 隐私政策内容（简化）
+    this.content = [
       '隐私政策',
       '',
-      '更新日期：2026年5月18日',
+      '生效日期：2026年5月20日',
       '',
-      '一、信息收集',
-      '本应用不收集、存储或传输任何个人身份信息。',
-      '您的游戏进度数据仅保存在本地设备存储中，',
-      '不会上传至任何服务器。',
+      '1. 信息收集',
+      '我们收集您提供的账号信息、游戏进度等必要数据。',
       '',
-      '二、数据存储',
-      '· 游戏进度：使用设备本地存储保存',
-      '· 成就记录：仅存储在本地设备',
-      '· 每日挑战：基于日期本地计算',
+      '2. 信息使用',
+      '用于游戏功能实现、客服支持和活动通知。',
       '',
-      '三、第三方服务',
-      '本应用不集成任何第三方SDK、',
-      '统计分析工具或广告平台。',
-      '不与任何第三方共享用户数据。',
+      '3. 信息保护',
+      '采用行业标准加密技术保护您的数据安全。',
       '',
-      '四、权限使用',
-      '本应用仅需以下权限：',
-      '· 本地存储：保存游戏进度',
-      '· 振动反馈：游戏交互效果（可选）',
+      '4. 第三方共享',
+      '仅在法律要求时向第三方披露您的信息。',
       '',
-      '五、数据安全',
-      '所有数据均存储在本地设备，',
-      '卸载应用后数据将自动清除。',
-      '我们不会通过网络传输任何用户数据。',
+      '5. 您的权利',
+      '可随时申请查看、修改或删除您的个人数据。',
       '',
-      '六、未成年人保护',
-      '本应用内容适合所有年龄段用户，',
-      '不包含任何不适合未成年人的内容，',
-      '不收集未成年人个人信息。',
+      '6. 联系我们',
+      '如有疑问请联系：puzzle@example.com',
       '',
-      '七、政策更新',
-      '如本政策发生变更，',
-      '将在应用内公示新版本。',
-      '',
-      '八、联系我们',
-      '如有疑问，请通过微信平台',
-      '联系开发者：泽楠思维实验室',
+      '7. 政策更新',
+      '重大变更将通过游戏内公告通知您。',
     ];
 
-    this.scrollY = 0;
-    this.maxScroll = 0;
-    this.lineHeight = 22;
-    this.fontSize = 14;
-    this.titleFontSize = 18;
-    this.bindEvents();
+    this._clickHandler = this._onClick.bind(this);
+    this.canvas.addEventListener('click', this._clickHandler);
+    this.draw();
   }
-
-  bindEvents() {
-    this.clickHandler = (e) => {
-      let touch = e.touches ? e.touches[0] : e;
-      let x = touch.clientX;
-      let y = touch.clientY;
-
-      // 返回按钮
-      if (y >= 15 && y <= 55 && x >= this.padding && x <= this.padding + 70) {
-        this.switchGame('profile');
-        return;
-      }
-    };
-
-    // 触摸滚动
-    this.touchStartY = 0;
-    this.touchStartScrollY = 0;
-
-    this.touchStartHandler = (e) => {
-      let touch = e.touches ? e.touches[0] : e;
-      this.touchStartY = touch.clientY;
-      this.touchStartScrollY = this.scrollY;
-    };
-
-    this.touchMoveHandler = (e) => {
-      let touch = e.touches ? e.touches[0] : e;
-      let deltaY = this.touchStartY - touch.clientY;
-      this.scrollY = Math.max(0, Math.min(this.maxScroll, this.touchStartScrollY + deltaY));
-    };
-
-    this.canvas.addEventListener('click', this.clickHandler);
-    this.canvas.addEventListener('touchstart', this.touchStartHandler, { passive: true });
-    this.canvas.addEventListener('touchmove', this.touchMoveHandler, { passive: true });
-  }
-
-  update() {}
 
   draw() {
-    this.drawBackground();
-    this.drawHeader();
-    this.drawContent();
-  }
+    const ctx = this.ctx;
+    const tw = this.width;
 
-  drawBackground() {
-    let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(1, '#16213e');
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.width, this.height);
-  }
+    ctx.clearRect(0, 0, tw, this.height);
+    ctx.fillStyle = '#F5F5F5';
+    ctx.fillRect(0, 0, tw, this.height);
 
-  drawHeader() {
+    // 顶部导航栏
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, tw, this.statusBarHeight + 50);
+    
     // 返回按钮
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,this.padding, 15, 70, 35, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', this.padding + 35, this.statusBarHeight + 38);
+    ctx.fillStyle = '#5677FC';
+    ctx.font = '15px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('‹ 返回', this.backBtn.x, this.statusBarHeight + 30);
 
     // 标题
-    this.ctx.font = 'bold 18px Arial';
-    this.ctx.fillText('🔒 隐私政策', this.width / 2, 38);
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 17px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('隐私政策', tw / 2, this.statusBarHeight + 33);
+
+    // 内容区域
+    const contentY = this.statusBarHeight + 70;
+    const lineH = 22;
+    
+    ctx.fillStyle = '#333333';
+    ctx.font = '13px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'left';
+
+    this.content.forEach((line, idx) => {
+      const y = contentY + idx * lineH;
+      if (y > this.height - 30) return;
+
+      // 标题加粗
+      if (idx === 0 || line.startsWith('生效')) {
+        ctx.font = 'bold 15px -apple-system,BlinkMacSystemFont,sans-serif';
+        ctx.fillStyle = '#1a202c';
+      } else if (line.match(/^\d\./)) {
+        ctx.font = 'bold 13px -apple-system,BlinkMacSystemFont,sans-serif';
+        ctx.fillStyle = '#2d3748';
+      } else {
+        ctx.font = '13px -apple-system,BlinkMacSystemFont,sans-serif';
+        ctx.fillStyle = '#4a5568';
+      }
+
+      ctx.fillText(line, 20, y);
+    });
+
+    // 底部确认按钮
+    const btnY = this.height - 60;
+    ctx.fillStyle = '#5677FC';
+    ctx.fillRect(40, btnY, tw - 80, 44);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('我已阅读并同意', tw / 2, btnY + 28);
   }
 
-  drawContent() {
-    const startY = 65;
-    const endY = this.height - 20;
-    const contentWidth = this.width - this.padding * 2;
+  _onClick(e) {
+    const t = e.touches ? e.touches[0] : e;
+    const x = t.clientX, y = t.clientY;
 
-    // 计算总高度
-    const totalHeight = this.policyText.length * this.lineHeight;
-    this.maxScroll = Math.max(0, totalHeight - (endY - startY));
-
-    this.ctx.save();
-
-    // 裁剪区域
-    this.ctx.beginPath();
-    this.ctx.rect(0, startY, this.width, endY - startY);
-    this.ctx.clip();
-
-    this.ctx.translate(0, -this.scrollY);
-
-    for (let i = 0; i < this.policyText.length; i++) {
-      const line = this.policyText[i];
-      const y = startY + i * this.lineHeight;
-
-      if (line === '隐私政策') {
-        this.ctx.fillStyle = '#fff';
-        this.ctx.font = `bold ${this.titleFontSize}px Arial`;
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(line, this.width / 2, y + 20);
-      } else if (line.startsWith('一') || line.startsWith('二') || line.startsWith('三') ||
-                 line.startsWith('四') || line.startsWith('五') || line.startsWith('六') ||
-                 line.startsWith('七') || line.startsWith('八')) {
-        this.ctx.fillStyle = '#FFC107';
-        this.ctx.font = `bold ${this.fontSize}px Arial`;
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(line, this.padding, y);
-      } else if (line === '' || line === '更新日期：2026年5月18日') {
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        this.ctx.font = `${this.fontSize - 1}px Arial`;
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(line, this.width / 2, y);
-      } else {
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        this.ctx.font = `${this.fontSize}px Arial`;
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(line, this.padding, y);
-      }
+    // 返回按钮
+    if (x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.w &&
+        y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.h) {
+      this.canvas.removeEventListener('click', this._clickHandler);
+      this.switchGame('profile');  // 返回「我的」页面
+      return;
     }
 
-    this.ctx.restore();
-
-    // 滚动指示条
-    if (this.maxScroll > 0) {
-      const trackH = endY - startY;
-      const thumbH = Math.max(30, trackH * (trackH / totalHeight));
-      const thumbY = startY + (this.scrollY / this.maxScroll) * (trackH - thumbH);
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      this.ctx.beginPath();
-      roundRect(this.ctx,this.width - 6, thumbY, 3, thumbH, 2);
-      this.ctx.fill();
+    // 确认按钮
+    const btnY = this.height - 60;
+    if (x >= 40 && x <= tw - 40 && y >= btnY && y <= btnY + 44) {
+      sound.play('click');
+      wx.showToast({ title: '感谢您的同意！', icon: 'success' });
+      setTimeout(() => {
+        this.canvas.removeEventListener('click', this._clickHandler);
+        this.switchGame('profile');
+      }, 1500);
     }
   }
 
   destroy() {
-    this.canvas.removeEventListener('click', this.clickHandler);
-    this.canvas.removeEventListener('touchstart', this.touchStartHandler);
-    this.canvas.removeEventListener('touchmove', this.touchMoveHandler);
+    this.canvas.removeEventListener('click', this._clickHandler);
   }
 }
 
-module.exports = PrivacyPolicy;
+module.exports = Privacy;

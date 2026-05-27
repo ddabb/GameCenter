@@ -6,6 +6,7 @@ const UndoManager = require('./undo-manager');
 const { AchievementManager } = require('./achievement-manager');
 const { ShareCard } = require('./share-card');
 const { HintManager } = require('./hint-manager');
+const { getInstance: getPropMgr } = require('./prop-manager');
 const Confetti = require('./confetti');
 const VictoryPanel = require('./components/victory-panel');
 const HeaderBar = require('./components/header-bar');
@@ -324,12 +325,18 @@ class Battleship {
   }
 
   _useHint() {
+    const propMgr = getPropMgr();
+    if (!propMgr.useProp('hint', this.gameName, this.level, this.difficulty)) {
+      wx.showToast({ title: '提示道具不足', icon: 'none' });
+      return;
+    }
     const hint = this.hintMgr.getHint('battleship', this.solution, this.grid);
     if (hint) {
-      this._undoMgr_save();
+      this.undoMgr.save({ grid: this.grid.map(r => [...r]), shipCount: this.shipCount });
       this.grid[hint.row][hint.col] = hint.value;
       if (hint.value === CELL_SHIP) this.shipCount++;
       sound.play('click');
+      wx.showToast({ title: '消耗1个提示道具', icon: 'none' });
       this._checkCompletion();
       this.draw();
     }
@@ -412,8 +419,10 @@ class Battleship {
   }
 
   draw() {
+    if (this.grid.length === 0) return;
     this._drawBackground();
     this._drawHeader();
+    this._drawStatus();
     this._drawHints();
     this._drawGrid();
     this._drawBottomBar();
@@ -438,12 +447,39 @@ class Battleship {
   }
 
   _drawHeader() {
+    // 只画返回按钮和标题
+    const ctx = this.ctx;
+    const y0 = this.statusBarHeight + 25;
+    
+    // 返回按钮
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+    roundRect(ctx, 15, y0 + 8, 70, 32, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText('← 返回', 50, y0 + 29);
+    
+    // 标题
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText('指尖谜题:🚢 战舰', this.width / 2, y0 + 30);
+    ctx.textAlign = 'left';
+  }
+
+  _drawStatus() {
+    // 在棋盘上方绘制状态信息
+    const ctx = this.ctx;
     const timeStr = this._formatTime(this.timer);
-    this.headerBar.draw({
-      title: '🚢 战舰',
-      info: this.difficulty === 'easy' ? '简单' : (this.difficulty === 'medium' ? '中等' : '困难'),
-      info2: `第${this.level}关  |  ⏱ ${timeStr}  |  🚢 ${this.shipCount}/${this.totalShips}`
-    });
+    const difficultyText = this.difficulty === 'easy' ? '简单' : (this.difficulty === 'medium' ? '中等' : '困难');
+    const y = this.boardOffsetY - 15;
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${difficultyText} · 第${this.level}关 · ⏱${timeStr} · 🚢${this.shipCount}/${this.totalShips}`, this.width / 2, y);
+    ctx.textAlign = 'left';
   }
 
   _drawHints() {
@@ -514,8 +550,7 @@ class Battleship {
     this.bottomBar.setButtons([
       { id: 'undo', text: '↩️ 撤销' },
       { id: 'reset', text: '🔄 重置' },
-      { id: 'hint', text: '💡 提示' },
-      { id: 'rule', text: '📖 规则' }
+      { id: 'hint', text: '💡 提示' }
     ]);
     this.bottomBar.draw();
   }

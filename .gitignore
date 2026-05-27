@@ -42,3 +42,4 @@ pages/
 # 测试输出
 test-reports/
 .codebuddy
+.vs/

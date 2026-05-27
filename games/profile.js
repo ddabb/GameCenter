@@ -57,14 +57,16 @@ class Profile {
     for (const game of this.games) {
       try {
         const saved = wx.getStorageSync(`progress_${game.name}`);
-        this.progress[game.name] = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
+        const parsed = saved ? JSON.parse(saved) : null;
+        this.progress[game.name] = parsed && parsed.stars ? parsed : { unlocked: 1, stars: {} };
       } catch (e) {
         this.progress[game.name] = { unlocked: 1, stars: {} };
       }
       const prog = this.progress[game.name];
-      const completed = Object.keys(prog.stars).length;
+      const stars = prog.stars || {};
+      const completed = Object.keys(stars).length;
       totalCompleted += completed;
-      for (const s of Object.values(prog.stars)) totalStars += s;
+      for (const s of Object.values(stars)) totalStars += s;
       totalLevels += game.totalLevels;
     }
     this.totalCompleted = totalCompleted;
@@ -118,7 +120,7 @@ class Profile {
       }
 
       // 返回按钮
-      if (y >= 15 && y <= 55 && x >= this.padding && x <= this.padding + 70) {
+      if (this.backBtn && x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.w && y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.h) {
         this.switchGame('menu');
         return;
       }
@@ -254,7 +256,7 @@ class Profile {
     this.drawBackground();
     this.drawHeader();
 
-    let y = 65;
+    let y = this.statusBarHeight + 115; // 顶部导航50 + 余额卡片44 + 间距
     y = this.drawOverview(y);
     y = this.drawFuncEntries(y);
     y = this.drawGameListHeader(y);
@@ -267,30 +269,53 @@ class Profile {
   }
 
   drawBackground() {
-    const g = this.ctx.createLinearGradient(0, 0, 0, this.height);
-    g.addColorStop(0, '#1a1a2e');
-    g.addColorStop(1, '#16213e');
-    this.ctx.fillStyle = g;
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    const ctx = this.ctx;
+    const tw = this.width;
+    ctx.fillStyle = '#F5F5F5';
+    ctx.fillRect(0, 0, tw, this.height);
   }
 
   drawHeader() {
     const ctx = this.ctx;
-    // 返回按钮
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.beginPath();
-    roundRect(ctx, this.padding, 15, 70, 35, 8);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('← 返回', this.padding + 35, 38);
-
+    const tw = this.width;
+    
+    // 顶部导航栏（白色背景）
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, tw, this.statusBarHeight + 50);
+    
     // 标题
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 20px Arial';
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 17px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('👤 我的', this.width / 2, 38);
+    ctx.fillText('我的', tw / 2, this.statusBarHeight + 33);
+    
+    // 返回按钮
+    this.backBtn = { x: 10, y: this.statusBarHeight + 8, w: 70, h: 32 };
+    ctx.fillStyle = '#5677FC';
+    ctx.font = '15px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('‹ 返回', this.backBtn.x, this.statusBarHeight + 30);
+    
+    // 余额显示
+    const curY = this.statusBarHeight + 58;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    roundRect(ctx, 15, curY, tw - 30, 44, 8);
+    ctx.fill();
+    
+    ctx.fillStyle = '#333333';
+    ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('余额', 25, curY + 30);
+    
+    ctx.fillStyle = '#F6AD55';
+    ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillText('💰' + this.coins, 60, curY + 30);
+    
+    ctx.fillStyle = '#9F7AEA';
+    ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('💎' + this.gems + ' ', tw - 25, curY + 30);
   }
 
   drawOverview(y) {
@@ -300,7 +325,7 @@ class Profile {
 
     // ── 第一行：通关 / 星星 / 成就 ──
     const row1H = 70;
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = 'rgba(0,0,0,0.04)';
     ctx.beginPath();
     roundRect(ctx, p, y, W - p * 2, row1H, 12);
     ctx.fill();
@@ -315,10 +340,10 @@ class Profile {
       ctx.font = '22px Arial';
       ctx.textAlign = 'center';
       ctx.fillText(item.icon, cx, y + 25);
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#333';
       ctx.font = 'bold 18px Arial';
       ctx.fillText(String(item.value), cx, y + 48);
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.font = '11px Arial';
       ctx.fillText(item.label, cx, y + 63);
     });
@@ -326,14 +351,14 @@ class Profile {
 
     // ── 第二行：货币 + 签到 ──
     const row2H = 50;
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = 'rgba(0,0,0,0.04)';
     ctx.beginPath();
     roundRect(ctx, p, y, W - p * 2, row2H, 12);
     ctx.fill();
 
     ctx.textAlign = 'left';
     ctx.font = '13px Arial';
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#333';
     ctx.fillText('💰', p + 15, y + 22);
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 16px Arial';
@@ -341,7 +366,7 @@ class Profile {
 
     ctx.textAlign = 'left';
     ctx.font = '13px Arial';
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#333';
     ctx.fillText('💎', p + 120, y + 22);
     ctx.fillStyle = '#64B5F6';
     ctx.font = 'bold 16px Arial';
@@ -355,7 +380,7 @@ class Profile {
       : `📅 待签到 🔥${this.checkinStreak}天`;
     ctx.fillText(checkinText, W - p - 12, y + 22);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.font = '11px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(`共 ${this.totalLevels} 关`, p + 15, y + 42);
@@ -386,7 +411,7 @@ class Profile {
     });
 
     // 区标题
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'left';
     ctx.fillText('快捷功能', p + 5, y + 8);
@@ -400,13 +425,13 @@ class Profile {
 
     this._funcItems.forEach(item => {
       // 行背景
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillStyle = 'rgba(0,0,0,0.04)';
       ctx.beginPath();
       roundRect(ctx, item.x, item.y, item.w, item.h, 8);
       ctx.fill();
 
       // 图标+文字
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#333';
       ctx.font = '16px Arial';
       ctx.textAlign = 'left';
       ctx.fillText(item.icon, item.x + 15, item.y + 30);
@@ -422,7 +447,7 @@ class Profile {
       }
 
       // 右箭头
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.font = '18px Arial';
       ctx.textAlign = 'right';
       ctx.fillText('›', item.x + item.w - 15, item.y + 32);
@@ -436,7 +461,7 @@ class Profile {
     const ctx = this.ctx;
     const p = this.padding;
 
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'left';
     ctx.fillText('📊 各游戏进度', p + 5, y + 12);
@@ -451,7 +476,7 @@ class Profile {
     const gap = 1;
 
     // 区标题
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'left';
     ctx.fillText('⚙️ 设置', p + 5, y + 12);
@@ -472,13 +497,13 @@ class Profile {
 
     this._settingItems.forEach(item => {
       // 行背景
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillStyle = 'rgba(0,0,0,0.04)';
       ctx.beginPath();
       roundRect(ctx, item.x, item.y, item.w, item.h, 8);
       ctx.fill();
 
       // 标签
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#333';
       ctx.font = '15px Arial';
       ctx.textAlign = 'left';
       ctx.fillText(item.label, item.x + 15, item.y + 30);
@@ -490,7 +515,7 @@ class Profile {
         const ty = item.y + (item.h - th) / 2;
 
         // 轨道
-        ctx.fillStyle = on ? '#5677FC' : '#555';
+        ctx.fillStyle = on ? '#5677FC' : '#ccc';
         ctx.beginPath();
         roundRect(ctx, tx, ty, tw, th, th / 2);
         ctx.fill();
@@ -506,7 +531,7 @@ class Profile {
         item.toggleRegion = { x: tx, y: ty, w: tw, h: th };
       } else {
         // 右箭头
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.font = '18px Arial';
         ctx.textAlign = 'right';
         ctx.fillText('›', item.x + item.w - 15, item.y + 32);

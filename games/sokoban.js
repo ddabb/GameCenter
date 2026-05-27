@@ -20,26 +20,26 @@ class Sokoban {
     this.switchGame = switchGame;
     this.width = systemInfo.windowWidth;
     this.height = systemInfo.windowHeight;
-    
+
     this.level = level;
-    statsManager.startGame(this.gameName, level) || 1;
     this.gameName = 'sokoban';
-    
+    statsManager.startGame(this.gameName, level) || 1;
+
     // 安全区域适配
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
-    
+
     this.difficulty = 'easy';
     this.difficulties = [
       { name: 'easy', label: '简单', size: 6 },
       { name: 'medium', label: '中等', size: 8 },
       { name: 'hard', label: '困难', size: 10 }
     ];
-    
+
     this.size = 6;
     this.cellSize = Math.min(this.width * 0.8 / this.size, 45);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
     this.boardOffsetY = this.statusBarHeight + 130;
-    
+
     this.grid = []; // 0=空, 1=墙, 2=目标
     this.boxes = [];
     this.player = {r: 1, c: 1};
@@ -53,7 +53,7 @@ class Sokoban {
     this.undoMgr = new UndoManager();
 
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
-    
+
     this.levels = {
       easy: [
         { grid: [
@@ -92,40 +92,56 @@ class Sokoban {
         ], boxes: [{r:2,c:2},{r:3,c:3},{r:6,c:6},{r:7,c:7}], player: {r:4,c:4} }
       ]
     };
-    
+
+    // 初始化共享组件
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
+      gameName: this.gameName,
+      onNextLevel: () => {
+        this.level++;
+        this.loadLevel();
+        this.draw();
+      },
+      onBackToMenu: () => this.switchGame('menu')
+    });
+    this.boardOffsetY = this.headerBar.boardStartY + 25;
+
     this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
   }
-  
+
   async loadLevel() {
     console.log(`[Sokoban] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
-      const data = await LevelLoader.load('sokoban', this.level);
-      if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
-      if (data && data.grid) {
-        this.size = data.size || data.grid.length;
-        this.cellSize = Math.min(this.width * 0.8 / this.size, 40);
-        this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
-        this.boardOffsetY = this.statusBarHeight + 130;
-        
-        // 转换 grid 并标记目标位置
-        this.grid = data.grid.map((row, r) =>
-          row.map((cell, c) => {
-            const isGoal = data.goals && data.goals.some(g => g[0] === r && g[1] === c);
-            return isGoal ? 2 : cell;
-          })
-        );
-        
-        this.player = { r: data.playerStart[0], c: data.playerStart[1] };
-        this.boxes = (data.boxes || []).map(b => ({ r: b[0], c: b[1] }));
-        this.targets = (data.goals || []).map(g => ({ r: g[0], c: g[1] }));
-        this.moves = 0;
-        this.history = [];
-        this.victory = false;
-        return;
-      }
-    
+    const data = await LevelLoader.load('sokoban', this.level, this.difficulty);
+    if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
+    if (data && data.grid) {
+      const rows = data.rows || data.grid.length;
+      const cols = data.cols || data.grid[0]?.length || rows;
+      this.size = Math.max(rows, cols);
+      this.cellSize = Math.min(this.width * 0.8 / this.size, 40);
+      this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
+      this.boardOffsetY = this.statusBarHeight + 130;
+
+      // 转换 grid 并标记目标位置
+      this.grid = data.grid.map((row, r) =>
+        row.map((cell, c) => {
+          const isGoal = data.goals && data.goals.some(g => g[0] === r && g[1] === c);
+          return isGoal ? 2 : cell;
+        })
+      );
+
+      this.player = { r: data.playerStart[0], c: data.playerStart[1] };
+      this.boxes = (data.boxes || []).map(b => ({ r: b[0], c: b[1] }));
+      this.targets = (data.goals || []).map(g => ({ r: g[0], c: g[1] }));
+      this.moves = 0;
+      this.history = [];
+      this.victory = false;
+      return;
+    }
+
     // 内置题目
     let lvl = this.levels[this.difficulty] && this.levels[this.difficulty][0];
     if (!lvl) {
@@ -135,14 +151,14 @@ class Sokoban {
     this.cellSize = Math.min(this.width * 0.8 / this.size, 40);
     this.boardOffsetX = (this.width - this.cellSize * this.size) / 2;
     this.boardOffsetY = this.statusBarHeight + 130;
-    
+
     this.grid = lvl.grid.map(row => [...row]);
     this.boxes = lvl.boxes.map(b => ({...b}));
     this.player = {...lvl.player};
     this.moves = 0;
     this.history = [];
     this.victory = false;
-    
+
     // 统计目标数
     this.targets = [];
     for (let r = 0; r < this.size; r++) {
@@ -153,54 +169,54 @@ class Sokoban {
       }
     }
   }
-  
+
   setDifficulty(diff) {
     this.difficulty = diff;
     this.loadLevel();
   }
-  
+
   isWall(r, c) {
     return r < 0 || r >= this.size || c < 0 || c >= this.size || this.grid[r][c] === 1;
   }
-  
+
   getBox(r, c) {
     return this.boxes.findIndex(b => b.r === r && b.c === c);
   }
-  
+
   move(dr, dc) {
     if (this.victory) return;
-    
+
     let nr = this.player.r + dr;
     let nc = this.player.c + dc;
-    
+
     if (this.isWall(nr, nc)) return;
-    
+
     let boxIdx = this.getBox(nr, nc);
-    
+
     if (boxIdx >= 0) {
       // 推动箱子
       let br = nr + dr;
       let bc = nc + dc;
-      
+
       if (this.isWall(br, bc) || this.getBox(br, bc) >= 0) return;
-      
+
       this.history.push({...this.boxes[boxIdx]});
       this.boxes[boxIdx].r = br;
       this.boxes[boxIdx].c = bc;
     } else {
       this.history.push(null);
     }
-    
+
     this.player.r = nr;
     this.player.c = nc;
     this.moves++;
-    
+
     this.checkVictory();
   }
-  
+
   undo() {
     if (this.history.length === 0) return;
-    
+
     let last = this.history.pop();
     if (last) {
       this.boxes = this.boxes.map((b, i) => {
@@ -210,7 +226,7 @@ class Sokoban {
         return b;
       });
     }
-    
+
     if (this.history.length > 0) {
       let prev = this.history[this.history.length - 1];
       if (prev) {
@@ -218,19 +234,19 @@ class Sokoban {
         this.player.c = prev.c + (this.player.c - this.boxes[0].c + prev.c);
       }
     }
-    
+
     this.moves = Math.max(0, this.moves - 1);
   }
-  
+
   checkVictory() {
     for (let t of this.targets) {
       let onTarget = this.boxes.some(b => b.r === t.r && b.c === t.c);
       if (!onTarget) return;
     }
-    console.log(`[Sokoban] 通关！关卡: ${this.level}, 步数: ${this.moves}`);
+    console.log(`[Sokoban] 通关!关卡: ${this.level}, 步数: ${this.moves}`);
     this.victory = true;
       this.confetti.start();
-      
+
       const rewardMgr = getRewardManager();
       const rewardResult = rewardMgr.processVictory(this.gameName, {
         difficulty: this.difficulty || 'easy',
@@ -238,7 +254,7 @@ class Sokoban {
         time: this.timer || 0
       });
       rewardMgr.showRewardToast(rewardResult);
-      
+
       let winCount = 0;
       try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
       const newlyAchieved = this.achievement.check(this.gameName, winCount);
@@ -246,63 +262,86 @@ class Sokoban {
       sound.play('victory');
       this.saveGameProgress(); statsManager.endGame(true);
   }
-  
+
   bindEvents() {
-    this.clickHandler = (e) => {
+    this._startX = 0;
+    this._startY = 0;
+
+    this.touchStartHandler = (e) => {
       let touch = e.touches ? e.touches[0] : e;
+      this._startX = touch.clientX;
+      this._startY = touch.clientY;
+    };
+
+    this.touchEndHandler = (e) => {
+      let touch = e.changedTouches ? e.changedTouches[0] : e;
       let x = touch.clientX;
       let y = touch.clientY;
-      
-      // 底部工具栏按钮检测（使用共享组件）
+
+      let dx = x - this._startX;
+      let dy = y - this._startY;
+      let absDx = Math.abs(dx);
+      let absDy = Math.abs(dy);
+
+      // 滑动距离足够,触发移动
+      if (Math.max(absDx, absDy) >= 30 && !this.victory) {
+        if (absDx > absDy) {
+          this.move(0, dx > 0 ? 1 : -1);
+        } else {
+          this.move(dy > 0 ? 1 : -1, 0);
+        }
+        return;
+      }
+
+      // 点击处理
+      this._handleClick(x, y);
+    };
+
+    this.canvas.addEventListener('touchstart', this.touchStartHandler);
+    this.canvas.addEventListener('touchend', this.touchEndHandler);
+  }
+
+  _handleClick(x, y) {
+
+      // 底部工具栏按钮检测(使用共享组件)
       const action = this.bottomBar.handleClick(x, y);
       if (action) {
         this._handleBottomAction(action);
         return;
       }
-      
+
       if (this.tutorial && this.tutorial.shouldShow() && this.tutorial.hitTest(x, y)) {
         this.tutorial.dismiss();
         this.draw();
         return;
       }
-      
-      // 规则按钮
-      if (this._ruleBtn && x >= this._ruleBtn.x && x <= this._ruleBtn.x + this._ruleBtn.w && y >= this._ruleBtn.y && y <= this._ruleBtn.y + this._ruleBtn.h) {
-        this.tutorial.show();
-        this.draw();
-        return;
-      }
+
       // 顶部返回按钮
-      if (x >= 15 && x <= 85 && y >= this.statusBarHeight + 8 && y <= this.statusBarHeight + 40) {
+      if (this.headerBar.isBackButton(x, y)) {
         sound.play('click');
           this.switchGame('level-select', this.gameName);
         return;
       }
-      
+
       // 通关面板
       if (this.victory) {
-        if (this._nextBtn && x >= this._nextBtn.x && x <= this._nextBtn.x + this._nextBtn.w && y >= this._nextBtn.y && y <= this._nextBtn.y + this._nextBtn.h) {
+        const action = this.victoryPanel.handleClick(x, y);
+        if (action === 'next') {
           this.level++;
           this.loadLevel();
           sound.play('click');
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
+          this.confetti.stop();
+          if (this.undoMgr) this.undoMgr.clear();
           return;
         }
-        if (this._backBtn && x >= this._backBtn.x && x <= this._backBtn.x + this._backBtn.w && y >= this._backBtn.y && y <= this._backBtn.y + this._backBtn.h) {
+        if (action === 'back') {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
           return;
         }
-        if (!this._nextBtn || !this._backBtn) {
-          this.confetti.draw();
-      if (this._newAchievements && this._newAchievements.length > 0) this._drawAchievementPopup();
-      this.showBackButton();
-        }
         return;
       }
-      
+
       // 难度
       let diffY = 55;
       let diffW = 60;
@@ -316,64 +355,82 @@ class Sokoban {
           return;
         }
       }
-      
+
       // 重置
       if (x > this.width - 85 && y > this.height - 100 && y < this.height - 60) {
         this.loadLevel();
         return;
       }
-      
+
       // 撤销
       if (x > this.width - 85 && y > this.height - 55) {
         this.undo();
         return;
       }
-      
-      // 方向键（上半部分）
+
+      // 方向键(上半部分)
       let btnSize = 50;
       let btnY = this.boardOffsetY + this.size * this.cellSize + 20;
       let btnGap = 10;
       let btnStartX = (this.width - btnSize * 3 - btnGap * 2) / 2;
-      
+
       // 上
-      if (x > btnStartX + btnSize + btnGap && x < btnStartX + btnSize * 2 + btnGap && 
+      if (x > btnStartX + btnSize + btnGap && x < btnStartX + btnSize * 2 + btnGap &&
           y > btnY && y < btnY + btnSize) {
         this.move(-1, 0);
       }
       // 下
-      if (x > btnStartX + btnSize + btnGap && x < btnStartX + btnSize * 2 + btnGap && 
+      if (x > btnStartX + btnSize + btnGap && x < btnStartX + btnSize * 2 + btnGap &&
           y > btnY + btnSize + btnGap && y < btnY + btnSize * 2 + btnGap) {
         this.move(1, 0);
       }
       // 左
-      if (x > btnStartX && x < btnStartX + btnSize && 
+      if (x > btnStartX && x < btnStartX + btnSize &&
           y > btnY + btnSize + btnGap && y < btnY + btnSize * 2 + btnGap) {
         this.move(0, -1);
       }
       // 右
-      if (x > btnStartX + (btnSize + btnGap) * 2 && x < btnStartX + btnSize * 3 + btnGap * 2 && 
+      if (x > btnStartX + (btnSize + btnGap) * 2 && x < btnStartX + btnSize * 3 + btnGap * 2 &&
           y > btnY + btnSize + btnGap && y < btnY + btnSize * 2 + btnGap) {
         this.move(0, 1);
       }
-    };
-    
-    this.canvas.addEventListener('click', this.clickHandler);
   }
-  
+
+  destroy() {
+    this.canvas.removeEventListener('touchstart', this.touchStartHandler);
+    this.canvas.removeEventListener('touchend', this.touchEndHandler);
+  }
+
   update() {
     this.animationTime += 0.08;
   }
-  
+
+  _drawStatus() {
+    const ctx = this.ctx;
+    const y = this.boardOffsetY - 15;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`第${this.level}关 · 步数 ${this.moves}`, this.width / 2, y);
+    ctx.textAlign = 'left';
+  }
+
   draw() {
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
-    this.drawBoard();
     // 使用共享组件
     this.headerBar.draw({
-      title: '推箱子',
-      info: '第 ' + this.level + ' 关',
-      info2: '步数: ' + this.moves
+      title: '推箱子'
     });
+
+    // 状态信息在棋盘上方
+    this._drawStatus();
+
+    this.drawBoard();
+
+    // 绘制方向控制按钮
+    this.drawControls();
+
     const buttons = [];
     if (this.undoMgr && this.undoMgr.canUndo()) {
       buttons.push({ id: 'undo', text: '撤销' });
@@ -381,18 +438,18 @@ class Sokoban {
     buttons.push({ id: 'restart', text: '重开' });
     this.bottomBar.setButtons(buttons);
     this.bottomBar.draw();
-    
+
     if (this.victory) {
       this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
       this.victoryPanel.setAchievements(this._newAchievements);
       this.victoryPanel.draw();
     }
-    
+
     if (this.tutorial && this.tutorial.shouldShow()) this.tutorial.draw();
   }
 
 
-  
+
   drawBackground() {
     let gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
     gradient.addColorStop(0, '#2d2d2d');
@@ -400,7 +457,7 @@ class Sokoban {
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
-  
+
   drawDifficultyBar() {
     let y = 55;
     let w = 60;
@@ -408,40 +465,40 @@ class Sokoban {
     let gap = 8;
     let totalW = 3 * w + 2 * gap;
     let startX = (this.width - totalW) / 2;
-    
+
     for (let i = 0; i < 3; i++) {
       let x = startX + i * (w + gap);
       let diff = this.difficulties[i];
       let isActive = diff.name === this.difficulty;
-      
+
       if (isActive) {
         this.ctx.fillStyle = 'rgba(139, 69, 19, 0.5)';
         this.ctx.beginPath();
         roundRect(this.ctx,x - 2, y - h/2 - 2, w + 4, h + 4, 8);
         this.ctx.fill();
       }
-      
+
       this.ctx.fillStyle = isActive ? '#8B4513' : 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
       roundRect(this.ctx,x, y - h/2, w, h, 8);
       this.ctx.fill();
-      
+
       this.ctx.fillStyle = isActive ? '#fff' : 'rgba(255, 255, 255, 0.7)';
       this.ctx.font = (w * 0.35) + 'px Arial';
       this.ctx.textAlign = 'center';
       this.ctx.fillText(diff.label, x + w/2, y + 6);
     }
   }
-  
 
-  
+
+
   drawBoard() {
     if (!this.grid || !this.grid.length) return;
     for (let r = 0; r < this.size; r++) {
       for (let c = 0; c < this.size; c++) {
         let x = this.boardOffsetX + c * this.cellSize;
         let y = this.boardOffsetY + r * this.cellSize;
-        
+
         if (this.grid[r][c] === 1) {
           // 墙
           this.ctx.fillStyle = '#4a4a4a';
@@ -461,26 +518,26 @@ class Sokoban {
           this.ctx.fillStyle = '#3a3a4a';
           this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
         }
-        
+
         // 网格
         this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
       }
     }
-    
+
     // 箱子
     for (let box of this.boxes) {
       let x = this.boardOffsetX + box.c * this.cellSize;
       let y = this.boardOffsetY + box.r * this.cellSize;
       let onTarget = this.grid[box.r][box.c] === 2;
-      
+
       // 箱子阴影
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       this.ctx.beginPath();
       roundRect(this.ctx,x + 3, y + 4, this.cellSize - 4, this.cellSize - 4, 6);
       this.ctx.fill();
-      
+
       // 箱子
       let grad = this.ctx.createLinearGradient(x, y, x + this.cellSize, y + this.cellSize);
       if (onTarget) {
@@ -494,24 +551,24 @@ class Sokoban {
       this.ctx.beginPath();
       roundRect(this.ctx,x + 2, y + 2, this.cellSize - 4, this.cellSize - 4, 6);
       this.ctx.fill();
-      
+
       // 箱子图标
       this.ctx.fillStyle = '#fff';
       this.ctx.font = (this.cellSize * 0.5) + 'px Arial';
       this.ctx.textAlign = 'center';
       this.ctx.fillText('📦', x + this.cellSize/2, y + this.cellSize/2 + 5);
     }
-    
+
     // 玩家
     let px = this.boardOffsetX + this.player.c * this.cellSize;
     let py = this.boardOffsetY + this.player.r * this.cellSize;
-    
+
     let pulse = Math.sin(this.animationTime * 2) * 2;
     this.ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
     this.ctx.beginPath();
     this.ctx.arc(px + this.cellSize/2, py + this.cellSize/2, this.cellSize/2 + pulse, 0, Math.PI * 2);
     this.ctx.fill();
-    
+
     this.ctx.font = (this.cellSize * 0.6) + 'px Arial';
     this.ctx.textAlign = 'center';
     this.ctx.fillText('🧑', px + this.cellSize/2, py + this.cellSize/2 + this.cellSize * 0.15);
@@ -550,79 +607,62 @@ class Sokoban {
         break;
     }
   }
-  
+
   drawControls() {
     // 方向键
     let btnSize = 50;
     let btnY = this.boardOffsetY + this.size * this.cellSize + 20;
     let btnGap = 10;
     let btnStartX = (this.width - btnSize * 3 - btnGap * 2) / 2;
-    
+
     let positions = [
       {r: 0, c: 1, text: '⬆️'},
       {r: 1, c: 0, text: '⬅️'},
       {r: 1, c: 2, text: '➡️'},
       {r: 1, c: 1, text: '⬇️'}
     ];
-    
+
     for (let pos of positions) {
       let bx = btnStartX + pos.c * (btnSize + btnGap);
       let by = btnY + pos.r * (btnSize + btnGap);
-      
+
       this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
       this.ctx.beginPath();
       roundRect(this.ctx,bx, by, btnSize, btnSize, 12);
       this.ctx.fill();
-      
+
       this.ctx.font = (btnSize * 0.5) + 'px Arial';
       this.ctx.textAlign = 'center';
       this.ctx.fillText(pos.text, bx + btnSize/2, by + btnSize/2 + 8);
     }
-    
-    // 底部按钮
-    this.drawButton(this.width - 85, this.height - 100, 70, 35, '重置');
-    this.drawButton(this.width - 85, this.height - 55, 70, 40, '撤销');
-    
-    // 规则按钮（右上角）
-    this._ruleBtn = { x: this.width - 50, y: 20, w: 40, h: 40 };
-    this.ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.ctx.beginPath();
-    roundRect(this.ctx, this._ruleBtn.x, this._ruleBtn.y, this._ruleBtn.w, this._ruleBtn.h, 20);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 22px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('?', this._ruleBtn.x + 20, this._ruleBtn.y + 28);
-  }
-  
-  drawButton(x, y, w, h, text) {
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,x, y, w, h, 20);
-    this.ctx.fill();
-    
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = (this.width / 34) + 'px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(text, x + w/2, y + h/2 + 5);
   }
   
 
-  
+
   saveGameProgress() {
     try {
-      const key = 'progress_' + this.gameName;
-      const saved = wx.getStorageSync(key);
+      const baseKey = 'progress_' + this.gameName;
+      const saved = wx.getStorageSync(baseKey);
       let progress = saved ? JSON.parse(saved) : { unlocked: 1, stars: {} };
-      // 解锁下一关
-      if (this.level >= progress.unlocked) {
+      if (this.level >= (progress.unlocked || 1)) {
         progress.unlocked = this.level + 1;
       }
-      // 记录通关（1星，后续可扩展星级评分）
       if (!progress.stars[this.level]) {
         progress.stars[this.level] = 1;
       }
-      wx.setStorageSync(key, JSON.stringify(progress));
+      wx.setStorageSync(baseKey, JSON.stringify(progress));
+
+      // 难度进度
+      const diffKey = `progress_${this.gameName}_${this.difficulty || 'easy'}`;
+      const diffSaved = wx.getStorageSync(diffKey);
+      let diffProgress = diffSaved ? JSON.parse(diffSaved) : { unlocked: 1, stars: {} };
+      if (this.level >= (diffProgress.unlocked || 1)) {
+        diffProgress.unlocked = this.level + 1;
+      }
+      if (!diffProgress.stars[this.level]) {
+        diffProgress.stars[this.level] = 1;
+      }
+      wx.setStorageSync(diffKey, JSON.stringify(diffProgress));
     } catch (e) {
       console.log('保存进度失败', e);
     }
@@ -654,7 +694,7 @@ class Sokoban {
   destroy() {
     this.canvas.removeEventListener('click', this.clickHandler);
   }
-  
+
   roundRect(x, y, w, h, r) {
     this.ctx.beginPath();
     this.ctx.moveTo(x + r, y);

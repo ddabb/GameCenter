@@ -236,10 +236,24 @@ class Tents {
   update() {
     this.animationTime += 0.08;
   }
+  
+  _drawStatus() {
+    const ctx = this.ctx;
+    const y = this.boardOffsetY - 15;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '13px Arial, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.fillText(`第${this.level}关 · ${this.size}×${this.size}`, this.width / 2, y);
+    ctx.textAlign = 'left';
+  }
 
   draw() {
     this.drawBackground();
-    this.headerBar.draw({ title: '⛺ 帐篷', info: '关卡 ' + this.level });
+    this.headerBar.draw({ title: '⛺ 帐篷' });
+    
+    // 状态信息在棋盘上方
+    this._drawStatus();
+    
     this.drawBoard();
     this.bottomBar.setButtons([
       { id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr && this.undoMgr.canUndo() },
