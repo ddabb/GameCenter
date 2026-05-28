@@ -1,3 +1,11 @@
+/**
+ * lunar-javascript.js — 农历日历计算库（打包版）
+ *
+ * 提供农历日期转换、节气查询、八字排盘、黄历宜忌等功能。
+ * 此为打包后的单文件版本，原始库为 lunar-javascript。
+ *
+ * @subpackage lunar
+ */
 module.exports = (function() {
 var __MODS__ = {};
 var __DEFINE__ = function(modId, func, req) { var m = { exports: {}, _tempexports: {} }; __MODS__[modId] = { status: 0, func: func, req: req, m: m }; };

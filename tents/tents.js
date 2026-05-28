@@ -1,6 +1,23 @@
 /**
- * tents.js — 帐篷游戏主类
+ * tents.js — 帐篷谜题（Tents）主类
+ *
+ * 游戏规则：
+ *   1. 每个单元格旁都有一棵树（🌲），需要给每棵树分配一顶帐篷（⛺）
+ *   2. 帐篷必须紧邻一棵树（上下左右四方向），且每棵树只能有一顶帐篷
+ *   3. 帐篷之间不能相邻（包括斜对角共8方向）
+ *   4. 行/列提示数字表示该行/列应放置的帐篷总数
+ *   5. 正确放置所有帐篷即通关
+ *
+ * 操作方式：点击空地放置/移除帐篷
+ *
+ * 模块结构：
+ *   - 本文件（tents.js）：主类 Tents，负责交互、状态管理、UI 集成
+ *   - tents-core.js：核心逻辑（布局计算、行/列提示、通关验证）
+ *   - tents-renderer.js：Canvas 绘制（草地、树木、帐篷、行/列计数）
+ *
+ * @subpackage tents
  */
+
 const statsManager = require('../games/stats-manager.js').getInstance();
 const LevelLoader = require('../games/level-loader');
 const Confetti = require('../games/confetti');

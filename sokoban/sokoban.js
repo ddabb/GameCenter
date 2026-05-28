@@ -1,3 +1,21 @@
+/**
+ * sokoban.js — 推箱子（Sokoban）主类
+ *
+ * 游戏规则：
+ *   1. 玩家（🧑）推动箱子（📦）到目标点（绿色圆）
+ *   2. 所有箱子归位即为通关
+ *   3. 支持滑动操作（上下左右手势）和按钮操作
+ *   4. 支持撤销、重开、难度切换
+ *
+ * 模块拆分（均为纯函数）：
+ *   - sokoban-core.js   — 核心逻辑：移动/碰撞检测、通关判断、进度保存
+ *   - sokoban-renderer.js — 画面渲染：状态栏、棋盘、方向按钮
+ *
+ * 数据来源：优先CDN，失败后使用内置关卡数据
+ *
+ * 所属分包：sokoban（独立分包）
+ */
+
 const LevelLoader = require('../games/level-loader');
 const statsManager = require('../games/stats-manager.js').getInstance();
 const Confetti = require('../games/confetti');

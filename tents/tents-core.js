@@ -1,5 +1,14 @@
 /**
- * tents-core.js — 帐篷核心逻辑
+ * tents-core.js — 帐篷谜题（Tents）核心逻辑
+ *
+ * 提供帐篷谜题的纯数据逻辑函数，不涉及 Canvas 绘制：
+ *   - calcLayout：计算棋盘布局参数（格子大小、偏移量）
+ *   - calcRowHints / calcColHints：根据树木分布计算行列提示数
+ *   - countRowTents / countColTents：统计当前行列已放置的帐篷数
+ *   - checkVictory：完整通关验证（帐篷-树匹配、不相邻、行列计数一致）
+ *   - saveProgress：保存关卡进度到本地存储
+ *
+ * @subpackage tents
  */
 
 /**

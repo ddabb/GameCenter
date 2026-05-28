@@ -1,5 +1,21 @@
-// 躲避牛蛙 (Frog Escape) - Canvas版本
-// 扫雷换皮：🐸牛蛙要躲避 | 💧水花=安全 | 数字=周围牛蛙数
+/**
+ * sweep-frog.js — 躲避牛蛙（Frog Escape）主类
+ *
+ * 游戏规则（扫雷换皮）：
+ *   1. 点击格子翻开：🐸→失败，💧→安全，数字→周围牛蛙数
+ *   2. 长按/标记模式：🚩标记疑似牛蛙位置
+ *   3. 安全的首次点击（自动迁移首点周围的牛蛙）
+ *   4. 数字格 chord 操作：周围旗帜数匹配时自动翻开
+ *
+ * 模块拆分：
+ *   - sweep-frog-core.js   — 核心逻辑：棋盘生成、数字重算
+ *   - sweep-frog-renderer.js — 画面渲染：状态、棋盘、旗帜提示
+ *
+ * 数据来源：CDN预生成题库 + 本地随机生成兜底
+ *
+ * 所属分包：sweep-frog（独立分包）
+ */
+
 const core = require('./sweep-frog-core.js');
 const renderer = require('./sweep-frog-renderer.js');
 const roundRect = require('../utils/round-rect.js');

@@ -1,3 +1,19 @@
+/**
+ * nonogram-core.js — 数织（Nonogram）核心逻辑（纯函数）
+ *
+ * 游戏规则：
+ *   1. 边缘数字表示该行/列中连续填充格子的段长度
+ *   2. 玩家根据提示推断哪些格子需要填充（1=填充，2=标记空）
+ *   3. 支持自动标记已完成的行/列为空
+ *
+ * 包含：
+ *   - 棋盘初始化
+ *   - 行/列匹配检查
+ *   - 自动标记空行/列
+ *   - 通关检查
+ *   - 进度保存 & 奖励处理
+ */
+
 const { getInstance: getRewardManager } = require('../games/reward-manager');
 
 function initGrid(size) {

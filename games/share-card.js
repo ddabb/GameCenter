@@ -1,3 +1,11 @@
+/**
+ * share-card.js — 通关分享卡片生成器（ShareCard）
+ *
+ * 在离屏 Canvas 上绘制通关分享卡片，支持微信分享图片：
+ *   - 包含游戏图标、关卡号、星数评价
+ *   - 支持自定义文案
+ *   - 兼容微信小程序和浏览器环境
+ */
 class ShareCard {
   constructor(ctx, width = 500, height = 400) {
     this.ctx = ctx;

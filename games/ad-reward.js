@@ -1,3 +1,11 @@
+/**
+ * ad-reward.js — 广告激励管理器（AdRewardManager）
+ *
+ * 管理微信激励视频广告的加载、展示和奖励回调：
+ *   - 支持激励视频广告、插屏广告、Banner广告
+ *   - 提供 loadAd（加载）/ showAd（展示）/ onReward（奖励回调）机制
+ *   - 适用于获得额外提示、解锁关卡等场景
+ */
 class AdRewardManager {
   constructor() {
     this.rewardAd = null;

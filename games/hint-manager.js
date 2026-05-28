@@ -1,5 +1,4 @@
 /**
-const roundRect = require('../utils/round-rect.js');
  * hint-manager.js — 通用提示管理器
  * 
  * 策略：
@@ -8,6 +7,7 @@ const roundRect = require('../utils/round-rect.js');
  * - 每关3次提示机会，用完提示按钮灰显
  * - 提示消耗通过 storage 持久化（可选）或仅当次有效
  */
+const roundRect = require('../utils/round-rect.js');
 
 const HINT_GAMES_WITH_ANSWER = ['nonogram', 'battleship', 'slither-link', 'akari'];
 

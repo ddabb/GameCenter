@@ -1,3 +1,10 @@
+/**
+ * battleship-renderer.js — 战舰谜题 Canvas 绘制函数
+ *
+ * 所有函数接收 ctx 和渲染所需的状态参数，不持有内部状态。
+ * 依赖 battleship-core.js 提供常量（CELL_EMPTY/CELL_SHIP/CELL_WATER）。
+ */
+
 const { roundRect, formatTime, CELL_EMPTY, CELL_SHIP, CELL_WATER } = require('./battleship-core');
 
 let _bgGradient = null;

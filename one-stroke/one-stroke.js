@@ -1,3 +1,21 @@
+/**
+ * one-stroke.js — 一笔画（One Stroke）主类
+ *
+ * 游戏规则：
+ *   1. 网格中有若干"洞"（不可经过），其余格子均可通行
+ *   2. 从任意位置开始，拖动连线经过所有通行格子（每个格子仅一次）
+ *   3. 正交相邻（上下左右）的格子才可连接
+ *   4. 支持拖拽连续绘制（touchstart→touchmove→touchend）
+ *
+ * 模块拆分：
+ *   - one-stroke-core.js   — 核心算法：DFS回溯路径搜索、谜题生成
+ *   - one-stroke-renderer.js — 画面渲染：网格、路径线、答案动画
+ *
+ * 数据来源：优先CDN，失败后本地DFS生成
+ *
+ * 所属分包：one-stroke（独立分包）
+ */
+
 const LevelLoader = require('../games/level-loader');
 const Confetti = require('../games/confetti');
 const sound = require('../games/sound-manager');

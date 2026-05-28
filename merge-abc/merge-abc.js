@@ -1,3 +1,19 @@
+/**
+ * merge-abc.js — ABC合成记（Merge ABC）主类
+ *
+ * 游戏规则：
+ *   1. 4×4棋盘，滑动合并同字母→升级到下一个字母（A→B→C→...→Z）
+ *   2. 每次操作后随机出现新字母（A~D，A出现概率最高）
+ *   3. 无法继续移动时游戏结束
+ *   4. 支持撤销（最多5步历史）、进度存档
+ *
+ * 模块拆分（均为纯函数）：
+ *   - merge-abc-core.js   — 核心逻辑：移动/合并/检测
+ *   - merge-abc-renderer.js — 画面渲染：状态栏、棋盘
+ *
+ * 所属分包：merge-abc（独立分包）
+ */
+
 const statsManager = require('../games/stats-manager.js').getInstance();
 const Confetti = require('../games/confetti');
 const sound = require('../games/sound-manager');

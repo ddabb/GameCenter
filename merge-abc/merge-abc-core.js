@@ -1,3 +1,16 @@
+/**
+ * merge-abc-core.js — ABC合成记核心逻辑（纯函数 + 数据常量）
+ *
+ * 基于 2048 机制改编：同字母合并为下一个字母（A→B→C→...→Z）。
+ *
+ * 包含：
+ *   - 字母常量与分数表
+ *   - 颜色映射（按字母级别）
+ *   - 四方向移动算法（compress + merge）
+ *   - 游戏结束检测
+ *   - 存档/进度保存
+ */
+
 const TILES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const SCORES = {

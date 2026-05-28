@@ -1,4 +1,10 @@
-// ── 躲避牛蛙 (Frog Escape) 渲染模块 ───────────────────────────────────────────────
+/**
+ * sweep-frog-renderer.js — 躲避牛蛙 Canvas 绘制函数
+ *
+ * 所有函数接收 ctx 和渲染所需的状态参数，不持有内部状态。
+ * 包含：状态栏、棋盘绘制（🐸🐮💧标记）、旗帜提示、最佳时间。
+ */
+
 function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = s % 60;

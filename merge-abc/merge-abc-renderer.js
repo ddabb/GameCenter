@@ -1,3 +1,10 @@
+/**
+ * merge-abc-renderer.js — ABC合成记 Canvas 绘制函数
+ *
+ * 所有函数接收 ctx 和渲染所需的状态参数，不持有内部状态。
+ * 依赖 merge-abc-core.js 提供 roundRect 工具和 COLORS/TILES 常量。
+ */
+
 const { roundRect } = require('./merge-abc-core');
 
 function drawStatus(ctx, width, padding, headerBarStartY, score, bestScore) {

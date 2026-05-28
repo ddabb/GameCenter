@@ -1,4 +1,13 @@
-// ── 一笔画 核心算法（GridPathFinder） ──────────────────────────────────────────────
+/**
+ * one-stroke-core.js — 一笔画核心算法（GridPathFinder）
+ *
+ * 使用 DFS 回溯法在网格中搜索一条经过所有有效格子的路径。
+ * 生成的路径满足：每个格子恰好经过一次，相邻格子正交移动。
+ *
+ * 包含：
+ *   - GridPathFinder：DFS路径搜索、获取邻居、生成有效谜题
+ */
+
 class GridPathFinder {
   constructor(rows, cols, holes) {
     this.rows = rows;

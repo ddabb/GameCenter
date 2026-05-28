@@ -1,4 +1,17 @@
-// ── 躲避牛蛙 (Frog Escape) 核心逻辑 ───────────────────────────────────────────────
+/**
+ * sweep-frog-core.js — 躲避牛蛙（Frog Escape）核心逻辑
+ *
+ * 扫雷换皮游戏：
+ *   - 🐸牛蛙 = 地雷（碰到即失败）
+ *   - 💧水花 = 安全格（周围无牛蛙）
+ *   - 数字 = 周围牛蛙数量
+ *
+ * 包含：
+ *   - 难度配置（简单/中等，对应9×9/16×16）
+ *   - 随机生成棋盘（含安全重排确保首次点击安全）
+ *   - 数字重算（recalcNumbers）
+ */
+
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/minesweeper';
 const RECORDS_KEY = 'sweep_frog_records';
 

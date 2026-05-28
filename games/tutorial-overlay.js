@@ -1,5 +1,4 @@
 /**
-const roundRect = require('../utils/round-rect.js');
  * tutorial-overlay.js — 通用新手引导浮层
  * 首次进入游戏时显示操作提示，点击"知道了"关闭后不再显示
  * 
@@ -8,6 +7,7 @@ const roundRect = require('../utils/round-rect.js');
  *   if (tutorial.shouldShow()) tutorial.draw();
  *   // 在 clickHandler 中: if (tutorial.shouldShow()) { tutorial.dismiss(); return; }
  */
+const roundRect = require('../utils/round-rect.js');
 class TutorialOverlay {
   constructor(ctx, width, height, gameName) {
     this.ctx = ctx;

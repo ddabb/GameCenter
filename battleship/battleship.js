@@ -1,3 +1,19 @@
+/**
+ * battleship.js — 战舰谜题（Battleship）主类
+ *
+ * 游戏规则：
+ *   1. 边缘数字表示该行/列的战舰格子总数
+ *   2. 战舰必须为直线（水平或垂直）
+ *   3. 不同战舰之间不能相邻（8方向）
+ *   4. 点击格子切换状态：空白→战舰→水面→空白
+ *
+ * 模块拆分（均为纯函数）：
+ *   - battleship-core.js   — 棋盘逻辑：常量、布局计算、通关检查
+ *   - battleship-renderer.js — 画面渲染：背景、棋盘、提示、错误提示
+ *
+ * 所属分包：battleship（独立分包）
+ */
+
 const LevelLoader = require('../games/level-loader');
 const statsManager = require('../games/stats-manager.js').getInstance();
 const sound = require('../games/sound-manager');

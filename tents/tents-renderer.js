@@ -1,5 +1,15 @@
 /**
- * tents-renderer.js — 帐篷绘制函数
+ * tents-renderer.js — 帐篷谜题 Canvas 绘制函数
+ *
+ * 提供的绘制函数：
+ *   - drawBackground：深绿渐变背景 + 星空点缀动画
+ *   - drawStatus：关卡信息（第X关 · N×N）
+ *   - drawBoard：棋盘绘制（草地网格、树木动画、帐篷图形、行列计数提示）
+ *       * 树木带呼吸动画效果
+ *       * 帐篷带微动效果 + 帐篷渐变填充
+ *       * 行列计数实时反映当前放置数量与目标数量的对比（绿色=匹配/红色=不匹配）
+ *
+ * @subpackage tents
  */
 const roundRect = require('../utils/round-rect.js');
 const { countRowTents, countColTents } = require('./tents-core');

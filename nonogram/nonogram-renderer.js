@@ -1,3 +1,10 @@
+/**
+ * nonogram-renderer.js — 数织 Canvas 绘制函数
+ *
+ * 所有函数接收 ctx 和渲染所需的状态参数，不持有内部状态。
+ * 依赖 nonogram-core.js 提供的 roundRect 工具函数。
+ */
+
 const { roundRect } = require('./nonogram-core');
 
 function drawStatus(ctx, width, level, mode, statusY) {

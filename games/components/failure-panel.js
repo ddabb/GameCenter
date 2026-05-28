@@ -1,3 +1,20 @@
+/**
+ * FailurePanel - 通用失败面板组件
+ *
+ * 游戏失败时弹出的半透明面板，包含：
+ *   - 失败标题（默认 "😢 游戏结束"）
+ *   - 可选副标题
+ *   - "再来一局" 按钮
+ *   - "返回菜单" 按钮
+ *
+ * 使用方法：
+ *   1. 实例化时传入 ctx / width / height / opts
+ *   2. 调用 setSubtitle(text) 设置副标题
+ *   3. 调用 draw() 绘制面板
+ *   4. 在点击处理中调用 handleClick(x, y)，根据返回值执行相应逻辑
+ *
+ * @summary 此组件被所有游戏子包（battleship / nonogram / tents 等）共用
+ */
 const roundRect = require('../../utils/round-rect');
 
 class FailurePanel {

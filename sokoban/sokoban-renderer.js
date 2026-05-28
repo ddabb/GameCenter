@@ -1,5 +1,12 @@
 /**
- * sokoban-renderer.js - 推箱子 Canvas 绘制函数
+ * sokoban-renderer.js — 推箱子 Canvas 绘制函数
+ *
+ * 提供的绘制函数：
+ *   - drawStatus：关卡信息（第X关 · 步数N）
+ *   - drawBoard：棋盘绘制（墙体、空地、目标点圆、箱子(xx🗳️带渐变色)、玩家(🧑呼吸脉冲动画)）
+ *   - drawControls：方向控制按钮（⬆️⬇️⬅️➡️）
+ *
+ * @subpackage sokoban
  */
 const roundRect = require('../utils/round-rect.js');
 

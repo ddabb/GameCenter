@@ -1,3 +1,19 @@
+/**
+ * nonogram.js — 数织（Nonogram / Picross）主类
+ *
+ * 游戏规则：
+ *   1. 行列边缘数字表示该行/列中连续填充格子的段长度
+ *   2. 两种模式：🖊填充（1）和 ❌标记空（2）
+ *   3. 支持拖拽连续填充（touchmove）、自动标记已完成行列
+ *   4. 填充结果与答案完全匹配即为通关
+ *
+ * 模块拆分（均为纯函数）：
+ *   - nonogram-core.js   — 核心逻辑：行列检查、自动标记、通关判断
+ *   - nonogram-renderer.js — 画面渲染：状态、模式按钮、提示、棋盘
+ *
+ * 所属分包：nonogram（独立分包）
+ */
+
 const LevelLoader = require('../games/level-loader');
 const statsManager = require('../games/stats-manager.js').getInstance();
 const sound = require('../games/sound-manager');

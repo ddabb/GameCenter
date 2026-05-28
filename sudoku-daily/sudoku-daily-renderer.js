@@ -1,6 +1,10 @@
 /**
- * sudoku-daily-renderer.js - 每日数独绘制函数
+ * sudoku-daily-renderer.js — 每日数独 Canvas 绘制函数
+ *
+ * 所有函数接收 game 实例（包含 ctx + 布局/状态），直接读取属性进行绘制。
+ * 包含：状态栏（日期/难度/计时）、9×9数独盘面、数字键盘。
  */
+
 const roundRect = require('../utils/round-rect.js');
 
 function drawTimer(game) {
