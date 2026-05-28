@@ -19,24 +19,6 @@ function drawBackground(ctx, width, height) {
   ctx.fillRect(0, 0, width, height);
 }
 
-function drawHeader(ctx, width, statusBarHeight) {
-  const y0 = statusBarHeight + 25;
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-  roundRect(ctx, 15, y0 + 8, 70, 32, 8);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.font = '14px Arial, -apple-system';
-  ctx.textAlign = 'center';
-  ctx.fillText('← 返回', 50, y0 + 29);
-
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 18px Arial, -apple-system';
-  ctx.textAlign = 'center';
-  ctx.fillText('指尖谜题:🚢 战舰', width / 2, y0 + 30);
-  ctx.textAlign = 'left';
-}
-
 function drawStatus(ctx, width, boardOffsetY, difficulty, level, timer, shipCount, totalShips) {
   const difficultyText = difficulty === 'easy' ? '简单' : (difficulty === 'medium' ? '中等' : '困难');
   const timeStr = formatTime(timer);
@@ -147,7 +129,6 @@ function drawBottomBar(bottomBar) {
 
 module.exports = {
   drawBackground,
-  drawHeader,
   drawStatus,
   drawHints,
   drawGrid,

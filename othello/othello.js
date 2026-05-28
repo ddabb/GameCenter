@@ -456,7 +456,7 @@ class Othello {
     renderer.drawBackground(this.ctx, this.width, this.height);
 
     // 2. HeaderBar
-    this.headerBar.draw({ title: '⚫ 黑白棋' });
+    this.headerBar.draw({ title: '黑白棋' });
 
     // 3. 状态信息
     renderer.drawStatus(this.ctx, this.boardOffsetY, this.width,

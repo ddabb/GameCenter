@@ -34,7 +34,7 @@ class Profile {
       '24point': { title: '24点', icon: '🧮', color: '#E53E3E', totalLevels: 9999 },
       'slither-link': { title: '数回', icon: '🔗', color: '#3182CE', totalLevels: 3000 },
       'nonogram': { title: '数织', icon: '🎨', color: '#805AD5', totalLevels: 3001 },
-      'battleship': { title: '海战', icon: '🚢', color: '#00B5D8', totalLevels: 3000 },
+      'battleship': { title: '战舰', icon: '🚢', color: '#00B5D8', totalLevels: 3000 },
       'merge-abc': { title: '合成ABC', icon: '🔤', color: '#D69E2E', totalLevels: 9999 },
       'sweep-frog': { title: '扫青蛙', icon: '🐸', color: '#48BB78', totalLevels: 9999 },
       'one-stroke': { title: '一笔画', icon: '✏️', color: '#F6AD55', totalLevels: 3000 }

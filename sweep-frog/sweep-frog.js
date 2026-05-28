@@ -263,7 +263,7 @@ class FrogEscape {
 
     // 使用共享组件
     this.headerBar.draw({
-      title: '躲避牛蛙'
+      title: '扫青蛙'
     });
     
     // 底部工具栏按钮

@@ -272,7 +272,7 @@ class MergeABC {
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    this.headerBar.draw({ title: 'ABC 合成记' });
+    this.headerBar.draw({ title: '合成ABC' });
     drawStatus(this.ctx, this.width, this.padding, this.headerBar.boardStartY, this._score, this._bestScore);
     drawBoard(this.ctx, this.width, this.padding, this.boardOffsetY, this._board);
 

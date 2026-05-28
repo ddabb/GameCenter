@@ -51,130 +51,109 @@ wx.onError && wx.onError(function(err) {
   showErrorOnCanvas(typeof err === 'string' ? new Error(err) : (err || new Error('Unknown')));
 });
 
-// ── 分包加载管理 ────────────────────────────────────────────────────────────────
-let subpackageLoaded = false;
-let subpackageLoading = false;
-let pendingGameLoad = null; // { gameName, level }
+// ── 分包加载管理（统一注册表）───────────────────────────────────────────────────
+const subRegistry = {
+  'games':         { loaded: false, loading: false, progress: 0 },
+  'othello':       { loaded: false, loading: false, progress: 0 },
+  '24point':       { loaded: false, loading: false, progress: 0 },
+  'sweep-frog':    { loaded: false, loading: false, progress: 0 },
+  'one-stroke':    { loaded: false, loading: false, progress: 0 },
+  'sudoku-daily':  { loaded: false, loading: false, progress: 0 },
+  'sokoban':       { loaded: false, loading: false, progress: 0 },
+  'akari':         { loaded: false, loading: false, progress: 0 },
+  'battleship':    { loaded: false, loading: false, progress: 0 },
+  'merge-abc':     { loaded: false, loading: false, progress: 0 },
+  'nonogram':      { loaded: false, loading: false, progress: 0 },
+  'nurikabe':      { loaded: false, loading: false, progress: 0 },
+  'tents':         { loaded: false, loading: false, progress: 0 },
+  'slither-link':  { loaded: false, loading: false, progress: 0 }
+};
 
-// othello 独立分包
-let othelloSubLoaded = false;
-let othelloSubLoading = false;
+let pendingGameLoad = null; // { gameName, level, difficulty }
 
-// 24point 独立分包
-let sub24Loaded = false;
-let sub24Loading = false;
+/** 通用分包加载（所有分包统一调用，含真实下载进度 → UI） */
+function loadSub(name, callback) {
+  const reg = subRegistry[name];
+  if (!reg) {
+    console.error('[sub] 未知分包:', name);
+    callback && callback(false);
+    return;
+  }
 
-// sweep-frog 独立分包
-let frogSubLoaded = false;
-let frogSubLoading = false;
-
-// one-stroke 独立分包
-let strokeSubLoaded = false;
-let strokeSubLoading = false;
-
-// sudoku-daily 独立分包
-let sudokuDailySubLoaded = false;
-let sudokuDailySubLoading = false;
-
-// sokoban 独立分包
-let sokobanSubLoaded = false;
-let sokobanSubLoading = false;
-
-// akari 独立分包
-let akariSubLoaded = false;
-let akariSubLoading = false;
-
-// battleship 独立分包
-let battleshipSubLoaded = false;
-let battleshipSubLoading = false;
-
-// merge-abc 独立分包
-let mergeAbcSubLoaded = false;
-let mergeAbcSubLoading = false;
-
-// nonogram 独立分包
-let nonogramSubLoaded = false;
-let nonogramSubLoading = false;
-
-// nurikabe 独立分包
-let nurikabeSubLoaded = false;
-let nurikabeSubLoading = false;
-
-// tents 独立分包
-let tentsSubLoaded = false;
-let tentsSubLoading = false;
-
-// slither-link 独立分包
-let slitherLinkSubLoaded = false;
-let slitherLinkSubLoading = false;
-
-function loadSubpackage(callback) {
-  if (subpackageLoaded) {
+  if (reg.loaded) {
     callback && callback(true);
     return;
   }
-  if (subpackageLoading) {
-    // 正在加载中，等待完成
+
+  if (reg.loading) {
     const checkInterval = setInterval(function() {
-      if (subpackageLoaded) {
+      if (reg.loaded) {
         clearInterval(checkInterval);
         callback && callback(true);
       }
     }, 50);
     return;
   }
-  subpackageLoading = true;
-  
-  // PC端兼容：3秒超时，直接尝试 require
+
+  reg.loading = true;
+  reg.progress = 0;
+  if (name === 'games') renderLoading(0, name);
+
+  // PC端兼容：5秒超时直接 require
   const timeout = setTimeout(function() {
-    if (!subpackageLoaded && !subpackageLoading) return; // 已完成
-    console.warn('[subpackage] 加载超时，尝试直接require');
-    try {
-      require('./games/menu.js');
-      subpackageLoaded = true;
-      subpackageLoading = false;
-      callback && callback(true);
-      if (pendingGameLoad) {
-        const p = pendingGameLoad;
-        pendingGameLoad = null;
-        loadGame(p.gameName, p.level);
-      }
-    } catch(e) {
-      console.error('[subpackage] 超时后直接require也失败:', e.message);
-    }
-  }, 3000);
-  
+    if (reg.loaded) return;
+    console.warn('[sub] ' + name + ' 加载超时，尝试直接require');
+    reg.loaded = true;
+    reg.loading = false;
+    reg.progress = 100;
+    callback && callback(true);
+    _checkPendingGame();
+  }, 5000);
+
   const task = wx.loadSubpackage({
-    name: 'games',
+    name: name,
     success: function() {
       clearTimeout(timeout);
-      console.log('[subpackage] games 分包加载成功');
-      subpackageLoaded = true;
-      subpackageLoading = false;
+      console.log('[sub] ' + name + ' 分包加载成功');
+      reg.loaded = true;
+      reg.loading = false;
+      reg.progress = 100;
+      if (name === 'games') renderLoading(100, name);
       callback && callback(true);
-      // 处理等待中的游戏加载
-      if (pendingGameLoad) {
-        const p = pendingGameLoad;
-        pendingGameLoad = null;
-        loadGame(p.gameName, p.level);
-      }
+      _checkPendingGame();
     },
     fail: function(err) {
       clearTimeout(timeout);
-      console.error('[subpackage] games 分包加载失败:', err);
-      subpackageLoading = false;
-      showErrorOnCanvas(new Error('分包加载失败: ' + (err.errMsg || JSON.stringify(err))));
+      console.error('[sub] ' + name + ' 分包加载失败:', err);
+      reg.loading = false;
+      reg.progress = -1;
+      if (name === 'games') {
+        showErrorOnCanvas(new Error(name + ' 分包加载失败: ' + (err.errMsg || JSON.stringify(err))));
+      }
       callback && callback(false);
     }
   });
 
-  // 下载进度（可选）
+  // 真实下载进度 → 更新 UI 进度条
   if (task && task.onProgressUpdate) {
     task.onProgressUpdate(function(res) {
-      console.log('[subpackage] 下载进度:', res.progress + '%');
+      reg.progress = res.progress;
+      if (name === 'games') renderLoading(res.progress, name);
+      console.log('[sub] ' + name + ' 下载进度:', res.progress + '%');
     });
   }
 }
+
+function _checkPendingGame() {
+  if (pendingGameLoad) {
+    const p = pendingGameLoad;
+    pendingGameLoad = null;
+    loadGame(p.gameName, p.level, p.difficulty);
+  }
+}
+
+// 向后兼容别名
+function loadSubpackage(callback) { loadSub('games', callback); }
 
 // ── 游戏模块缓存 ────────────────────────────────────────────────────────────────
 const gameModules = {};
@@ -228,6 +207,8 @@ let gameInstance = null;
 let loadingShown = false;
 let loadingPhase = 0;
 let loadingTimer = null;
+let loadingProgress = -1;       // <0: 文本动画模式; >=0: 真实下载进度
+let loadingSubName = '';
 const loadingMessages = [
   '正在准备谜题世界...',
   '加载游戏资源中...',
@@ -237,37 +218,78 @@ const loadingMessages = [
   '马上就好啦...'
 ];
 
-function showLoading(messageIndex) {
+/** 渲染加载画面：有真实进度时显示进度条，否则显示文本轮播 */
+function renderLoading(progress, subName) {
   if (!ctx) return;
   const w = systemInfo ? systemInfo.windowWidth : 375;
   const h = systemInfo ? systemInfo.windowHeight : 667;
+
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, w, h);
-  
-  const msg = loadingMessages[messageIndex % loadingMessages.length];
+
+  const hasProgress = typeof progress === 'number' && progress >= 0;
+  const msg = hasProgress
+    ? (subName ? '正在下载「' + subName + '」资源...' : '正在下载资源...')
+    : loadingMessages[loadingPhase % loadingMessages.length];
+
   ctx.fillStyle = '#FFD700';
   ctx.font = 'bold 18px -apple-system,BlinkMacSystemFont,sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(msg, w / 2, h / 2);
-  
-  const dots = '.'.repeat((messageIndex % 3) + 1);
-  ctx.fillStyle = '#AAAAAA';
-  ctx.font = '14px -apple-system';
-  ctx.fillText('耐心等待' + dots, w / 2, h / 2 + 30);
-  
+  ctx.fillText(msg, w / 2, h / 2 - 25);
+
+  if (hasProgress) {
+    // ── 进度条 ──
+    var barW = w * 0.65;
+    var barH = 8;
+    var barX = (w - barW) / 2;
+    var barY = h / 2 + 2;
+    var radius = 4;
+
+    // 背景
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    roundRect(ctx, barX, barY, barW, barH, radius);
+    ctx.fill();
+
+    // 已下载部分
+    var pct = Math.min(Math.max(progress, 0), 100);
+    var fillW = Math.max(barW * (pct / 100), radius * 2);
+    ctx.fillStyle = pct >= 100 ? '#6BCB77' : '#4CAF50';
+    ctx.beginPath();
+    roundRect(ctx, barX, barY, fillW, barH, radius);
+    ctx.fill();
+
+    // 百分比
+    ctx.fillStyle = '#CCCCCC';
+    ctx.font = '13px -apple-system';
+    ctx.fillText(Math.round(pct) + '%', w / 2, barY + barH + 20);
+  } else {
+    var dots = '.'.repeat((loadingPhase % 3) + 1);
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '14px -apple-system';
+    ctx.fillText('耐心等待' + dots, w / 2, h / 2 + 12);
+  }
+
   ctx.textAlign = 'left';
+}
+
+/** 文本轮播模式（兼容旧调用） */
+function showLoading(messageIndex) {
+  if (typeof messageIndex === 'number') loadingPhase = messageIndex;
+  loadingProgress = -1;
+  renderLoading();
 }
 
 function startLoadingAnimation() {
   if (loadingShown) return;
   loadingShown = true;
-  
-  const animate = () => {
-    showLoading(loadingPhase);
+  loadingProgress = -1;
+
+  const animate = function() {
+    renderLoading();
     loadingPhase++;
     loadingTimer = setTimeout(animate, 1500);
   };
-  
   animate();
 }
 
@@ -375,334 +397,16 @@ function safeInit() {
 }
 
 function loadGame(gameName, level, difficulty) {
-  if (!subpackageLoaded) {
+  if (!subRegistry['games'].loaded) {
     pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
     loadSubpackage();
     return;
   }
 
-  // othello 独立分包（按需加载，仅在 main 分包已载入后触发）
-  if (gameName === 'othello' && !othelloSubLoaded) {
-    if (!othelloSubLoading) {
-      othelloSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'othello',
-        success: function () {
-          othelloSubLoaded = true;
-          othelloSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          othelloSubLoading = false;
-          console.error('[othello] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // 24point 独立分包（按需加载）
-  if (gameName === '24point' && !sub24Loaded) {
-    if (!sub24Loading) {
-      sub24Loading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: '24point',
-        success: function () {
-          sub24Loaded = true;
-          sub24Loading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          sub24Loading = false;
-          console.error('[24point] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // sweep-frog 独立分包（按需加载）
-  if (gameName === 'sweep-frog' && !frogSubLoaded) {
-    if (!frogSubLoading) {
-      frogSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'sweep-frog',
-        success: function () {
-          frogSubLoaded = true;
-          frogSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          frogSubLoading = false;
-          console.error('[sweep-frog] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // one-stroke 独立分包（按需加载）
-  if (gameName === 'one-stroke' && !strokeSubLoaded) {
-    if (!strokeSubLoading) {
-      strokeSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'one-stroke',
-        success: function () {
-          strokeSubLoaded = true;
-          strokeSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          strokeSubLoading = false;
-          console.error('[one-stroke] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // sudoku-daily 独立分包（按需加载）
-  if (gameName === 'sudoku-daily' && !sudokuDailySubLoaded) {
-    if (!sudokuDailySubLoading) {
-      sudokuDailySubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'sudoku-daily',
-        success: function () {
-          sudokuDailySubLoaded = true;
-          sudokuDailySubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          sudokuDailySubLoading = false;
-          console.error('[sudoku-daily] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // sokoban 独立分包（按需加载）
-  if (gameName === 'sokoban' && !sokobanSubLoaded) {
-    if (!sokobanSubLoading) {
-      sokobanSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'sokoban',
-        success: function () {
-          sokobanSubLoaded = true;
-          sokobanSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          sokobanSubLoading = false;
-          console.error('[sokoban] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // akari 独立分包（按需加载）
-  if (gameName === 'akari' && !akariSubLoaded) {
-    if (!akariSubLoading) {
-      akariSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'akari',
-        success: function () {
-          akariSubLoaded = true;
-          akariSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          akariSubLoading = false;
-          console.error('[akari] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // battleship 独立分包（按需加载）
-  if (gameName === 'battleship' && !battleshipSubLoaded) {
-    if (!battleshipSubLoading) {
-      battleshipSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'battleship',
-        success: function () {
-          battleshipSubLoaded = true;
-          battleshipSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          battleshipSubLoading = false;
-          console.error('[battleship] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // merge-abc 独立分包（按需加载）
-  if (gameName === 'merge-abc' && !mergeAbcSubLoaded) {
-    if (!mergeAbcSubLoading) {
-      mergeAbcSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'merge-abc',
-        success: function () {
-          mergeAbcSubLoaded = true;
-          mergeAbcSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          mergeAbcSubLoading = false;
-          console.error('[merge-abc] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // nonogram 独立分包（按需加载）
-  if (gameName === 'nonogram' && !nonogramSubLoaded) {
-    if (!nonogramSubLoading) {
-      nonogramSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'nonogram',
-        success: function () {
-          nonogramSubLoaded = true;
-          nonogramSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          nonogramSubLoading = false;
-          console.error('[nonogram] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // nurikabe 独立分包（按需加载）
-  if (gameName === 'nurikabe' && !nurikabeSubLoaded) {
-    if (!nurikabeSubLoading) {
-      nurikabeSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'nurikabe',
-        success: function () {
-          nurikabeSubLoaded = true;
-          nurikabeSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          nurikabeSubLoading = false;
-          console.error('[nurikabe] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // tents 独立分包（按需加载）
-  if (gameName === 'tents' && !tentsSubLoaded) {
-    if (!tentsSubLoading) {
-      tentsSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'tents',
-        success: function () {
-          tentsSubLoaded = true;
-          tentsSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          tentsSubLoading = false;
-          console.error('[tents] 分包加载失败:', err);
-        }
-      });
-    }
-    return;
-  }
-
-  // slither-link 独立分包（按需加载）
-  if (gameName === 'slither-link' && !slitherLinkSubLoaded) {
-    if (!slitherLinkSubLoading) {
-      slitherLinkSubLoading = true;
-      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
-      wx.loadSubpackage({
-        name: 'slither-link',
-        success: function () {
-          slitherLinkSubLoaded = true;
-          slitherLinkSubLoading = false;
-          if (pendingGameLoad) {
-            const p = pendingGameLoad;
-            pendingGameLoad = null;
-            loadGame(p.gameName, p.level, p.difficulty);
-          }
-        },
-        fail: function (err) {
-          slitherLinkSubLoading = false;
-          console.error('[slither-link] 分包加载失败:', err);
-        }
-      });
-    }
+  // 独立游戏分包按需加载（统一处理，替代原来13段重复代码）
+  if (subRegistry[gameName] && !subRegistry[gameName].loaded) {
+    pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+    loadSub(gameName);
     return;
   }
 

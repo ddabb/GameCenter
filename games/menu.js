@@ -52,7 +52,7 @@ class Menu {
       { name: '24point',       title: '24点',      icon: '🧮', color: '#E53E3E', cardImage: null },
       { name: 'slither-link', title: '数回',      icon: '🔗', color: '#3182CE', cardImage: null },
       { name: 'nonogram',      title: '数织',      icon: '🎨', color: '#805AD5', cardImage: null },
-      { name: 'battleship',    title: '海战',      icon: '🚢', color: '#00B5D8', cardImage: null },
+      { name: 'battleship',    title: '战舰',      icon: '🚢', color: '#00B5D8', cardImage: null },
       { name: 'merge-abc',     title: '合成ABC',   icon: '🔤', color: '#D69E2E', cardImage: null },
     ];
 

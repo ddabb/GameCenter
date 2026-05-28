@@ -433,7 +433,7 @@ class TwentyFourPoint {
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     renderer.drawBackground(this.ctx, this.width, this.height, this.config);
-    this.headerBar.draw({ title:'24点速算' });
+    this.headerBar.draw({ title:'24点' });
     renderer.drawStatusInfo(this.ctx, this.width, this._contentStartY(), this.config, this.level, this.stats);
     renderer.drawNumberCards(this.ctx, this.width, this._contentStartY(), this.numbers, this.config, this.animationTime);
     renderer.drawOperators(this.ctx, this.width, this._contentStartY());

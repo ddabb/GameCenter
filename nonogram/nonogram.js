@@ -322,7 +322,7 @@ class Nonogram {
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    this.headerBar.draw({ title: '🎨 数织' });
+    this.headerBar.draw({ title: '数织' });
     drawStatus(this.ctx, this.width, this.level, this.mode, this._statusY);
 
     const btns = drawModeButtons(this.ctx, this.width, this.mode, this.statusBarHeight, this._modeBtnY);

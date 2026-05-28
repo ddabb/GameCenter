@@ -418,7 +418,7 @@ class Akari {
 
   _drawHeader() {
     this.headerBar.draw({
-      title: '💡 数灯',
+      title: '灯塔',
       info: `${core.DIFFICULTY_CONFIG[this.difficulty].text} · ${this.size}×${this.size}`
     });
   }

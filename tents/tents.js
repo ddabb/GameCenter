@@ -245,7 +245,7 @@ class Tents {
 
   draw() {
     drawBackground(this.ctx, this.width, this.height, this.animationTime);
-    this.headerBar.draw({ title: '⛺ 帐篷' });
+    this.headerBar.draw({ title: '帐篷' });
     drawStatus(this.ctx, this.width, this.headerBar, this.statusBarHeight, this.level, this.size);
     drawBoard(this.ctx, this.board, this.tents, this.size, this.cellSize, this.boardOffsetX, this.boardOffsetY, this.getRowHints(), this.getColHints(), this.animationTime);
     this.bottomBar.setButtons([

@@ -17,14 +17,14 @@ class Stats {
 
     this.gameInfo = {
       'othello': { title: '黑白棋', icon: '⚫', color: '#2D5A27' },
-      'akari': { title: '数灯', icon: '💡', color: '#FFB800' },
+      'akari': { title: '灯塔', icon: '💡', color: '#FFB800' },
       'sokoban': { title: '推箱子', icon: '📦', color: '#8B4513' },
       'nurikabe': { title: '数墙', icon: '🧱', color: '#607D8B' },
       'tents': { title: '帐篷', icon: '⛺', color: '#4CAF50' },
       '24point': { title: '24点', icon: '🧮', color: '#FF5722' },
       'slither-link': { title: '数回', icon: '🔗', color: '#2196F3' },
       'nonogram': { title: '数织', icon: '🎨', color: '#9C27B0' },
-      'battleship': { title: '海战', icon: '🚢', color: '#00BCD4' },
+      'battleship': { title: '战舰', icon: '🚢', color: '#00BCD4' },
       'merge-abc': { title: '合成ABC', icon: '🔤', color: '#f2b179' }
     };
 

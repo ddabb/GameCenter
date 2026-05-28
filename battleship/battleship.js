@@ -36,7 +36,7 @@ const {
 } = require('./battleship-core');
 
 const {
-  drawBackground, drawHeader, drawStatus, drawHints,
+  drawBackground, drawStatus, drawHints,
   drawGrid, drawErrorHint, drawBottomBar,
 } = require('./battleship-renderer');
 
@@ -309,7 +309,7 @@ class Battleship {
   draw() {
     if (this.grid.length === 0) return;
     drawBackground(this.ctx, this.width, this.height);
-    drawHeader(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar.draw({ title: '战舰' });
     drawStatus(this.ctx, this.width, this.boardOffsetY, this.difficulty, this.level, this.timer, this.shipCount, this.totalShips);
     drawHints(this.ctx, this.boardOffsetX, this.boardOffsetY, this.hintAreaSize, this.cellSize, this.size, this.rowHints, this.colHints);
     drawGrid(this.ctx, this.boardOffsetX, this.boardOffsetY, this.hintAreaSize, this.cellSize, this.size, this.grid, this.animationTime);
