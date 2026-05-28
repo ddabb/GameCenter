@@ -31,17 +31,37 @@ class Checkin {
       this.checkinManager = null;
     }
 
-    try {
-      const { Solar, Lunar } = require('./lunar-javascript.js');
-      this.Solar = Solar;
-      this.Lunar = Lunar;
-    } catch (e) {
-      this.Solar = null;
-      this.Lunar = null;
-    }
+    this.Solar = null;
+    this.Lunar = null;
+    this._lunarLoading = false;
+    this._loadLunarSubpackage();
 
     this.bindEvents();
     this.draw();
+  }
+
+  _loadLunarSubpackage() {
+    if (this._lunarLoading || this.Solar) return;
+    this._lunarLoading = true;
+    const self = this;
+    wx.loadSubpackage({
+      name: 'lunar',
+      success: function () {
+        try {
+          const { Solar, Lunar } = require('../lunar/lunar-javascript.js');
+          self.Solar = Solar;
+          self.Lunar = Lunar;
+        } catch (e) {
+          self.Solar = null;
+          self.Lunar = null;
+        }
+        self._lunarLoading = false;
+        self.draw();
+      },
+      fail: function () {
+        self._lunarLoading = false;
+      }
+    });
   }
 
   bindEvents() {

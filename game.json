@@ -1,5 +1,21 @@
 {
   "deviceOrientation": "portrait",
   "scripts": ["utils/round-rect.js", "game.js"],
-  "subpackages": [{ "name": "games", "root": "games/" }]
+  "subpackages": [
+    { "name": "games", "root": "games/" },
+    { "name": "othello", "root": "othello/" },
+    { "name": "24point", "root": "24point/" },
+    { "name": "sweep-frog", "root": "sweep-frog/" },
+    { "name": "one-stroke", "root": "one-stroke/" },
+    { "name": "sudoku-daily", "root": "sudoku-daily/" },
+    { "name": "sokoban", "root": "sokoban/" },
+    { "name": "akari", "root": "akari/" },
+    { "name": "battleship", "root": "battleship/" },
+    { "name": "merge-abc", "root": "merge-abc/" },
+    { "name": "nonogram", "root": "nonogram/" },
+    { "name": "nurikabe", "root": "nurikabe/" },
+    { "name": "tents", "root": "tents/" },
+    { "name": "slither-link", "root": "slither-link/" },
+    { "name": "lunar", "root": "lunar/", "independent": true }
+  ]
 }

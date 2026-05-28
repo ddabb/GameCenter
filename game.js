@@ -56,6 +56,58 @@ let subpackageLoaded = false;
 let subpackageLoading = false;
 let pendingGameLoad = null; // { gameName, level }
 
+// othello 独立分包
+let othelloSubLoaded = false;
+let othelloSubLoading = false;
+
+// 24point 独立分包
+let sub24Loaded = false;
+let sub24Loading = false;
+
+// sweep-frog 独立分包
+let frogSubLoaded = false;
+let frogSubLoading = false;
+
+// one-stroke 独立分包
+let strokeSubLoaded = false;
+let strokeSubLoading = false;
+
+// sudoku-daily 独立分包
+let sudokuDailySubLoaded = false;
+let sudokuDailySubLoading = false;
+
+// sokoban 独立分包
+let sokobanSubLoaded = false;
+let sokobanSubLoading = false;
+
+// akari 独立分包
+let akariSubLoaded = false;
+let akariSubLoading = false;
+
+// battleship 独立分包
+let battleshipSubLoaded = false;
+let battleshipSubLoading = false;
+
+// merge-abc 独立分包
+let mergeAbcSubLoaded = false;
+let mergeAbcSubLoading = false;
+
+// nonogram 独立分包
+let nonogramSubLoaded = false;
+let nonogramSubLoading = false;
+
+// nurikabe 独立分包
+let nurikabeSubLoaded = false;
+let nurikabeSubLoading = false;
+
+// tents 独立分包
+let tentsSubLoaded = false;
+let tentsSubLoading = false;
+
+// slither-link 独立分包
+let slitherLinkSubLoaded = false;
+let slitherLinkSubLoading = false;
+
 function loadSubpackage(callback) {
   if (subpackageLoaded) {
     callback && callback(true);
@@ -138,19 +190,19 @@ function getGameModule(name) {
       case 'checkin':      gameModules[name] = require('./games/checkin.js'); break;
       case 'privacy':      gameModules[name] = require('./games/privacy.js'); break;
       case 'stats':        gameModules[name] = require('./games/stats.js'); break;
-      case 'othello':      gameModules[name] = require('./games/othello.js'); break;
-      case 'akari':        gameModules[name] = require('./games/akari.js'); break;
-      case 'sokoban':      gameModules[name] = require('./games/sokoban.js'); break;
-      case 'nurikabe':     gameModules[name] = require('./games/nurikabe.js'); break;
-      case 'tents':        gameModules[name] = require('./games/tents.js'); break;
-      case '24point':      gameModules[name] = require('./games/24point.js'); break;
-      case 'slither-link': gameModules[name] = require('./games/slither-link.js'); break;
-      case 'nonogram':     gameModules[name] = require('./games/nonogram.js'); break;
-      case 'battleship':   gameModules[name] = require('./games/battleship.js'); break;
-      case 'merge-abc':    gameModules[name] = require('./games/merge-abc.js'); break;
-      case 'sweep-frog':   gameModules[name] = require('./games/sweep-frog.js'); break;
-      case 'one-stroke':   gameModules[name] = require('./games/one-stroke.js'); break;
-      case 'sudoku-daily': gameModules[name] = require('./games/sudoku-daily.js'); break;
+      case 'othello':      gameModules[name] = require('./othello/othello.js'); break;
+      case 'akari':        gameModules[name] = require('./akari/akari.js'); break;
+      case 'sokoban':      gameModules[name] = require('./sokoban/sokoban.js'); break;
+      case 'nurikabe':     gameModules[name] = require('./nurikabe/nurikabe.js'); break;
+      case 'tents':        gameModules[name] = require('./tents/tents.js'); break;
+      case '24point':      gameModules[name] = require('./24point/24point.js'); break;
+      case 'slither-link': gameModules[name] = require('./slither-link/slither-link.js'); break;
+      case 'nonogram':     gameModules[name] = require('./nonogram/nonogram.js'); break;
+      case 'battleship':   gameModules[name] = require('./battleship/battleship.js'); break;
+      case 'merge-abc':    gameModules[name] = require('./merge-abc/merge-abc.js'); break;
+      case 'sweep-frog':   gameModules[name] = require('./sweep-frog/sweep-frog.js'); break;
+      case 'one-stroke':   gameModules[name] = require('./one-stroke/one-stroke.js'); break;
+      case 'sudoku-daily': gameModules[name] = require('./sudoku-daily/sudoku-daily.js'); break;
       case 'settings':     gameModules[name] = require('./games/settings.js'); break;
       case 'achievements': gameModules[name] = require('./games/achievements.js'); break;
       case 'leaderboard':  gameModules[name] = require('./games/leaderboard.js'); break;
@@ -326,6 +378,331 @@ function loadGame(gameName, level, difficulty) {
   if (!subpackageLoaded) {
     pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
     loadSubpackage();
+    return;
+  }
+
+  // othello 独立分包（按需加载，仅在 main 分包已载入后触发）
+  if (gameName === 'othello' && !othelloSubLoaded) {
+    if (!othelloSubLoading) {
+      othelloSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'othello',
+        success: function () {
+          othelloSubLoaded = true;
+          othelloSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          othelloSubLoading = false;
+          console.error('[othello] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // 24point 独立分包（按需加载）
+  if (gameName === '24point' && !sub24Loaded) {
+    if (!sub24Loading) {
+      sub24Loading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: '24point',
+        success: function () {
+          sub24Loaded = true;
+          sub24Loading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          sub24Loading = false;
+          console.error('[24point] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // sweep-frog 独立分包（按需加载）
+  if (gameName === 'sweep-frog' && !frogSubLoaded) {
+    if (!frogSubLoading) {
+      frogSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'sweep-frog',
+        success: function () {
+          frogSubLoaded = true;
+          frogSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          frogSubLoading = false;
+          console.error('[sweep-frog] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // one-stroke 独立分包（按需加载）
+  if (gameName === 'one-stroke' && !strokeSubLoaded) {
+    if (!strokeSubLoading) {
+      strokeSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'one-stroke',
+        success: function () {
+          strokeSubLoaded = true;
+          strokeSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          strokeSubLoading = false;
+          console.error('[one-stroke] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // sudoku-daily 独立分包（按需加载）
+  if (gameName === 'sudoku-daily' && !sudokuDailySubLoaded) {
+    if (!sudokuDailySubLoading) {
+      sudokuDailySubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'sudoku-daily',
+        success: function () {
+          sudokuDailySubLoaded = true;
+          sudokuDailySubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          sudokuDailySubLoading = false;
+          console.error('[sudoku-daily] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // sokoban 独立分包（按需加载）
+  if (gameName === 'sokoban' && !sokobanSubLoaded) {
+    if (!sokobanSubLoading) {
+      sokobanSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'sokoban',
+        success: function () {
+          sokobanSubLoaded = true;
+          sokobanSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          sokobanSubLoading = false;
+          console.error('[sokoban] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // akari 独立分包（按需加载）
+  if (gameName === 'akari' && !akariSubLoaded) {
+    if (!akariSubLoading) {
+      akariSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'akari',
+        success: function () {
+          akariSubLoaded = true;
+          akariSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          akariSubLoading = false;
+          console.error('[akari] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // battleship 独立分包（按需加载）
+  if (gameName === 'battleship' && !battleshipSubLoaded) {
+    if (!battleshipSubLoading) {
+      battleshipSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'battleship',
+        success: function () {
+          battleshipSubLoaded = true;
+          battleshipSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          battleshipSubLoading = false;
+          console.error('[battleship] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // merge-abc 独立分包（按需加载）
+  if (gameName === 'merge-abc' && !mergeAbcSubLoaded) {
+    if (!mergeAbcSubLoading) {
+      mergeAbcSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'merge-abc',
+        success: function () {
+          mergeAbcSubLoaded = true;
+          mergeAbcSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          mergeAbcSubLoading = false;
+          console.error('[merge-abc] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // nonogram 独立分包（按需加载）
+  if (gameName === 'nonogram' && !nonogramSubLoaded) {
+    if (!nonogramSubLoading) {
+      nonogramSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'nonogram',
+        success: function () {
+          nonogramSubLoaded = true;
+          nonogramSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          nonogramSubLoading = false;
+          console.error('[nonogram] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // nurikabe 独立分包（按需加载）
+  if (gameName === 'nurikabe' && !nurikabeSubLoaded) {
+    if (!nurikabeSubLoading) {
+      nurikabeSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'nurikabe',
+        success: function () {
+          nurikabeSubLoaded = true;
+          nurikabeSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          nurikabeSubLoading = false;
+          console.error('[nurikabe] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // tents 独立分包（按需加载）
+  if (gameName === 'tents' && !tentsSubLoaded) {
+    if (!tentsSubLoading) {
+      tentsSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'tents',
+        success: function () {
+          tentsSubLoaded = true;
+          tentsSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          tentsSubLoading = false;
+          console.error('[tents] 分包加载失败:', err);
+        }
+      });
+    }
+    return;
+  }
+
+  // slither-link 独立分包（按需加载）
+  if (gameName === 'slither-link' && !slitherLinkSubLoaded) {
+    if (!slitherLinkSubLoading) {
+      slitherLinkSubLoading = true;
+      pendingGameLoad = { gameName: gameName, level: level, difficulty: difficulty };
+      wx.loadSubpackage({
+        name: 'slither-link',
+        success: function () {
+          slitherLinkSubLoaded = true;
+          slitherLinkSubLoading = false;
+          if (pendingGameLoad) {
+            const p = pendingGameLoad;
+            pendingGameLoad = null;
+            loadGame(p.gameName, p.level, p.difficulty);
+          }
+        },
+        fail: function (err) {
+          slitherLinkSubLoading = false;
+          console.error('[slither-link] 分包加载失败:', err);
+        }
+      });
+    }
     return;
   }
 
