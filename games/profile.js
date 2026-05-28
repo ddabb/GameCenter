@@ -254,19 +254,24 @@ class Profile {
     roundRect(ctx, 15, curY, tw - 30, 44, 8);
     ctx.fill();
     
+    const balCenterY = curY + 22;
+    ctx.textBaseline = 'middle';
+
     ctx.fillStyle = '#333333';
     ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('余额', 25, curY + 30);
+    ctx.fillText('余额', 25, balCenterY);
     
     ctx.fillStyle = '#F6AD55';
     ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
-    ctx.fillText('💰' + this.coins, 60, curY + 30);
+    ctx.fillText('💰 ' + this.coins + ' 金币', 60, balCenterY);
     
     ctx.fillStyle = '#9F7AEA';
     ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('💎' + this.gems + ' ', tw - 25, curY + 30);
+    ctx.fillText('💎 ' + this.gems + ' 宝石', tw - 25, balCenterY);
+
+    ctx.textBaseline = 'alphabetic';
   }
 
   drawOverview(y) {
@@ -307,23 +312,19 @@ class Profile {
     roundRect(ctx, p, y, W - p * 2, row2H, 12);
     ctx.fill();
 
+    ctx.textBaseline = 'middle';
+    const moneyCenterY = y + row2H / 2;
+
     ctx.textAlign = 'left';
-    ctx.font = '13px Arial';
-    ctx.fillStyle = '#333';
-    ctx.fillText('💰', p + 15, y + 22);
+    ctx.font = 'bold 15px Arial';
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText(String(this.coins), p + 35, y + 22);
+    ctx.fillText('💰 ' + this.coins + ' 金币', p + 15, moneyCenterY);
 
     ctx.textAlign = 'left';
-    ctx.font = '13px Arial';
-    ctx.fillStyle = '#333';
-    ctx.fillText('💎', p + 120, y + 22);
     ctx.fillStyle = '#64B5F6';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText(String(this.gems), p + 140, y + 22);
+    ctx.fillText('💎 ' + this.gems + ' 宝石', p + 140, moneyCenterY);
 
-    
+    ctx.textBaseline = 'alphabetic';
 
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.font = '11px Arial';

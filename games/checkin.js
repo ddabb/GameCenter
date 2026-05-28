@@ -270,7 +270,7 @@ class Checkin {
 
     ctx.fillStyle = '#EC4899';
     ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
-    ctx.fillText(`连续签到奖励：7天=20💰 / 14天=30💰 / 21天=40💰 / 28天=50💰`, W / 2, startY + 46);
+    ctx.fillText(`连续签到奖励：7天=20💰金币 / 14天=30💰金币 / 21天=40💰金币 / 28天=50💰金币`, W / 2, startY + 46);
 
     return startY + panelH;
   }
@@ -396,7 +396,7 @@ class Checkin {
         if (day.coins > 0) {
           ctx.fillStyle = '#FBBF24';
           ctx.font = 'bold 10px Arial';
-          ctx.fillText(`${day.coins}💰`, cellX + daySize / 2, cellY + daySize / 2 - 10);
+          ctx.fillText(`${day.coins}💰金币`, cellX + daySize / 2, cellY + daySize / 2 - 10);
         }
       } else {
         ctx.fillStyle = '#E2E8F0';
@@ -504,7 +504,7 @@ class Checkin {
       const coins = this.checkinResult.reward ? this.checkinResult.reward.coins : 0;
       ctx.fillStyle = '#F59E0B';
       ctx.font = 'bold 28px Arial';
-      ctx.fillText(`+${coins} 💰`, W / 2, dialogY + 90);
+      ctx.fillText(`+${coins}💰金币`, W / 2, dialogY + 90);
 
       ctx.fillStyle = '#374151';
       ctx.font = '14px -apple-system,BlinkMacSystemFont,sans-serif';

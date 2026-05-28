@@ -52,9 +52,26 @@ class PropShop {
       desc: config.desc,
       price: config.price,
       icon: config.icon,
+      image: null,
       color: key === 'hint' ? '#ECC94B' : (key === 'undo' ? '#4299E1' : (key === 'answer' ? '#48BB78' : '#F56565')),
       limit: config.perLevel > 0 ? `每关限用${config.perLevel}次` : '每关不限次数'
     }));
+
+    // 加载 twemoji 图标图片
+    this._imagesLoaded = 0;
+    this.props.forEach(prop => {
+      const img = wx.createImage();
+      img.onload = () => {
+        prop.image = img;
+        this._imagesLoaded++;
+        if (this._imagesLoaded >= this.props.length) this.draw();
+      };
+      img.onerror = () => {
+        this._imagesLoaded++;
+        if (this._imagesLoaded >= this.props.length) this.draw();
+      };
+      img.src = `assets/images/props/${prop.key}.png`;
+    });
 
     this._clickHandler = this._onClick.bind(this);
     this.canvas.addEventListener('click', this._clickHandler);
@@ -80,14 +97,20 @@ class PropShop {
     // 顶部导航栏
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, tw, this.statusBarHeight + 50);
+    const navCenterY = this.statusBarHeight + 25;
+    ctx.textBaseline = 'middle';
+
     ctx.fillStyle = '#333333';
     ctx.font = 'bold 17px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('道具商城', tw / 2, this.statusBarHeight + 33);
+    ctx.fillText('道具商城', tw / 2, navCenterY);
+
     ctx.fillStyle = '#5677FC';
     ctx.font = '15px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('‹ 返回', this.backBtn.x, this.statusBarHeight + 30);
+    ctx.fillText('‹ 返回', this.backBtn.x, navCenterY);
+
+    ctx.textBaseline = 'alphabetic';
 
     // 余额显示
     const curY = this.statusBarHeight + 58;
@@ -96,30 +119,35 @@ class PropShop {
     ctx.roundRect(15, curY, tw - 30, 44, 8);
     ctx.fill();
 
+    const balCenterY = curY + 22;
+    ctx.textBaseline = 'middle';
+
     ctx.fillStyle = '#333333';
     ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('余额', 25, curY + 30);
+    ctx.fillText('余额', 25, balCenterY);
 
     ctx.fillStyle = '#F6AD55';
     ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('💰' + this.currency.coins, 60, curY + 30);
+    ctx.fillText('💰 ' + this.currency.coins + ' 金币', 60, balCenterY);
 
     ctx.fillStyle = '#9F7AEA';
     ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('💎' + this.currency.gems + ' ', tw - 25, curY + 30);
+    ctx.fillText('💎 ' + this.currency.gems + ' 宝石', tw - 25, balCenterY);
+
+    ctx.textBaseline = 'alphabetic';
 
     // 提示文字
-    const tipY = curY + 52;
+    const tipY = curY + 60;
     ctx.fillStyle = '#888888';
     ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('道具在游戏中使用，道具商城仅供购买储备', tw / 2, tipY);
 
-    // 道具列表
-    const listY = tipY + 18;
+    // 道具列表（跟随提示文字底部动态计算）
+    const listY = tipY + 24;
     const cardH = 76;
     const cardGap = 10;
     const padding = 15;
@@ -140,22 +168,32 @@ class PropShop {
       ctx.roundRect(padding, ry, 4, cardH, 2);
       ctx.fill();
 
-      // 图标
-      ctx.font = '32px -apple-system';
-      ctx.textAlign = 'center';
-      ctx.fillText(prop.icon, padding + 38, ry + 48);
+      // 图标（左对齐，垂直居中）
+      const imgSize = 42;
+      const imgX = padding + 12;
+      const imgY = ry + (cardH - imgSize) / 2;
+      if (prop.image) {
+        ctx.drawImage(prop.image, imgX, imgY, imgSize, imgSize);
+      } else {
+        // 图片未加载完成时 emoji 兜底
+        ctx.font = '32px -apple-system';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(prop.icon, imgX + imgSize / 2, ry + cardH / 2);
+        ctx.textBaseline = 'alphabetic';
+      }
 
       // 标题
       ctx.fillStyle = '#333333';
       ctx.font = 'bold 16px -apple-system,BlinkMacSystemFont,sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(prop.name, padding + 68, ry + 28);
+      ctx.fillText(prop.name, padding + 68, ry + 30);
 
       // 描述
       ctx.fillStyle = '#888888';
       ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
       const stockText = prop.count > 0 ? `库存${prop.count} · ` : '';
-      ctx.fillText(stockText + prop.desc + ' · ' + prop.limit, padding + 68, ry + 48);
+      ctx.fillText(stockText + prop.desc + ' · ' + prop.limit, padding + 68, ry + 52);
 
       // 购买按钮
       const btnW = 68, btnH = 32;
@@ -171,7 +209,9 @@ class PropShop {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 13px -apple-system,BlinkMacSystemFont,sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('💰 ' + prop.price, btnX + btnW / 2, btnY + 21);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('💰' + prop.price + '金币', btnX + btnW / 2, btnY + btnH / 2);
+      ctx.textBaseline = 'alphabetic';
 
       prop._buyBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
     });

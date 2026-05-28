@@ -412,7 +412,7 @@ class Menu {
       ctx.fillText(dayLabels[i], dx + dayW / 2, dayY + 24);
       ctx.fillStyle = d.checked ? '#4CAF50' : '#bbb';
       ctx.font = '10px -apple-system';
-      ctx.fillText(d.checked ? '✓' : (d.reward.coins + '💰'), dx + dayW / 2, dayY + 50);
+      ctx.fillText(d.checked ? '✓' : (d.reward.coins + '💰金币'), dx + dayW / 2, dayY + 50);
     });
 
     if (this._checkinResult && this._checkinResult.success) {
@@ -422,10 +422,10 @@ class Menu {
       ctx.fillText('✅ 签到成功！', W / 2, popY + 170);
       ctx.fillStyle = '#555';
       ctx.font = '14px -apple-system';
-      ctx.fillText('获得 ' + r.reward.coins + ' 💰' + (r.reward.gems > 0 ? ' + ' + r.reward.gems + ' 💎' : ''), W / 2, popY + 195);
+      ctx.fillText('获得 ' + r.reward.coins + '💰金币' + (r.reward.gems > 0 ? ' + ' + r.reward.gems + '💎宝石' : ''), W / 2, popY + 195);
       if (r.bonus) {
         ctx.fillStyle = '#FF6B6B';
-        ctx.fillText('🎊 ' + r.bonus.label + '：' + r.bonus.coins + ' 💰 + ' + r.bonus.gems + ' 💎', W / 2, popY + 218);
+        ctx.fillText('🎊 ' + r.bonus.label + '：' + r.bonus.coins + '💰金币 + ' + r.bonus.gems + '💎宝石', W / 2, popY + 218);
       }
     } else if (this.checkin.isCheckedInToday()) {
       ctx.fillStyle = '#999';

@@ -19,7 +19,7 @@ function drawStatus(ctx, boardOffsetY, width, level, moves) {
   ctx.textAlign = 'left';
 }
 
-function drawBoard(ctx, grid, boxes, player, targets, boardOffsetX, boardOffsetY, cellSize, size, animationTime, boxImage) {
+function drawBoard(ctx, grid, boxes, player, targets, boardOffsetX, boardOffsetY, cellSize, size, animationTime, boxImage, playerImage, targetImage) {
   if (!grid || !grid.length) return;
 
   for (let r = 0; r < size; r++) {
@@ -37,10 +37,15 @@ function drawBoard(ctx, grid, boxes, player, targets, boardOffsetX, boardOffsetY
         // 目标
         ctx.fillStyle = '#2a2a4a';
         ctx.fillRect(x, y, cellSize, cellSize);
-        ctx.fillStyle = '#6BCB77';
-        ctx.beginPath();
-        ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
-        ctx.fill();
+        if (targetImage) {
+          const tp = cellSize * 0.2;
+          ctx.drawImage(targetImage, x + tp, y + tp, cellSize - tp * 2, cellSize - tp * 2);
+        } else {
+          ctx.fillStyle = '#6BCB77';
+          ctx.beginPath();
+          ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else {
         // 空地
         ctx.fillStyle = '#3a3a4a';
@@ -98,9 +103,14 @@ function drawBoard(ctx, grid, boxes, player, targets, boardOffsetX, boardOffsetY
   ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize / 2 + pulse, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.font = (cellSize * 0.6) + 'px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('🧑', px + cellSize / 2, py + cellSize / 2 + cellSize * 0.15);
+  if (playerImage) {
+    const pp = 2;
+    ctx.drawImage(playerImage, px + pp, py + pp, cellSize - pp * 2, cellSize - pp * 2);
+  } else {
+    ctx.font = (cellSize * 0.6) + 'px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🧑', px + cellSize / 2, py + cellSize / 2 + cellSize * 0.15);
+  }
 }
 
 // ── 箱子渐变缓存 ──
@@ -128,17 +138,17 @@ function _getBoxGrad(ctx, cellSize, onTarget) {
   }
 }
 
-function drawControls(ctx, boardOffsetY, cellSize, size, width) {
+function drawControls(ctx, boardOffsetY, cellSize, size, width, arrowImages) {
   let btnSize = 50;
   let btnY = boardOffsetY + size * cellSize + 20;
   let btnGap = 10;
   let btnStartX = (width - btnSize * 3 - btnGap * 2) / 2;
 
   let positions = [
-    { r: 0, c: 1, text: '⬆️' },
-    { r: 1, c: 0, text: '⬅️' },
-    { r: 1, c: 2, text: '➡️' },
-    { r: 1, c: 1, text: '⬇️' }
+    { r: 0, c: 1, key: 'up' },
+    { r: 1, c: 0, key: 'left' },
+    { r: 1, c: 2, key: 'right' },
+    { r: 1, c: 1, key: 'down' }
   ];
 
   for (let pos of positions) {
@@ -150,9 +160,18 @@ function drawControls(ctx, boardOffsetY, cellSize, size, width) {
     roundRect(ctx, bx, by, btnSize, btnSize, 12);
     ctx.fill();
 
-    ctx.font = (btnSize * 0.5) + 'px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(pos.text, bx + btnSize / 2, by + btnSize / 2 + 8);
+    const arrowImg = arrowImages && arrowImages[pos.key];
+    if (arrowImg) {
+      const pad = 8;
+      ctx.drawImage(arrowImg, bx + pad, by + pad, btnSize - pad * 2, btnSize - pad * 2);
+    } else {
+      const textMap = { up: '⬆️', down: '⬇️', left: '⬅️', right: '➡️' };
+      ctx.font = (btnSize * 0.5) + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(textMap[pos.key], bx + btnSize / 2, by + btnSize / 2);
+      ctx.textBaseline = 'alphabetic';
+    }
   }
 }
 

@@ -9,7 +9,7 @@
  * 4. 计时系统
  * 5. 奖励系统
  */
-const sudoku = require('../games/sudoku');
+const sudoku = require('./sudoku-algo');
 const sound = require('../games/sound-manager');
 const TutorialOverlay = require('../games/tutorial-overlay');
 const Confetti = require('../games/confetti');

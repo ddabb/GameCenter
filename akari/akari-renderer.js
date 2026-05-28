@@ -7,7 +7,7 @@ function drawStatsBar(ctx, game) {
   const timeStr = game._formatTime(game.timer);
   const hintText = game.hintMgr.canHint()
     ? `${game.hintMgr.maxHints - game.hintMgr.usedHints}次` : '0次';
-  const y = game.statusBarHeight + 58;
+  const y = game.statusBarHeight + 68;
   const tw = game.width;
 
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -118,7 +118,7 @@ function drawBottomBar(ctx, game) {
     { id: 'hint', text: hintText, enabled: hintEnabled },
     { id: 'answer', text: game.showAnswer ? '🙈 隐藏' : '💡 答案' },
     { id: 'rule', text: '📖 规则' }
-  ]);
+  ], false);
   game.bottomBar.draw();
 
   ctx.fillStyle = 'rgba(0,0,0,0.3)';

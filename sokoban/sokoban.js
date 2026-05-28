@@ -48,7 +48,13 @@ class Sokoban {
     this.statusBarHeight = systemInfo.statusBarHeight || 44;
     
     this.boxImage = null;
+    this.playerImage = null;
+    this.targetImage = null;
+    this.arrowImages = {};
     this.loadBoxImage();
+    this.loadPlayerImage();
+    this.loadTargetImage();
+    this.loadArrowImages();
 
     this.difficulty = difficulty;
     this.difficulties = [
@@ -137,18 +143,45 @@ class Sokoban {
     if (this.boxImage) return;
     try {
       const img = wx.createImage();
-      img.onload = () => {
-        this.boxImage = img;
-        console.log('[Sokoban] 箱子图片加载成功');
-      };
-      img.onerror = () => {
-        console.warn('[Sokoban] 箱子图片加载失败，使用默认绘制');
-        this.boxImage = null;
-      };
+      img.onload = () => { this.boxImage = img; };
+      img.onerror = () => { this.boxImage = null; };
       img.src = 'assets/images/sokoban/box-orange.png';
-    } catch (e) {
-      console.warn('[Sokoban] 加载箱子图片异常:', e.message);
-    }
+    } catch (e) {}
+  }
+
+  loadPlayerImage() {
+    try {
+      const img = wx.createImage();
+      img.onload = () => { this.playerImage = img; };
+      img.onerror = () => {};
+      img.src = 'assets/images/sokoban/player.png';
+    } catch (e) {}
+  }
+
+  loadTargetImage() {
+    try {
+      const img = wx.createImage();
+      img.onload = () => { this.targetImage = img; };
+      img.onerror = () => {};
+      img.src = 'assets/images/sokoban/target.png';
+    } catch (e) {}
+  }
+
+  loadArrowImages() {
+    const arrows = [
+      { key: 'up',    src: 'assets/images/props/arrow-up.png' },
+      { key: 'down',  src: 'assets/images/props/arrow-down.png' },
+      { key: 'left',  src: 'assets/images/props/arrow-left.png' },
+      { key: 'right', src: 'assets/images/props/arrow-right.png' },
+    ];
+    arrows.forEach(({ key, src }) => {
+      try {
+        const img = wx.createImage();
+        img.onload = () => { this.arrowImages[key] = img; };
+        img.onerror = () => {};
+        img.src = src;
+      } catch (e) {}
+    });
   }
 
   async loadLevel() {
@@ -383,8 +416,8 @@ class Sokoban {
     renderer.drawStatus(this.ctx, this.boardOffsetY, this.width, this.level, this.moves);
     renderer.drawBoard(this.ctx, this.grid, this.boxes, this.player, this.targets,
       this.boardOffsetX, this.boardOffsetY, this.cellSize, this.size,
-      this.animationTime, this.boxImage);
-    renderer.drawControls(this.ctx, this.boardOffsetY, this.cellSize, this.size, this.width);
+      this.animationTime, this.boxImage, this.playerImage, this.targetImage);
+    renderer.drawControls(this.ctx, this.boardOffsetY, this.cellSize, this.size, this.width, this.arrowImages);
 
     const buttons = [];
     if (this.undoMgr && this.undoMgr.canUndo()) {

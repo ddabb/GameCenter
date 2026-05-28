@@ -63,7 +63,11 @@ class Akari {
       infoFontSize: 12,
       height: 48
     });
-    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
+    this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight, {
+      textColor: '#333',
+      bgColor: 'rgba(0,0,0,0.06)',
+      disabledColor: 'rgba(0,0,0,0.2)'
+    });
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
       onAchievementDraw: () => this._drawAchievementPopup()
@@ -76,7 +80,7 @@ class Akari {
 
   _calcLayout() {
     const statsBarH = 36;
-    const headerH = this.statusBarHeight + 54 + statsBarH + 10;
+    const headerH = this.statusBarHeight + 64 + statsBarH + 10;
     const maxW = this.width - 20;
     const maxH = this.height - (headerH + 180);
     this.cellSize = Math.min(maxW / this.size, maxH / this.size, 45);
@@ -417,10 +421,7 @@ class Akari {
   }
 
   _drawHeader() {
-    this.headerBar.draw({
-      title: '灯塔',
-      info: `${core.DIFFICULTY_CONFIG[this.difficulty].text} · ${this.size}×${this.size}`
-    });
+    this.headerBar.draw({ title: '灯塔' });
   }
 
   destroy() {

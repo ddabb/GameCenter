@@ -58,6 +58,10 @@ class Tents {
     this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
+    this.treeImage = null;
+    this.tentImage = null;
+    this.loadTreeImage();
+    this.loadTentImage();
     this._ruleBtn = { x: this.width - 50, y: this.statusBarHeight + 14, w: 40, h: 40 };
 
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
@@ -247,7 +251,7 @@ class Tents {
     drawBackground(this.ctx, this.width, this.height, this.animationTime);
     this.headerBar.draw({ title: '帐篷' });
     drawStatus(this.ctx, this.width, this.headerBar, this.statusBarHeight, this.level, this.size);
-    drawBoard(this.ctx, this.board, this.tents, this.size, this.cellSize, this.boardOffsetX, this.boardOffsetY, this.getRowHints(), this.getColHints(), this.animationTime);
+    drawBoard(this.ctx, this.board, this.tents, this.size, this.cellSize, this.boardOffsetX, this.boardOffsetY, this.getRowHints(), this.getColHints(), this.animationTime, this.treeImage, this.tentImage);
     this.bottomBar.setButtons([
       { id: 'undo', text: '↩️ 撤销', enabled: this.undoMgr && this.undoMgr.canUndo() },
       { id: 'reset', text: '🔄 重置' }
@@ -291,6 +295,24 @@ class Tents {
   }
 
   _drawAchievementPopup() { this._newAchievements = null; }
+
+  loadTreeImage() {
+    try {
+      const img = wx.createImage();
+      img.onload = () => { this.treeImage = img; };
+      img.onerror = () => {};
+      img.src = 'assets/images/tents/tree.png';
+    } catch (e) {}
+  }
+
+  loadTentImage() {
+    try {
+      const img = wx.createImage();
+      img.onload = () => { this.tentImage = img; };
+      img.onerror = () => {};
+      img.src = 'assets/images/tents/tent.png';
+    } catch (e) {}
+  }
 
   destroy() {
     if (this.confetti) this.confetti.stop();

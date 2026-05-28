@@ -32,11 +32,12 @@ function drawBackground(ctx, width, height) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {{name:string, label:string, depth:number}[]} difficulties
  * @param {string} currentDifficulty - 当前难度名
- * @param {number} statusBarHeight
+ * @param {number} startY - 难度栏中心 Y 坐标
  * @param {number} width
+ * @returns {number} 难度栏底部 Y 坐标（供后续控件动态布局）
  */
-function drawDifficultyBar(ctx, difficulties, currentDifficulty, statusBarHeight, width) {
-  const y = statusBarHeight + 75;
+function drawDifficultyBar(ctx, difficulties, currentDifficulty, startY, width) {
+  const y = startY;
   const w = 60;
   const h = 32;
   const gap = 8;
@@ -68,6 +69,8 @@ function drawDifficultyBar(ctx, difficulties, currentDifficulty, statusBarHeight
     ctx.textAlign = 'center';
     ctx.fillText(diff.label, x + w / 2, y + 6);
   }
+
+  return y + h / 2;  // 返回底部 Y，供后续控件动态计算位置
 }
 
 // ========== 状态栏 ==========

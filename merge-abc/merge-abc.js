@@ -94,8 +94,8 @@ class MergeABC {
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
-      onRestart: () => this.restart(),
-      onNextLevel: () => { this.level++; this.restart(); }
+      showNext: false,
+      backText: '返回菜单'
     });
 
     this.boardOffsetY = this.headerBar.boardStartY + 46;
@@ -111,14 +111,6 @@ class MergeABC {
       const y = touch.clientY;
 
       if (this._showModal) {
-        if (this._nextBtn && isInButton(x, y, this._nextBtn.x, this._nextBtn.y, this._nextBtn.w, this._nextBtn.h)) {
-          this.level++;
-          this.restart();
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
-          return;
-        }
         if (this._backBtn && isInButton(x, y, this._backBtn.x, this._backBtn.y, this._backBtn.w, this._backBtn.h)) {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
@@ -145,14 +137,6 @@ class MergeABC {
       let endY = touch.clientY;
 
       if (this._showModal) {
-        if (this._nextBtn && isInButton(endX, endY, this._nextBtn.x, this._nextBtn.y, this._nextBtn.w, this._nextBtn.h)) {
-          this.level++;
-          this.restart();
-          this._nextBtn = null;
-          this._backBtn = null;
-          this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
-          return;
-        }
         if (this._backBtn && isInButton(endX, endY, this._backBtn.x, this._backBtn.y, this._backBtn.w, this._backBtn.h)) {
           sound.play('click');
           this.switchGame('level-select', this.gameName);
@@ -243,7 +227,7 @@ class MergeABC {
     });
     rewardMgr.showRewardToast(rewardResult);
 
-    saveGameProgress(this.gameName, this.level);
+    saveGameProgress(this.gameName, 1);
     statsManager.endGame(true);
     this._showModal = true;
     this._bestScore = saveBestScore(this._score, this._bestScore);
@@ -285,7 +269,7 @@ class MergeABC {
     this.bottomBar.draw();
 
     if (this.victory) {
-      this.victoryPanel.setSubtitle('第 ' + this.level + ' 关');
+      this.victoryPanel.setSubtitle(`最高分: ${this._bestScore}`);
       this.victoryPanel.setAchievements(this._newAchievements);
       this.victoryPanel.draw();
     }

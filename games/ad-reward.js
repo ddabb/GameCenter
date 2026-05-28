@@ -76,7 +76,7 @@ class AdRewardManager {
       
       if (wx.showToast) {
         wx.showToast({
-          title: `获得 ${amount} ${rewardType === 'gems' ? '💎' : '💰'}`,
+          title: `获得 ${amount}${rewardType === 'gems' ? '💎宝石' : '💰金币'}`,
           icon: 'success'
         });
       }

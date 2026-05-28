@@ -293,9 +293,6 @@ class FrogEscape {
     // 最佳时间
     renderer.drawBestTime(ctx, this.width, this.height, this.bestTime);
 
-    // 规则按钮
-    this._ruleBtn = renderer.drawRuleButton(ctx, this.width);
-
     // 规则弹窗
     if (this.tutorial.shouldShow()) {
       this.tutorial.draw();

@@ -80,8 +80,9 @@ class Othello {
 
     // ---- 游戏基本信息 ----
     this.gameName = 'othello';
-    this.level = level;
-    statsManager.startGame(this.gameName, level);
+    // 从菜单直接进入时 level 为 'othello' 字符串，统一转为数字
+    this.level = (typeof level === 'number') ? level : 1;
+    statsManager.startGame(this.gameName, this.level);
 
     // ---- 难度配置 ----
     this.difficulty = 'medium';
@@ -95,7 +96,9 @@ class Othello {
     // ---- 棋盘布局 ----
     this.cellSize = Math.min(this.width * 0.9 / 8, 42);
     this.boardOffsetX = (this.width - this.cellSize * 8) / 2;
-    this.boardOffsetY = this.statusBarHeight + 130;
+    // 难度栏中心 Y（稍下移）
+    this._diffBarY = this.statusBarHeight + 82;
+    // boardOffsetY 由 draw() 根据难度栏底部动态计算
 
     // ---- 棋子常量（来自 core 模块） ----
     this.BLACK = core.BLACK;
@@ -300,7 +303,7 @@ class Othello {
       }
 
       // 6. 难度选择按钮
-      let diffY = this.statusBarHeight + 75;
+      let diffY = this._diffBarY;
       let diffW = 60, diffGap = 8;
       let diffStartX = (this.width - (4 * diffW + 3 * diffGap)) / 2;
       for (let i = 0; i < 4; i++) {
@@ -463,9 +466,11 @@ class Othello {
       this.blackCount, this.whiteCount, this.gameOver, this.winner,
       this.currentPlayer, this.skipMessage, this.BLACK, this.WHITE);
 
-    // 4. 难度选择栏
-    renderer.drawDifficultyBar(this.ctx, this.difficulties, this.difficulty,
-      this.statusBarHeight, this.width);
+    // 4. 难度选择栏（返回底部 Y 供后续控件动态布局）
+    const diffBarBottom = renderer.drawDifficultyBar(this.ctx, this.difficulties, this.difficulty,
+      this._diffBarY, this.width);
+    // 棋盘顶部 = 难度栏底部 + 间距
+    this.boardOffsetY = diffBarBottom + 30;
 
     // 5. 棋盘 + 棋子 + 提示
     renderer.drawBoard(this.ctx, this.boardOffsetX, this.boardOffsetY, this.cellSize);
@@ -486,7 +491,9 @@ class Othello {
 
     // 7. VictoryPanel
     if (this.gameOver) {
-      this.victoryPanel.setSubtitle(`第 ${this.level} 关`);
+      const resultText = this.winner === this.BLACK ? '⚫ 黑棋获胜' :
+                         this.winner === this.WHITE ? '⚪ 白棋获胜' : '🤝 平局';
+      this.victoryPanel.setSubtitle(`${resultText}  ·  ${this.blackCount} : ${this.whiteCount}`);
       this.victoryPanel.setAchievements(this._newAchievements);
       this.victoryPanel.draw();
     }

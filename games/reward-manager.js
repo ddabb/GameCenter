@@ -265,8 +265,8 @@ class RewardManager {
   showRewardToast(result) {
     if (result.coins > 0 || result.gems > 0) {
       const parts = [];
-      if (result.coins > 0) parts.push(`💰+${result.coins}`);
-      if (result.gems > 0) parts.push(`💎+${result.gems}`);
+      if (result.coins > 0) parts.push(`💰金币+${result.coins}`);
+      if (result.gems > 0) parts.push(`💎宝石+${result.gems}`);
       
       if (parts.length > 0) {
         wx.showToast({

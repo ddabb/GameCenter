@@ -49,7 +49,7 @@ function drawStatus(ctx, width, headerBar, statusBarHeight, level, size) {
   ctx.textAlign = 'left';
 }
 
-function drawBoard(ctx, board, tents, size, cellSize, boardOffsetX, boardOffsetY, rowHints, colHints, animationTime) {
+function drawBoard(ctx, board, tents, size, cellSize, boardOffsetX, boardOffsetY, rowHints, colHints, animationTime, treeImage, tentImage) {
   // 列提示
   for (let c = 0; c < size; c++) {
     const x = boardOffsetX + c * cellSize + cellSize / 2;
@@ -105,48 +105,52 @@ function drawBoard(ctx, board, tents, size, cellSize, boardOffsetX, boardOffsetY
 
       // 树
       if (board[r][c] === 1) {
-        const tx = x + cellSize / 2;
-        const ty = y + cellSize / 2;
-        const pulse = Math.sin(animationTime) * 2;
-
-        ctx.fillStyle = '#5D4037';
-        ctx.fillRect(tx - 4, ty + pulse, 8, 18);
-
-        ctx.fillStyle = '#1B5E20';
-        ctx.beginPath();
-        ctx.arc(tx, ty - 5 + pulse, cellSize * 0.32, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.beginPath();
-        ctx.arc(tx - 5, ty - 10 + pulse, cellSize * 0.13, 0, Math.PI * 2);
-        ctx.fill();
+        if (treeImage) {
+          const tp = 2;
+          ctx.drawImage(treeImage, x + tp, y + tp, cellSize - tp * 2, cellSize - tp * 2);
+        } else {
+          const tx = x + cellSize / 2;
+          const ty = y + cellSize / 2;
+          const pulse = Math.sin(animationTime) * 2;
+          ctx.fillStyle = '#5D4037';
+          ctx.fillRect(tx - 4, ty + pulse, 8, 18);
+          ctx.fillStyle = '#1B5E20';
+          ctx.beginPath();
+          ctx.arc(tx, ty - 5 + pulse, cellSize * 0.32, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.18)';
+          ctx.beginPath();
+          ctx.arc(tx - 5, ty - 10 + pulse, cellSize * 0.13, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       // 帐篷
       if (tents[r][c] === 1) {
-        const tx = x + cellSize / 2;
-        const ty = y + cellSize / 2;
-        const pulse = Math.sin(animationTime * 2) * 1;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.18)';
-        ctx.beginPath();
-        ctx.moveTo(tx, y + 8 + pulse);
-        ctx.lineTo(x + cellSize - 5, y + cellSize - 5);
-        ctx.lineTo(x + 5, y + cellSize - 5);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = drawBoard._tentGradient;
-        ctx.beginPath();
-        ctx.moveTo(tx, y + 8 + pulse);
-        ctx.lineTo(x + cellSize - 5, y + cellSize - 5);
-        ctx.lineTo(x + 5, y + cellSize - 5);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(tx - 4, y + cellSize - 15, 8, 10);
+        if (tentImage) {
+          const tp = 4;
+          ctx.drawImage(tentImage, x + tp, y + tp, cellSize - tp * 2, cellSize - tp * 2);
+        } else {
+          const tx = x + cellSize / 2;
+          const ty = y + cellSize / 2;
+          const pulse = Math.sin(animationTime * 2) * 1;
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.beginPath();
+          ctx.moveTo(tx, y + 8 + pulse);
+          ctx.lineTo(x + cellSize - 5, y + cellSize - 5);
+          ctx.lineTo(x + 5, y + cellSize - 5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = drawBoard._tentGradient;
+          ctx.beginPath();
+          ctx.moveTo(tx, y + 8 + pulse);
+          ctx.lineTo(x + cellSize - 5, y + cellSize - 5);
+          ctx.lineTo(x + 5, y + cellSize - 5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#8B4513';
+          ctx.fillRect(tx - 4, y + cellSize - 15, 8, 10);
+        }
       }
 
       // 网格线

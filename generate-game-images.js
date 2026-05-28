@@ -844,4 +844,75 @@ gameConfigs.forEach(game => {
 });
 
 console.log('\n✅ 所有菜单卡片重新生成完成！');
-console.log('现在需要修改 menu.js 移除额外的文字绘制');
+
+// ========== 道具商城图标生成（从 twemoji CDN 下载彩色 PNG） ==========
+console.log('\n开始生成道具商城图标（从 twemoji CDN 下载）...\n');
+
+const https = require('https');
+
+const propEmojiMap = {
+  'hint':       { emoji: '💡', codepoint: '1f4a1' },
+  'undo':       { emoji: '↩️', codepoint: '21a9' },
+  'answer':     { emoji: '🔍', codepoint: '1f50d' },
+  'extra_life': { emoji: '❤️', codepoint: '2764' },
+};
+
+const propDir = 'assets/images/props';
+if (!fs.existsSync(propDir)) {
+  fs.mkdirSync(propDir, { recursive: true });
+}
+
+function downloadTwemojiPNG(codepoint, filePath) {
+  const urls = [
+    `https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/${codepoint}.png`,
+    `https://cdn.jsdelivr.net/gh/twitter/twemoji@master/assets/72x72/${codepoint}.png`,
+  ];
+
+  const downloadRaw = (u, maxRedirects = 3) => {
+    return new Promise((resolve, reject) => {
+      console.log(`  请求: ${u}`);
+      https.get(u, { headers: { 'User-Agent': 'Node.js' } }, (res) => {
+        if ([301, 302, 307, 308].includes(res.statusCode)) {
+          if (maxRedirects <= 0) return reject(new Error('too many redirects'));
+          // 解析重定向 URL（可能是相对路径）
+          const loc = res.headers.location;
+          const nextUrl = loc.startsWith('http') ? loc : new URL(u).origin + loc;
+          return resolve(downloadRaw(nextUrl, maxRedirects - 1));
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => { fs.writeFileSync(filePath, Buffer.concat(chunks)); resolve(); });
+        res.on('error', reject);
+      }).on('error', reject);
+    });
+  };
+
+  async function tryUrl(idx) {
+    if (idx >= urls.length) throw new Error('all mirrors failed');
+    try {
+      await downloadRaw(urls[idx]);
+      return;
+    } catch (e) {
+      console.log(`  失败: ${e.message}，尝试下一个镜像...`);
+      return tryUrl(idx + 1);
+    }
+  }
+  return tryUrl(0);
+}
+
+(async () => {
+  for (const [key, info] of Object.entries(propEmojiMap)) {
+    const filePath = `${propDir}/${key}.png`;
+    try {
+      await downloadTwemojiPNG(info.codepoint, filePath);
+      const stat = fs.statSync(filePath);
+      console.log(`  ✓ ${key}.png (${stat.size} bytes)`);
+    } catch (e) {
+      console.log(`  ✗ ${key}.png 下载失败: ${e.message}`);
+    }
+  }
+  console.log('\n✅ 道具商城图标生成完成！');
+})().catch(console.error);

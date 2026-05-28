@@ -119,38 +119,40 @@ class VictoryPanel {
       ctx.fillText(this._subtitleText || this.opts.subtitle, this.width / 2, panelY + 80);
     }
 
-    // 下一关按钮
-    if (this.opts.showNext) {
-      roundRect(ctx, btnX, btnY, btnW, btnH, 21);
+    // 下一关按钮（使用已保存的坐标，保持与 hit-test 一致）
+    if (this.opts.showNext && this._nextBtn) {
+      const ny = this._nextBtn.y;
+      roundRect(ctx, btnX, ny, btnW, btnH, 21);
       ctx.fillStyle = '#6BCB77';
       ctx.fill();
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 17px Arial, -apple-system';
-      ctx.fillText(this.opts.nextText, this.width / 2, btnY + 27);
-      btnY += 52;
+      ctx.fillText(this.opts.nextText, this.width / 2, ny + 27);
     }
 
-    // 返回按钮
-    roundRect(ctx, btnX, btnY, btnW, btnH, 21);
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '15px Arial, -apple-system';
-    ctx.fillText(this.opts.backText, this.width / 2, btnY + 27);
-    btnY += 52;
+    // 返回按钮（使用已保存的坐标）
+    if (this._backBtn) {
+      const by = this._backBtn.y;
+      roundRect(ctx, btnX, by, btnW, btnH, 21);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '15px Arial, -apple-system';
+      ctx.fillText(this.opts.backText, this.width / 2, by + 27);
+    }
 
     // 额外按钮
     this._extraBtns = [];
     for (let i = 0; i < this.opts.extraButtons.length; i++) {
       const eb = this.opts.extraButtons[i];
-      roundRect(ctx, btnX, btnY, btnW, btnH, 21);
+      const ey = this._backBtn ? this._backBtn.y + 52 + i * 52 : btnY + i * 52;
+      roundRect(ctx, btnX, ey, btnW, btnH, 21);
       ctx.fillStyle = eb.colorBg || 'rgba(255,255,255,0.08)';
       ctx.fill();
       ctx.fillStyle = eb.textColor || '#fff';
       ctx.font = (eb.bold ? 'bold ' : '') + (eb.fontSize || '15') + 'px Arial, -apple-system';
-      ctx.fillText(eb.text, this.width / 2, btnY + 27);
-      this._extraBtns.push({ x: btnX, y: btnY, w: btnW, h: btnH, action: eb.action });
-      btnY += 52;
+      ctx.fillText(eb.text, this.width / 2, ey + 27);
+      this._extraBtns.push({ x: btnX, y: ey, w: btnW, h: btnH, action: eb.action });
     }
   }
 

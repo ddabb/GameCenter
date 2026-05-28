@@ -294,7 +294,7 @@ class Settings {
       ctx.fillStyle = '#555';
       ctx.font = '14px -apple-system';
       ctx.fillText('今日可获奖励：', W / 2, popY + 195);
-      if (r.bonus) ctx.fillText('🎊 ' + r.bonus.label + '：' + r.bonus.coins + ' 💰 + ' + r.bonus.gems + ' 💎', W / 2, popY + 218);
+      if (r.bonus) ctx.fillText('🎊 ' + r.bonus.label + '：' + r.bonus.coins + '💰金币 + ' + r.bonus.gems + '💎宝石', W / 2, popY + 218);
     } else if (this.checkin.isCheckedInToday()) {
       ctx.fillStyle = '#999';
       ctx.font = '14px -apple-system';
