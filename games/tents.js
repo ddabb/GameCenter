@@ -34,7 +34,7 @@ class Tents {
     this.animationTime = 0;
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
-    this.achievement = new AchievementManager();
+    this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this._ruleBtn = { x: this.width - 50, y: this.statusBarHeight + 14, w: 40, h: 40 };

@@ -72,7 +72,7 @@ class SudokuDaily {
     this.loading = false;
     
     this.confetti = new Confetti(this.ctx, this.width, this.height);
-    this.achievement = new AchievementManager();
+    this.achievement = AchievementManager.getInstance();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);

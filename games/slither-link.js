@@ -41,7 +41,7 @@ class SlitherLink {
     this.hints = [];
     this.victory = false;
     this.confetti = new Confetti(this.ctx, this.width, this.height);
-    this.achievement = new AchievementManager();
+    this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.animationTime = 0;

@@ -53,7 +53,7 @@ class Nurikabe {
     this.timerInterval = null;
 
     this.confetti = new Confetti(ctx, this.width, this.height);
-    this.achievement = new AchievementManager();
+    this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
 
     this.tutorial = new TutorialOverlay(ctx, this.width, this.height, this.gameName);

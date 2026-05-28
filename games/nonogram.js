@@ -44,7 +44,7 @@ class Nonogram {
     this._lastFilledCell = null;
 
     this.confetti = new Confetti(this.ctx, this.width, this.height);
-    this.achievement = new AchievementManager();
+    this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
     this.hintMgr = new HintManager();
 

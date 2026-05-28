@@ -74,7 +74,7 @@ class Profile {
     // 成就
     try {
       const { AchievementManager } = require('./achievement-manager.js');
-      const am = new AchievementManager();
+      const am = AchievementManager.getInstance();
       this.achievementUnlocked = am.getUnlockedCount();
       this.achievementTotal = am.getTotalCount();
     } catch (e) {

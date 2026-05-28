@@ -43,7 +43,7 @@ class Achievements {
     this.achievements = [];
     try {
       const { AchievementManager } = require('./achievement-manager.js');
-      const am = new AchievementManager();
+      const am = AchievementManager.getInstance();
       this.achievements = am.getAll();
     } catch (e) {
       // 降级到模拟数据

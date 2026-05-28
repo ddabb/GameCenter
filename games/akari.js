@@ -78,7 +78,7 @@ class Akari {
     this.undoMgr = new UndoManager();
     this.hintMgr = new HintManager(3);
     this.confetti = new Confetti(this.ctx, this.width, this.height);
-    this.achievement = new AchievementManager();
+    this.achievement = AchievementManager.getInstance();
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);

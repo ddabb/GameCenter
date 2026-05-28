@@ -55,7 +55,7 @@ class Battleship {
     this.undoMgr = new UndoManager();
     this.hintMgr = new HintManager();
     this.confetti = new Confetti(this.ctx, this.width, this.height);
-    this.achievement = new AchievementManager();
+    this.achievement = AchievementManager.getInstance();
     
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
