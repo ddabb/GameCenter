@@ -92,17 +92,7 @@ class Profile {
       this.gems = 0;
     }
 
-    
 
-    // 农历工具
-    try {
-      const { Solar, Lunar } = require('./lunar-javascript.js');
-      this.Solar = Solar;
-      this.Lunar = Lunar;
-    } catch (e) {
-      this.Solar = null;
-      this.Lunar = null;
-    }
   }
 
   bindEvents() {

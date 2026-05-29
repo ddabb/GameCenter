@@ -1,59 +1,17 @@
 /**
- * lunar-javascript.js — 农历日历计算库（打包版）
+ * lunar-javascript.js — 精简农历库
+ * 从 lunar-javascript v1.7.7 提取，去除了 webpack/UMD 打包壳
  *
- * 提供农历日期转换、节气查询、八字排盘、黄历宜忌等功能。
- * 此为打包后的单文件版本，原始库为 lunar-javascript。
+ * 此类由 build-lunar.js 自动生成，请勿手动编辑。
+ * 各模块源码见 parts/ 目录。
  *
  * @subpackage lunar
  */
-module.exports = (function() {
-var __MODS__ = {};
-var __DEFINE__ = function(modId, func, req) { var m = { exports: {}, _tempexports: {} }; __MODS__[modId] = { status: 0, func: func, req: req, m: m }; };
-var __REQUIRE__ = function(modId, source) { if(!__MODS__[modId]) return require(source); if(!__MODS__[modId].status) { var m = __MODS__[modId].m; m._exports = m._tempexports; var desp = Object.getOwnPropertyDescriptor(m, "exports"); if (desp && desp.configurable) Object.defineProperty(m, "exports", { set: function (val) { if(typeof val === "object" && val !== m._exports) { m._exports.__proto__ = val.__proto__; Object.keys(val).forEach(function (k) { m._exports[k] = val[k]; }); } m._tempexports = val }, get: function () { return m._tempexports; } }); __MODS__[modId].status = 1; __MODS__[modId].func(__MODS__[modId].req, m, m.exports); } return __MODS__[modId].m.exports; };
-var __REQUIRE_WILDCARD__ = function(obj) { if(obj && obj.__esModule) { return obj; } else { var newObj = {}; if(obj != null) { for(var k in obj) { if (Object.prototype.hasOwnProperty.call(obj, k)) newObj[k] = obj[k]; } } newObj.default = obj; return newObj; } };
-var __REQUIRE_DEFAULT__ = function(obj) { return obj && obj.__esModule ? obj.default : obj; };
-__DEFINE__(1778037604981, function(require, module, exports) {
-const {Solar, Lunar, Foto, Tao, NineStar, EightChar, SolarWeek, SolarMonth, SolarSeason, SolarHalfYear, SolarYear, LunarMonth, LunarYear, LunarTime, ShouXingUtil, SolarUtil, LunarUtil, FotoUtil, TaoUtil, HolidayUtil, NineStarUtil, I18n} = require('./lunar.js')
 
-module.exports = {
-  Solar: Solar,
-  Lunar: Lunar,
-  Foto: Foto,
-  Tao: Tao,
-  NineStar: NineStar,
-  EightChar: EightChar,
-  SolarWeek: SolarWeek,
-  SolarMonth: SolarMonth,
-  SolarSeason: SolarSeason,
-  SolarHalfYear: SolarHalfYear,
-  SolarYear: SolarYear,
-  LunarMonth: LunarMonth,
-  LunarYear: LunarYear,
-  LunarTime: LunarTime,
-  ShouXingUtil: ShouXingUtil,
-  SolarUtil: SolarUtil,
-  LunarUtil: LunarUtil,
-  FotoUtil: FotoUtil,
-  TaoUtil: TaoUtil,
-  HolidayUtil: HolidayUtil,
-  NineStarUtil: NineStarUtil,
-  I18n: I18n
-}
-
-}, function(modId) {var map = {"./lunar.js":1778037604982}; return __REQUIRE__(map[modId], modId); })
-__DEFINE__(1778037604982, function(require, module, exports) {
-;(function(root,factory){
-  if (typeof define==='function'&&define.amd){
-    define(factory);
-  }else if(typeof module!='undefined'&&module.exports){
-    module.exports = factory();
-  }else{
-    var o = factory();
-    for(var i in o){
-      root[i] = o[i];
-    }
-  }
-})(this,function(){
+module.exports = (function(){
+// part: 01-solar
+// classes: Solar
+// auto-extracted from lunar-javascript.js
   var Solar = (function(){
     var _fromDate = function(date){
       return _fromYmdHms(date.getFullYear(),date.getMonth()+1,date.getDate(),date.getHours(),date.getMinutes(),date.getSeconds());
@@ -671,6 +629,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromBaZi:function(yearGanZhi,monthGanZhi,dayGanZhi,timeGanZhi,sect,baseYear){return _fromBaZi(yearGanZhi,monthGanZhi,dayGanZhi,timeGanZhi,sect,baseYear);}
     };
   })();
+// part: 02-lunar
+// classes: Lunar
+// auto-extracted from lunar-javascript.js
   var Lunar = (function(){
     var _computeJieQi = function(o,ly) {
       o['jieQiList'] = [];
@@ -2014,6 +1975,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromDate:function(date){return _fromDate(date);}
     };
   })();
+// part: 03-solar-week
+// classes: SolarWeek
+// auto-extracted from lunar-javascript.js
   var SolarWeek = (function(){
     var _fromDate = function(date,start){
       var solar = Solar.fromDate(date);
@@ -2221,6 +2185,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromDate:function(date,start){return _fromDate(date,start);}
     };
   })();
+// part: 04-solar-month
+// classes: SolarMonth
+// auto-extracted from lunar-javascript.js
   var SolarMonth = (function(){
     var _fromDate = function(date){
       var solar = Solar.fromDate(date);
@@ -2307,6 +2274,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromDate:function(date){return _fromDate(date);}
     };
   })();
+// part: 05-solar-season
+// classes: SolarSeason
+// auto-extracted from lunar-javascript.js
   var SolarSeason = (function(){
     var _fromDate = function(date){
       var solar = Solar.fromDate(date);
@@ -2380,6 +2350,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromDate:function(date){return _fromDate(date);}
     };
   })();
+// part: 06-solar-half-year
+// classes: SolarHalfYear
+// auto-extracted from lunar-javascript.js
   var SolarHalfYear = (function(){
     var _fromDate = function(date){
       var solar = Solar.fromDate(date);
@@ -2453,6 +2426,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromDate:function(date){return _fromDate(date);}
     };
   })();
+// part: 07-solar-year
+// classes: SolarYear
+// auto-extracted from lunar-javascript.js
   var SolarYear = (function(){
     var _fromDate = function(date){
       return _fromYear(Solar.fromDate(date).getYear());
@@ -2500,6 +2476,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromDate:function(date){return _fromDate(date);}
     };
   })();
+// part: 08-lunar-year
+// classes: LunarYear
+// auto-extracted from lunar-javascript.js
   var LunarYear = (function(){
     var _YUAN = ['下','上','中'];
     var _YUN = ['七','八','九','一','二','三','四','五','六'];
@@ -2830,6 +2809,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromYear:function(lunarYear){return _fromCachedYear(lunarYear);}
     };
   })();
+// part: 09-lunar-month
+// classes: LunarMonth
+// auto-extracted from lunar-javascript.js
   var LunarMonth = (function(){
     var _fromYm = function(lunarYear,lunarMonth){
       var oy = lunarYear;
@@ -3011,6 +2993,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       _:function(lunarYear, lunarMonth, dayCount, firstJulianDay, index){return _new(lunarYear, lunarMonth, dayCount, firstJulianDay, index);}
     };
   })();
+// part: 10-shou-xing-util
+// classes: ShouXingUtil
+// auto-extracted from lunar-javascript.js
   var ShouXingUtil = (function(){
     var _decode = function(s) {
       var o = '0000000000';
@@ -3632,6 +3617,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       }
     };
   })();
+// part: 11-solar-util
+// classes: SolarUtil
+// auto-extracted from lunar-javascript.js
   var SolarUtil = (function(){
     return {
       WEEK:['{w.sun}', '{w.mon}', '{w.tues}', '{w.wed}', '{w.thur}', '{w.fri}', '{w.sat}'],
@@ -3924,6 +3912,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       }
     };
   })();
+// part: 12-lunar-util
+// classes: LunarUtil
+// auto-extracted from lunar-javascript.js
   var LunarUtil = (function(){
     return {
       BASE_MONTH_ZHI_INDEX:2,
@@ -5391,6 +5382,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       }
     };
   })();
+// part: 13-holiday-util
+// classes: HolidayUtil
+// auto-extracted from lunar-javascript.js
   var HolidayUtil = (function(_NAMES){
     var _SIZE = 18;
     var _ZERO='0'.charCodeAt(0);
@@ -5610,6 +5604,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fix:function(){_fix(arguments);}
     };
   })(['元旦节','春节','清明节','劳动节','端午节','中秋节','国庆节','国庆中秋','抗战胜利日']);
+// part: 14-nine-star
+// classes: NineStar
+// auto-extracted from lunar-javascript.js
   var NineStar = (function(){
     var _fromIndex=function(index){
       return {
@@ -5677,6 +5674,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromIndex:function(index){return _fromIndex(index);}
     };
   })();
+// part: 15-eight-char
+// classes: EightChar
+// auto-extracted from lunar-javascript.js
   var EightChar = (function(){
     var _fromLunar=function(lunar){
       return {
@@ -6079,6 +6079,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromLunar:function(lunar){return _fromLunar(lunar);}
     };
   })();
+// part: 16-lunar-time
+// classes: LunarTime
+// auto-extracted from lunar-javascript.js
   var LunarTime = (function(){
     var _fromYmdHms=function(lunarYear,lunarMonth,lunarDay,hour,minute,second){
       var lunar=Lunar.fromYmdHms(lunarYear,lunarMonth,lunarDay,hour,minute,second);
@@ -6173,6 +6176,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromYmdHms:function(lunarYear,lunarMonth,lunarDay,hour,minute,second){return _fromYmdHms(lunarYear,lunarMonth,lunarDay,hour,minute,second);}
     };
   })();
+// part: 17-foto-util
+// classes: FotoUtil
+// auto-extracted from lunar-javascript.js
   var FotoUtil = (function(){
     var XIU_OFFSET = [11, 13, 15, 17, 19, 21, 24, 0, 2, 4, 7, 9];
     var _f=function(name,result,everyMonth,remark){
@@ -6506,6 +6512,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       getXiu:function(m,d){return _getXiu(m,d);}
     }
   })();
+// part: 18-foto
+// classes: Foto
+// auto-extracted from lunar-javascript.js
   var Foto = (function(){
     var _fromYmdHms=function(y,m,d,hour,minute,second){
       return _fromLunar(Lunar.fromYmdHms(y+Foto.DEAD_YEAR-1,m,d,hour,minute,second));
@@ -6632,6 +6641,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromLunar:function(lunar){return _fromLunar(lunar);}
     };
   })();
+// part: 19-tao-festival
+// classes: TaoFestival
+// auto-extracted from lunar-javascript.js
   var TaoFestival = (function(){
     var _f=function(name,remark){
       return {
@@ -6655,6 +6667,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       create:function(name,remark){return _f(name,remark);}
     };
   })();
+// part: 20-tao-util
+// classes: TaoUtil
+// auto-extracted from lunar-javascript.js
   var TaoUtil = (function(){
     var _f = TaoFestival.create;
     return {
@@ -6782,6 +6797,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       }
     }
   })();
+// part: 21-nine-star-util
+// classes: NineStarUtil
+// auto-extracted from lunar-javascript.js
   var NineStarUtil = (function(){
     return {
       NUMBER:[
@@ -6852,6 +6870,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       ]
     }
   })();
+// part: 22-tao
+// classes: Tao
+// auto-extracted from lunar-javascript.js
   var Tao = (function(){
     var _fromYmdHms=function(y,m,d,hour,minute,second){
       return _fromLunar(Lunar.fromYmdHms(y+Tao.BIRTH_YEAR,m,d,hour,minute,second));
@@ -6955,6 +6976,9 @@ __DEFINE__(1778037604982, function(require, module, exports) {
       fromLunar:function(lunar){return _fromLunar(lunar);}
     };
   })();
+// part: 23-i18n
+// classes: I18n
+// auto-extracted from lunar-javascript.js
   var I18n = (function(){
     var _defaultLang = 'chs';
     var _lang = _defaultLang;
@@ -8556,33 +8580,7 @@ __DEFINE__(1778037604982, function(require, module, exports) {
     };
   })();
   return {
-    ShouXingUtil:ShouXingUtil,
-    SolarUtil:SolarUtil,
-    LunarUtil:LunarUtil,
-    FotoUtil:FotoUtil,
-    TaoUtil:TaoUtil,
-    NineStarUtil:NineStarUtil,
-    Solar:Solar,
-    Lunar:Lunar,
-    Foto:Foto,
-    Tao:Tao,
-    NineStar:NineStar,
-    EightChar:EightChar,
-    SolarWeek:SolarWeek,
-    SolarMonth:SolarMonth,
-    SolarSeason:SolarSeason,
-    SolarHalfYear:SolarHalfYear,
-    SolarYear:SolarYear,
-    LunarMonth:LunarMonth,
-    LunarYear:LunarYear,
-    LunarTime:LunarTime,
-    HolidayUtil:HolidayUtil,
-    I18n: I18n
+    Solar: Solar,
+    Lunar: Lunar
   };
-});
-
-}, function(modId) { var map = {}; return __REQUIRE__(map[modId], modId); })
-return __REQUIRE__(1778037604981);
-})()
-//miniprogram-npm-outsideDeps=[]
-//# sourceMappingURL=index.js.map
+})();
