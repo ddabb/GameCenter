@@ -172,6 +172,8 @@ class Checkin {
     currentY += 16;
     
     currentY = this.drawCalendar(ctx, W, H, currentY);
+    currentY += 12;
+    currentY = this.drawRewardRules(ctx, W, currentY);
     
     if (this.checkinResult) {
       this.drawCheckinResult(ctx, W);
@@ -235,7 +237,7 @@ class Checkin {
   }
 
   drawStreakPanel(ctx, W, streak, checkedInToday, startY) {
-    const panelH = 64;
+    const panelH = 44;
     
     const panelGradient = ctx.createLinearGradient(0, startY, 0, startY + panelH);
     panelGradient.addColorStop(0, '#FDF2F8');
@@ -266,11 +268,7 @@ class Checkin {
     } else {
       statusText = `📅 待签到 🔥${streak}天`;
     }
-    ctx.fillText(statusText, W / 2, startY + 24);
-
-    ctx.fillStyle = '#EC4899';
-    ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
-    ctx.fillText(`连续签到奖励：7天=20💰金币 / 14天=30💰金币 / 21天=40💰金币 / 28天=50💰金币`, W / 2, startY + 46);
+    ctx.fillText(statusText, W / 2, startY + 28);
 
     return startY + panelH;
   }
@@ -467,6 +465,44 @@ class Checkin {
     }
 
     return btnY + btnH;
+  }
+
+  drawRewardRules(ctx, W, startY) {
+    const panelH = 72;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    roundRect(ctx, this.padding, startY, W - this.padding * 2, panelH, 12);
+    ctx.fill();
+
+    ctx.strokeStyle = '#FBCFE8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    roundRect(ctx, this.padding, startY, W - this.padding * 2, panelH, 12);
+    ctx.stroke();
+
+    ctx.fillStyle = '#9D174D';
+    ctx.font = 'bold 13px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('📋 签到规则', W / 2, startY + 20);
+
+    const rules = [
+      { left: '连续签到 7天=20💰', right: '14天=30💰' },
+      { left: '连续签到 21天=40💰', right: '28天=50💰' }
+    ];
+    const col1X = W / 2 - 50;
+    const col2X = W / 2 + 50;
+
+    ctx.fillStyle = '#6B7280';
+    ctx.font = '12px -apple-system,BlinkMacSystemFont,sans-serif';
+    rules.forEach((row, i) => {
+      ctx.textAlign = 'right';
+      ctx.fillText(row.left, col1X, startY + 42 + i * 18);
+      ctx.textAlign = 'left';
+      ctx.fillText(row.right, col2X, startY + 42 + i * 18);
+    });
+
+    return startY + panelH;
   }
 
   drawCheckinResult(ctx, W) {
