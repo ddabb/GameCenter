@@ -1,4 +1,5 @@
 // SolvePuzzle 微信小游戏入口 — 分包版
+// 小程序主要内容是益智解谜玩法的游戏，包含黑白棋、24点、扫蛙、一笔画、数独、推箱子、点灯、战船、合并abc、数织、数墙、搭帐篷、六连通等多种益智游戏；
 
 const roundRect = require('./utils/round-rect.js');
 
