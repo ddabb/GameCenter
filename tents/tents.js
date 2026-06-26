@@ -27,6 +27,7 @@ const UndoManager = require('../games/undo-manager');
 const { AchievementManager } = require('../games/achievement-manager');
 const { ShareCard } = require('../games/share-card');
 const VictoryPanel = require('../games/components/victory-panel');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
 const { getInstance: getRewardManager } = require('../games/reward-manager');
@@ -72,6 +73,9 @@ class Tents {
     });
 
     statsManager.startGame(this.gameName, this.level);
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '帐篷'
+    });
     this.loadLevel();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
@@ -91,9 +95,11 @@ class Tents {
     this.victory = false;
     this._nextBtn = null;
     this._backBtn = null;
+    this.loadingOverlay.start();
 
     try {
       const data = await LevelLoader.load('tents', this.level, this.difficulty || 'easy');
+      this.loadingOverlay.stop();
       if (data && data.grid) {
         this.size = data.size || 7;
         this._calcLayout(this.size);
@@ -248,6 +254,10 @@ class Tents {
   update() { this.animationTime += 0.08; }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     drawBackground(this.ctx, this.width, this.height, this.animationTime);
     this.headerBar.draw({ title: '帐篷' });
     drawStatus(this.ctx, this.width, this.headerBar, this.statusBarHeight, this.level, this.size);
@@ -316,6 +326,7 @@ class Tents {
 
   destroy() {
     if (this.confetti) this.confetti.stop();
+    this.loadingOverlay.destroy();
     if (this.clickHandler) this.canvas.removeEventListener('click', this.clickHandler);
   }
 }

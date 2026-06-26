@@ -23,6 +23,7 @@ const { AchievementManager } = require('../games/achievement-manager');
 const { HintManager } = require('../games/hint-manager');
 const Confetti = require('../games/confetti');
 const VictoryPanel = require('../games/components/victory-panel');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
 
@@ -70,6 +71,9 @@ class Nonogram {
     this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
     this.hintMgr = new HintManager();
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '数织'
+    });
 
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
@@ -133,9 +137,11 @@ class Nonogram {
     if (this.hintMgr) this.hintMgr.reset();
     this.victory = false;
     this.mode = 'fill';
+    this.loadingOverlay.start();
 
     try {
       const data = await LevelLoader.load('nonogram', this.level, this.difficulty || 'easy');
+      this.loadingOverlay.stop();
       if (data && data.answer) {
         this.size = data.size || 6;
         this.rowHints = data.rowHints || [];
@@ -319,6 +325,10 @@ class Nonogram {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
@@ -354,6 +364,7 @@ class Nonogram {
 
   destroy() {
     if (this.confetti) this.confetti.stop();
+    this.loadingOverlay.destroy();
     if (this._clickHandler) this.canvas.removeEventListener('click', this._clickHandler);
     if (this._touchMoveHandler) this.canvas.removeEventListener('touchmove', this._touchMoveHandler);
     if (this._touchEndHandler) {

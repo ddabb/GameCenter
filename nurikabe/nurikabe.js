@@ -2,6 +2,7 @@
  * 数墙 (Nurikabe) — 主类
  */
 const LevelLoader = require('../games/level-loader');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const statsManager = require('../games/stats-manager.js').getInstance();
 const Confetti = require('../games/confetti');
 const sound = require('../games/sound-manager');
@@ -36,6 +37,9 @@ class Nurikabe {
     this.board = [];
     this.solution = [];
     this._dataReady = false;
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '数墙'
+    });
 
     this.cellSize = 50;
     this.boardOffsetX = 0;
@@ -89,9 +93,11 @@ class Nurikabe {
     this.timer = 0;
     this._dataReady = false;
     this.victory = false;
+    this.loadingOverlay.start();
 
     try {
       const data = await LevelLoader.load('nurikabe', this.level, this.difficulty);
+      this.loadingOverlay.stop();
       if (data && data.grid) {
         this.size = data.size || 5;
         this.numbers = data.grid;
@@ -232,6 +238,10 @@ class Nurikabe {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     const ctx = this.ctx;
     const W = this.width, H = this.height;
 
@@ -241,14 +251,7 @@ class Nurikabe {
 
     drawStatus(ctx, W, this.boardOffsetY, this.level, this.size, this.timer);
 
-    if (!this._dataReady) {
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.font = '16px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('⏳ 加载中...', W / 2, this.boardOffsetY + 80);
-    } else {
-      drawBoard(ctx, this.board, this.numbers, this.size, this.cellSize, this.boardOffsetX, this.boardOffsetY);
-    }
+    drawBoard(ctx, this.board, this.numbers, this.size, this.cellSize, this.boardOffsetX, this.boardOffsetY);
 
     const buttons = [];
     if (this.undoMgr && this.undoMgr.canUndo()) buttons.push({ id: 'undo', text: '撤销' });
@@ -306,6 +309,7 @@ class Nurikabe {
   destroy() {
     if (this.confetti) this.confetti.stop();
     if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+    this.loadingOverlay.destroy();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 

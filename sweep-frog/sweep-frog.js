@@ -21,6 +21,7 @@ const renderer = require('./sweep-frog-renderer.js');
 const roundRect = require('../utils/round-rect.js');
 const sound = require('../games/sound-manager.js');
 const TutorialOverlay = require('../games/tutorial-overlay.js');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const Confetti = require('../games/confetti');
 const UndoManager = require('../games/undo-manager');
 const HeaderBar = require('../games/components/header-bar');
@@ -62,6 +63,9 @@ class FrogEscape {
     this.timerInterval = null;
     this._firstClick = true;
     this._dataReady = false;  // CDN 数据是否已加载
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '扫青蛙'
+    });
     this.bestTime = null;
 
     this._backBtn = null;
@@ -177,10 +181,12 @@ class FrogEscape {
 
     console.log('[FrogEscape] loadPuzzle:', { difficulty: this.difficulty, url });
 
+    this.loadingOverlay.start();
     const self = this;
     wx.request({
       url,
       success(res) {
+        self.loadingOverlay.stop();
         console.log('[FrogEscape] wx.request success:', { statusCode: res.statusCode, hasData: !!res.data });
         if (res.statusCode === 200 && res.data) {
           console.log('[FrogEscape] using CDN puzzle');
@@ -195,6 +201,7 @@ class FrogEscape {
         self.draw();
       },
       fail(err) {
+        self.loadingOverlay.stop();
         console.log('[FrogEscape] wx.request fail:', err);
         console.log('[FrogEscape] generating fallback board');
         self._boardData = generateBoard(self.rows, self.cols, self.totalMines);
@@ -255,6 +262,10 @@ class FrogEscape {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     const ctx = this.ctx;
 
     // 背景
@@ -278,11 +289,7 @@ class FrogEscape {
     this.bottomBar.draw();
 
     // 棋盘
-    if (!this._dataReady) {
-      renderer.drawLoadingText(ctx, this.width, this.boardOffsetY);
-    } else {
-      renderer.drawBoard(ctx, this.board, this.rows, this.cols, this.cellSize, this.boardOffsetX, this.boardOffsetY, roundRect);
-    }
+    renderer.drawBoard(ctx, this.board, this.rows, this.cols, this.cellSize, this.boardOffsetX, this.boardOffsetY, roundRect);
 
     // 状态信息
     renderer.drawStatus(ctx, this.width, this.boardOffsetY, this.totalMines, this.flaggedCount, this.time);
@@ -677,6 +684,7 @@ class FrogEscape {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+    this.loadingOverlay.destroy();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 }

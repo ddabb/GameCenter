@@ -13,6 +13,7 @@ const { AchievementManager } = require('../games/achievement-manager');
 const { HintManager } = require('../games/hint-manager');
 const { ShareCard } = require('../games/share-card');
 const VictoryPanel = require('../games/components/victory-panel');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
 const { getInstance: getRewardManager } = require('../games/reward-manager');
@@ -54,6 +55,9 @@ class Akari {
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
 
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '数灯'
+    });
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, {
       bgColor: '#fef0f5',
       textColor: '#333',
@@ -98,9 +102,11 @@ class Akari {
     this.victory = false;
     this.showAnswer = false;
     this.timer = 0;
+    this.loadingOverlay.start();
 
     try {
       const data = await LevelLoader.load('akari', this.level, this.difficulty);
+      this.loadingOverlay.stop();
       if (data && data.grid) {
         this._applyPuzzle(data);
         return;
@@ -399,6 +405,10 @@ class Akari {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     const ctx = this.ctx;
 
     ctx.fillStyle = '#fef0f5';
@@ -427,6 +437,7 @@ class Akari {
   destroy() {
     this.stopTimer();
     if (this.confetti) this.confetti.stop();
+    this.loadingOverlay.destroy();
     this.canvas.removeEventListener('click', this._clickHandler);
   }
 }

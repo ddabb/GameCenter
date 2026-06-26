@@ -25,6 +25,7 @@ const { HintManager } = require('../games/hint-manager');
 const { getInstance: getPropMgr } = require('../games/prop-manager');
 const Confetti = require('../games/confetti');
 const VictoryPanel = require('../games/components/victory-panel');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
 const { getInstance: getRewardManager } = require('../games/reward-manager');
@@ -88,6 +89,9 @@ class Battleship {
     });
 
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '战舰'
+    });
     this.bindEvents();
     this.loadPuzzle();
   }
@@ -97,9 +101,11 @@ class Battleship {
     if (this.undoMgr) this.undoMgr.clear();
     if (this.hintMgr) this.hintMgr.reset();
     if (this.timerInterval) clearInterval(this.timerInterval);
+    this.loadingOverlay.start();
 
     try {
       const data = await LevelLoader.load('battleship', this.level, this.difficulty);
+      this.loadingOverlay.stop();
       if (data && data.grid) {
         this._applyPuzzle(data);
         return;
@@ -307,6 +313,10 @@ class Battleship {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     if (this.grid.length === 0) return;
     drawBackground(this.ctx, this.width, this.height);
     this.headerBar.draw({ title: '战舰' });
@@ -335,6 +345,7 @@ class Battleship {
   destroy() {
     this.stopTimer();
     if (this.confetti) this.confetti.stop();
+    this.loadingOverlay.destroy();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 }

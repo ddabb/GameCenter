@@ -20,6 +20,7 @@ const { getInstance: getRewardManager } = require('../games/reward-manager');
 const VictoryPanel = require('../games/components/victory-panel');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
+const LoadingOverlay = require('../games/components/loading-overlay');
 
 class SudokuDaily {
   constructor(ctx, canvas, systemInfo, switchGame) {
@@ -53,6 +54,9 @@ class SudokuDaily {
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = AchievementManager.getInstance();
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '数独'
+    });
     
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
@@ -111,9 +115,12 @@ class SudokuDaily {
     
     if (cached && cached.puzzle) {
       console.log('[Sudoku] 使用缓存');
+      this.loading = false;
       this.setPuzzle(cached);
       return;
     }
+    
+    this.loadingOverlay.start();
     
     const dateKey = dateValue.replace(/-/g, '');
     console.log(`[Sudoku] 从CDN加载: ${core.CDN_BASE}/sudoku/${dateKey}.json`);
@@ -124,6 +131,7 @@ class SudokuDaily {
       timeout: 10000,
       success: (res) => {
         this.loading = false;
+        this.loadingOverlay.stop();
         if (res.statusCode === 200 && res.data && res.data.puzzle) {
           console.log('[Sudoku] CDN加载成功');
           wx.setStorageSync(cacheKey, res.data);
@@ -135,6 +143,7 @@ class SudokuDaily {
       },
       fail: (err) => {
         this.loading = false;
+        this.loadingOverlay.stop();
         console.log('[Sudoku] CDN加载失败', err);
         this.generateBackupSudoku();
       }
@@ -529,6 +538,10 @@ class SudokuDaily {
   update() {}
   
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
@@ -564,6 +577,7 @@ class SudokuDaily {
   
   destroy() {
     this.stopTimer();
+    this.loadingOverlay.destroy();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 }

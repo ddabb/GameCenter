@@ -25,6 +25,7 @@ const UndoManager = require('../games/undo-manager');
 const { AchievementManager } = require('../games/achievement-manager');
 const { ShareCard } = require('../games/share-card');
 const VictoryPanel = require('../games/components/victory-panel');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
 const { getInstance: getRewardManager } = require('../games/reward-manager');
@@ -81,6 +82,9 @@ class Sokoban {
     this.undoMgr = new UndoManager();
 
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '推箱子'
+    });
 
     this.levels = {
       easy: [
@@ -187,7 +191,9 @@ class Sokoban {
   async loadLevel() {
     console.log(`[Sokoban] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
+    this.loadingOverlay.start();
     const data = await LevelLoader.load('sokoban', this.level, this.difficulty);
+    this.loadingOverlay.stop();
     if (this.confetti) this.confetti.stop(); if (this.undoMgr) this.undoMgr.clear();
     if (data && data.grid) {
       const rows = data.rows || data.grid.length;
@@ -399,6 +405,7 @@ class Sokoban {
 
   destroy() {
     if (this.confetti) this.confetti.stop();
+    this.loadingOverlay.destroy();
     this.canvas.removeEventListener('touchstart', this.touchStartHandler);
     this.canvas.removeEventListener('touchend', this.touchEndHandler);
   }
@@ -408,6 +415,10 @@ class Sokoban {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
 

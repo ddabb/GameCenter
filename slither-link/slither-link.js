@@ -12,6 +12,7 @@ const UndoManager = require('../games/undo-manager');
 const { AchievementManager } = require('../games/achievement-manager');
 const { ShareCard } = require('../games/share-card');
 const VictoryPanel = require('../games/components/victory-panel');
+const LoadingOverlay = require('../games/components/loading-overlay');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
 const { getInstance: getRewardManager } = require('../games/reward-manager');
@@ -56,16 +57,21 @@ class SlitherLink {
       onAchievementDraw: () => { this._newAchievements = null; }
     });
     this.bindEvents();
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '数回'
+    });
   }
 
   async loadLevel() {
     console.log(`[SlitherLink] 加载关卡: ${this.level}`);
     if (this.confetti) this.confetti.stop();
     if (this.undoMgr) this.undoMgr.clear();
+    this.loadingOverlay.start();
     try {
       const url = LevelLoader.getCDNUrl('slither-link', this.level, this.difficulty);
       console.log(`[SlitherLink] CDN URL: ${url}`);
       const data = await LevelLoader.load('slither-link', this.level, this.difficulty);
+      this.loadingOverlay.stop();
       if (data && data.grid) {
         this._applyPuzzleData(data);
         return;
@@ -223,6 +229,10 @@ class SlitherLink {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     drawBackground(this.ctx, this.width, this.height);
     this.headerBar.draw({ title: '数回' });
     _drawStatus(this.ctx, this.width, this.boardOffsetY, this.level, this.rows, this.cols);
@@ -289,6 +299,7 @@ class SlitherLink {
 
   destroy() {
     if (this.confetti) this.confetti.stop();
+    this.loadingOverlay.destroy();
     this.canvas.removeEventListener('click', this.clickHandler);
   }
 }

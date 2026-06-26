@@ -33,6 +33,7 @@ const renderer = require('./one-stroke-renderer.js');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
 const VictoryPanel = require('../games/components/victory-panel');
+const LoadingOverlay = require('../games/components/loading-overlay');
 
 class OneStroke {
   constructor(ctx, canvas, systemInfo, switchGame, level, difficulty = 'easy') {
@@ -59,6 +60,10 @@ class OneStroke {
     this.time = 0;
     this.timer = null;
 
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '一笔画'
+    });
+
     this.cellSize = 50;
     this.boardOffsetX = 0;
     this.boardOffsetY = 0;
@@ -72,6 +77,7 @@ class OneStroke {
 
     this._touchActive = false;
     this._lastTouchIdx = null;
+    this._isDragging = false;       // 标记是否拖拽中，用于阻止拖拽结束后的幽灵click
     this._answerAnimTimer = null;
     this._showAnswer = false;
     this._answerAnimIndex = -1;
@@ -94,15 +100,20 @@ class OneStroke {
     if (this.confetti) this.confetti.stop();
     if (this.undoMgr) this.undoMgr.clear();
     this.stopTimer();
+    this.isPlaying = false;
+    this.loadingOverlay.start();
 
+    let data = null;
     try {
-      const data = await LevelLoader.load('one-stroke', this.level, this.difficulty);
-      if (data && data.holes) {
-        this._initFromData(data);
-        return;
-      }
+      data = await LevelLoader.load('one-stroke', this.level, this.difficulty);
     } catch (e) {
       console.log('[OneStroke] CDN加载失败，使用本地生成', e.message);
+    }
+    this.loadingOverlay.destroy();
+
+    if (data && data.holes) {
+      this._initFromData(data);
+      return;
     }
 
     // 本地生成保底
@@ -203,6 +214,10 @@ class OneStroke {
   }
 
   draw() {
+    if (this.loadingOverlay.active) {
+      this.loadingOverlay.draw();
+      return;
+    }
     this.ctx.fillStyle = '#0a1628';
     this.ctx.fillRect(0, 0, this.width, this.height);
     this.headerBar.draw({
@@ -304,6 +319,12 @@ class OneStroke {
   // ========== 交互 ==========
   bindEvents() {
     this._clickHandler = (e) => {
+      // 拖拽结束后（touchend）game.js 会自动生成幽灵 click，
+      // 跳过它，避免意外修改路径（如截断最后一个格子或清空路径）
+      if (this._isDragging) {
+        this._isDragging = false;
+        return;
+      }
       const touch = e.touches ? e.touches[0] : e;
       const x = touch.clientX;
       const y = touch.clientY;
@@ -358,6 +379,7 @@ class OneStroke {
 
     this._touchStartHandler = (e) => {
       if (this.victory || !this.isPlaying) return;
+      this._isDragging = false;       // 新一次触摸开始，重置拖拽标记
       const touch = e.touches[0];
       const x = touch.clientX, y = touch.clientY;
       if (this.headerBar.isBackButton(x, y)) {
@@ -373,6 +395,7 @@ class OneStroke {
 
     this._touchMoveHandler = (e) => {
       if (!this._touchActive || this.victory || !this.isPlaying) return;
+      this._isDragging = true;        // 发生滑动，标记为拖拽中
       const touch = e.touches[0];
       this._handleCellClick(touch.clientX, touch.clientY, true);
     };
@@ -381,8 +404,17 @@ class OneStroke {
     this._touchEndHandler = () => {
       this._touchActive = false;
       this._lastTouchIdx = null;
+      // 注意：_isDragging 不在此处清除，留在 _clickHandler 中判断幽灵 click
     };
     this.canvas.addEventListener('touchend', this._touchEndHandler);
+
+    // touchcancel：处理系统中断（如来电、通知栏下拉）和桌面端鼠标移出canvas的情况
+    this._touchCancelHandler = () => {
+      this._touchActive = false;
+      this._lastTouchIdx = null;
+      this._isDragging = false;
+    };
+    this.canvas.addEventListener('touchcancel', this._touchCancelHandler);
   }
 
   _handleCellClick(x, y, isSliding) {
@@ -597,6 +629,7 @@ class OneStroke {
 
   destroy() {
     this.stopTimer();
+    this.loadingOverlay.destroy();
     if (this._answerAnimTimer) {
       clearInterval(this._answerAnimTimer);
       this._answerAnimTimer = null;
@@ -612,6 +645,9 @@ class OneStroke {
     }
     if (this._touchEndHandler) {
       this.canvas.removeEventListener('touchend', this._touchEndHandler);
+    }
+    if (this._touchCancelHandler) {
+      this.canvas.removeEventListener('touchcancel', this._touchCancelHandler);
     }
   }
 }
