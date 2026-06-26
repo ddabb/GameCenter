@@ -7,7 +7,7 @@
     "newFeature": true,
     "autoCompile": true,
     "compileHotReLoad": true,
-    "nativeCompile": true,
+    "nativeCompile": false,
     "compileWorklet": false,
     "uglifyFileName": false,
     "uploadWithSourceMap": true,

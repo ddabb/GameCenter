@@ -377,6 +377,28 @@ function safeInit() {
       });
     }
 
+    // ── 分享配置 ──────────────────────────────────────────────────────────────
+    wx.showShareMenu({
+      menus: ['shareAppMessage', 'shareTimeline']
+    });
+
+    wx.onShareAppMessage(function() {
+      var shareInfo = _getShareInfo();
+      return {
+        title: shareInfo.title,
+        imageUrl: shareInfo.imageUrl || ''
+      };
+    });
+
+    wx.onShareTimeline(function() {
+      var shareInfo = _getShareInfo();
+      return {
+        title: shareInfo.timelineTitle || shareInfo.title,
+        imageUrl: shareInfo.imageUrl || ''
+      };
+    });
+    console.log('[init] 分享菜单已启用');
+
     // 显示加载画面，同时加载分包
     startLoadingAnimation();
     console.log('[init] 开始加载分包...');
@@ -395,6 +417,66 @@ function safeInit() {
     console.error('[init] 初始化失败:', e.message, e.stack);
     showErrorOnCanvas(e);
   }
+}
+
+/** 根据当前游戏返回分享内容 */
+function _getShareInfo() {
+  var gameName = currentGame;
+  var shareConfig = {
+    imageUrl: ''  // 留空使用默认截图，也可填写 'icon.png'
+  };
+
+  switch (gameName) {
+    case 'menu':
+      shareConfig.title = '🎮 指尖谜题 - 12+经典益智游戏，快来挑战！';
+      shareConfig.timelineTitle = '发现一个超好玩的益智游戏合集！🎮 黑白棋、数独、一笔画…等你来挑战！';
+      break;
+    case 'othello':
+      shareConfig.title = '⚫ 黑白棋 - 翻转之间，黑白对决！';
+      break;
+    case '24point':
+      shareConfig.title = '🧮 24点 - 加减乘除，考验心算能力！';
+      break;
+    case 'sweep-frog':
+      shareConfig.title = '🐸 扫青蛙 - 经典扫雷玩法，小心别踩到蛙蛙！';
+      break;
+    case 'one-stroke':
+      shareConfig.title = '✍️ 一笔画 - 一笔到底，连通所有路径！';
+      break;
+    case 'sudoku-daily':
+      shareConfig.title = '🔢 每日数独 - 填满九宫格，挑战今日数独！';
+      break;
+    case 'sokoban':
+      shareConfig.title = '📦 推箱子 - 把箱子推到指定位置，经典解谜！';
+      break;
+    case 'akari':
+      shareConfig.title = '💡 灯塔 - 照亮所有格子，点亮你的智慧！';
+      break;
+    case 'battleship':
+      shareConfig.title = '🚢 战舰 - 找到隐藏的战舰，策略与推理！';
+      break;
+    case 'merge-abc':
+      shareConfig.title = '🔤 合成ABC - 合成字母，挑战更高分！';
+      break;
+    case 'nonogram':
+      shareConfig.title = '🎨 数织 - 按数字提示，绘制隐藏图案！';
+      break;
+    case 'nurikabe':
+      shareConfig.title = '🧱 数墙 - 建造围墙，围出独立区域！';
+      break;
+    case 'tents':
+      shareConfig.title = '⛺ 搭帐篷 - 在树林中为每棵树配一顶帐篷！';
+      break;
+    case 'slither-link':
+      shareConfig.title = '🔗 数回 - 连接数字环路，绕出完美回路！';
+      break;
+    default:
+      shareConfig.title = '🎮 指尖谜题 - 益智解谜，趣味无穷！';
+      shareConfig.timelineTitle = '指尖谜题 · 益智游戏合集，等你来挑战！';
+      break;
+  }
+
+  return shareConfig;
 }
 
 function loadGame(gameName, level, difficulty) {
