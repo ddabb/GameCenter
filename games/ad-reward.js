@@ -2,7 +2,7 @@
  * ad-reward.js — 广告激励管理器（AdRewardManager）
  *
  * 管理微信激励视频广告的加载、展示和奖励回调：
- *   - 支持激励视频广告、插屏广告、Banner广告
+ *   - 支持激励视频广告、插屏广告、原生模板广告
  *   - 提供 loadAd（加载）/ showAd（展示）/ onReward（奖励回调）机制
  *   - 适用于获得额外提示、解锁关卡等场景
  */
@@ -10,7 +10,7 @@ class AdRewardManager {
   constructor() {
     this.rewardAd = null;
     this.interstitialAd = null;
-    this.bannerAd = null;
+    this.customAd = null;
     this.loading = false;
     this.rewardCallbacks = [];
     this._initAds();
@@ -24,7 +24,7 @@ class AdRewardManager {
 
     try {
       this.rewardAd = wx.createRewardedVideoAd({
-        adUnitId: 'adunit-xxxxxxxxxxxxxx'
+        adUnitId: 'adunit-452120d5a64af52c'
       });
 
       this.rewardAd.onLoad(() => {
@@ -147,7 +147,7 @@ class AdRewardManager {
 
       if (!this.interstitialAd) {
         this.interstitialAd = wx.createInterstitialAd({
-          adUnitId: 'adunit-xxxxxxxxxxxxxx'
+          adUnitId: 'adunit-9249049f529a13fd'
         });
 
         this.interstitialAd.onLoad(() => {
@@ -175,45 +175,47 @@ class AdRewardManager {
     });
   }
 
-  showBannerAd(container) {
-    if (typeof wx === 'undefined' || !wx.createBannerAd) {
-      console.log('[AdReward] Banner广告不可用');
-      return;
-    }
-
-    if (this.bannerAd) {
-      this.bannerAd.hide();
-    }
-
-    this.bannerAd = wx.createBannerAd({
-      adUnitId: 'adunit-xxxxxxxxxxxxxx',
-      adIntervals: 30,
-      style: {
-        left: 0,
-        top: 0,
-        width: 320
+  showCustomAd() {
+    return new Promise((resolve, reject) => {
+      if (typeof wx === 'undefined' || !wx.createCustomAd) {
+        reject(new Error('原生模板广告不可用'));
+        return;
       }
-    });
 
-    this.bannerAd.onLoad(() => {
-      console.log('[AdReward] Banner广告加载成功');
-      this.bannerAd.show();
-    });
+      if (this.customAd) {
+        try { this.customAd.destroy(); } catch (e) { /* ignore */ }
+      }
 
-    this.bannerAd.onError((err) => {
-      console.error('[AdReward] Banner广告加载失败:', err);
-    });
+      this.customAd = wx.createCustomAd({
+        adUnitId: 'adunit-77726cb782e853d5',
+        adIntervals: 30,
+        style: {}
+      });
 
-    this.bannerAd.onClose(() => {
-      console.log('[AdReward] Banner广告关闭');
-    });
+      this.customAd.onLoad(() => {
+        console.log('[AdReward] 原生模板广告加载成功');
+        this.customAd.show().then(() => {
+          resolve();
+        }).catch((err) => {
+          console.error('[AdReward] 原生模板广告show失败:', err);
+          reject(err);
+        });
+      });
 
-    this.bannerAd.load();
+      this.customAd.onError((err) => {
+        console.error('[AdReward] 原生模板广告加载失败:', err);
+        reject(err);
+      });
+
+      this.customAd.onClose(() => {
+        console.log('[AdReward] 原生模板广告关闭');
+      });
+    });
   }
 
-  hideBannerAd() {
-    if (this.bannerAd) {
-      this.bannerAd.hide();
+  hideCustomAd() {
+    if (this.customAd) {
+      try { this.customAd.hide(); } catch (e) { /* ignore */ }
     }
   }
 
@@ -224,8 +226,8 @@ class AdRewardManager {
     if (this.interstitialAd) {
       this.interstitialAd.destroy();
     }
-    if (this.bannerAd) {
-      this.bannerAd.destroy();
+    if (this.customAd) {
+      this.customAd.destroy();
     }
   }
 
