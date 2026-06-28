@@ -5,7 +5,7 @@
  * 依赖 battleship-core.js 提供常量（CELL_EMPTY/CELL_SHIP/CELL_WATER）。
  */
 
-const { roundRect, formatTime, CELL_EMPTY, CELL_SHIP, CELL_WATER } = require('./battleship-core');
+const { roundRect, formatTime, CELL_EMPTY, CELL_SHIP } = require('./battleship-core');
 
 let _bgGradient = null;
 
@@ -65,7 +65,7 @@ function drawGrid(ctx, boardOffsetX, boardOffsetY, hintAreaSize, cellSize, size,
       const y = boardOffsetY + hintAreaSize + r * cellSize;
       const state = grid[r][c];
 
-      ctx.fillStyle = state === CELL_EMPTY ? '#2a3a5a' : (state === CELL_SHIP ? '#4a7ab8' : '#1e3a5f');
+      ctx.fillStyle = state === CELL_SHIP ? '#4a7ab8' : '#2a3a5a';
       ctx.strokeStyle = 'rgba(100, 150, 200, 0.3)';
       ctx.lineWidth = 1;
 
@@ -80,11 +80,6 @@ function drawGrid(ctx, boardOffsetX, boardOffsetY, hintAreaSize, cellSize, size,
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🚢', x + cellSize / 2, y + cellSize / 2);
-      } else if (state === CELL_WATER) {
-        ctx.font = Math.floor(cellSize * 0.5) + 'px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('💧', x + cellSize / 2, y + cellSize / 2);
       }
     }
   }

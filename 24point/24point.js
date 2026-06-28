@@ -82,6 +82,7 @@ class TwentyFourPoint {
 
     // ---- 界面组件 ----
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, {
+      extraTopOffset: 0,
       bgColor:'#1a1a2e', textColor:'#fff', infoColor:'rgba(255,255,255,0.6)',
       backColor:'rgba(255,255,255,0.12)', height:44
     });
@@ -233,6 +234,26 @@ class TwentyFourPoint {
     let winCount = this.stats.correctAnswers || 0;
     this._newAchievements = this.achievement.check(this.gameName, winCount);
 
+    // ========== 独有成就解锁判断 ==========
+    
+    // 1. 心算达人：3秒内算出24点
+    if (this._lastSolveTime && this._lastSolveTime < 3000) {
+      const a = this.achievement.unlock('24point_speed');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    
+    // 2. 连胜达人：连续答对10道24点
+    if (this.stats.correctStreak >= 10) {
+      const a = this.achievement.unlock('24point_streak_10');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    
+    // 3. 算无遗策：连续答对50道24点
+    if (this.stats.correctStreak >= 50) {
+      const a = this.achievement.unlock('24point_streak_50');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+
     statsManager.endGame(true);
   }
 
@@ -274,6 +295,7 @@ class TwentyFourPoint {
     }
     this.showingHint = true;
     this.currentHint = HINT_TEMPLATES[this.hintIndex];
+    this._usedHint = true;  // 标记使用了提示
     this.draw();
   }
 

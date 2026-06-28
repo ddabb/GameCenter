@@ -168,7 +168,6 @@ function getGameModule(name) {
       case 'level-select': gameModules[name] = require('./games/level-select.js'); break;
       case 'profile':      gameModules[name] = require('./games/profile.js'); break;
       case 'checkin':      gameModules[name] = require('./games/checkin.js'); break;
-      case 'privacy':      gameModules[name] = require('./games/privacy.js'); break;
       case 'stats':        gameModules[name] = require('./games/stats.js'); break;
       case 'othello':      gameModules[name] = require('./othello/othello.js'); break;
       case 'akari':        gameModules[name] = require('./akari/akari.js'); break;
@@ -406,10 +405,11 @@ function safeInit() {
 
     loadSubpackage(function(success) {
       console.log('[init] 分包加载回调, success=', success);
-      if (success) {
-        loadGame('menu');
-      }
+      if (!success) return;
       // 失败时 showErrorOnCanvas 已在 loadSubpackage 内调用
+
+      stopLoadingAnimation();
+      loadGame('menu');
     });
 
     console.log('[init] 初始化完成');
@@ -538,7 +538,7 @@ let _drawErrorOccurred = false;
 
 function draw() {
   if (_drawErrorOccurred) return;
-  
+
   try {
     if (gameInstance) {
       if (typeof gameInstance.update === 'function') {

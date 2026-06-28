@@ -72,6 +72,11 @@ class OneStroke {
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.undoMgr = new UndoManager();
     this.achievement = AchievementManager.getInstance();
+
+    // ---- 成就跟踪变量 ----
+    this._liftedPen = false;  // 是否中途抬笔
+    this._noLiftStreak = 0;
+
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
 
@@ -85,7 +90,7 @@ class OneStroke {
     statsManager.startGame(this.gameName, this.level);
 
     // 共享 UI 组件
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -295,6 +300,36 @@ class OneStroke {
     
     statsManager.endGame(true);
 
+    // ========== 成就检查 ==========
+    let winCount = 0;
+    try {
+      const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}');
+      winCount = p.unlocked || 0;
+    } catch (e) {}
+    this._newAchievements = this.achievement.check(this.gameName, winCount);
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 一笔勾勒：30秒内完成一关
+    if (this.time < 30) {
+      const a = this.achievement.unlock('one_stroke_speed');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 无暇笔触：连续10关不抬笔（一次完成，需记录是否中途抬笔）
+    if (!this._liftedPen) {
+      this._noLiftStreak = (this._noLiftStreak || 0) + 1;
+      if (this._noLiftStreak >= 10) {
+        const a = this.achievement.unlock('one_stroke_no_lift');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noLiftStreak = 0;
+    }
+    // 3. 笔画大师：通关50关
+    if (winCount >= 50) {
+      const a = this.achievement.unlock('one_stroke_win_50');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+
     try {
       const baseKey = 'progress_' + this.gameName;
       let saved = wx.getStorageSync(baseKey);
@@ -429,6 +464,7 @@ class OneStroke {
     // 已在路径中 → 截断
     const existingIdx = path.indexOf(idx);
     if (existingIdx >= 0) {
+      this._liftedPen = true;  // 标记抬笔（截断路径）
       this.undoMgr.save(path.slice());
       this.path = path.slice(0, existingIdx);
       this._lastTouchIdx = existingIdx > 0 ? path[existingIdx - 1] : null;

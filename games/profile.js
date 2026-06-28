@@ -131,20 +131,13 @@ class Profile {
           }
           // link类型（隐私/关于）
           if (item.type === 'link' && y >= item.y && y <= item.y + item.h && x >= item.x && x <= item.x + item.w) {
-            if (item.key === 'privacy') this.switchGame('privacy');
             if (item.key === 'about') this._showAbout();
             return;
           }
         }
       }
 
-      // 底部隐私政策
-      if (y >= this.height - 55 && y <= this.height - 20) {
-        if (x >= this.width - this.padding - 90 && x <= this.width - this.padding) {
-          this.switchGame('privacy');
-          return;
-        }
-      }
+
     };
 
     // 滚动
@@ -421,7 +414,6 @@ class Profile {
       { key: 'sound',     label: '音效', type: 'toggle' },
       { key: 'music',     label: '音乐', type: 'toggle' },
       { key: 'vibration', label: '震动', type: 'toggle' },
-      { key: 'privacy',   label: '🔒 隐私政策', type: 'link' },
       { key: 'about',     label: 'ℹ️ 关于我们', type: 'link' },
     ];
 

@@ -50,10 +50,10 @@ function drawModeButtons(ctx, width, mode, statusBarHeight, modeBtnY) {
 }
 
 function drawHints(ctx, colHints, rowHints, size, cellSize, boardOffsetX, boardOffsetY, hintFontSize) {
-  const fontSize = hintFontSize || Math.max(10, Math.floor(cellSize * 0.32));
-  ctx.font = fontSize + 'px Arial';
+  const fontSize = hintFontSize || Math.max(10, Math.floor(cellSize * 0.64));
+  ctx.font = 'bold ' + fontSize + 'px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
 
   for (let c = 0; c < size; c++) {
     const hints = colHints[c] || [];

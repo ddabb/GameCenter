@@ -124,6 +124,10 @@ class Othello {
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.undoMgr = new UndoManager();
 
+    // ---- 成就系统 ----
+    this.achievement = AchievementManager.getInstance();
+    this._newAchievements = [];
+
     // ---- 棋子图片 ----
     this.pieceImages = { black: null, white: null };
     this._loadPieceImages();
@@ -140,7 +144,9 @@ class Othello {
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, {
+      extraTopOffset: 0
+    });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -385,6 +391,38 @@ class Othello {
       this.winner = this.blackCount > this.whiteCount ? this.BLACK
                   : this.whiteCount > this.blackCount ? this.WHITE
                   : null;
+
+      // ========== 成就检查 ==========
+      // 通用成就：通关1/10/50/100关
+      // 黑白棋每局即1关，winCount 从 storage 读取
+      let winCount = 0;
+      try {
+        const p = JSON.parse(wx.getStorageSync('progress_othello') || '{}');
+        winCount = p.unlocked || 0;
+      } catch (e) {}
+      this._newAchievements = this.achievement.check(this.gameName, winCount);
+
+      // 独有成就解锁判断
+      if (this.winner === this.BLACK) {
+        // 完美碾压：64:0 获胜
+        if (this.blackCount === 64) {
+          const a = this.achievement.unlock('othello_perfect');
+          if (a) this._newAchievements = [...(this._newAchievements || []), a];
+        }
+        // 角霸天下：占领4个角
+        const corners = [[0,0],[0,7],[7,0],[7,7]];
+        const ownedCorners = corners.filter(([r,c]) => this.board[r][c] === this.BLACK).length;
+        if (ownedCorners === 4) {
+          const a = this.achievement.unlock('othello_corner');
+          if (a) this._newAchievements = [...(this._newAchievements || []), a];
+        }
+        // 绝地翻盘：中盘落后20子以上最终获胜
+        if (this._maxDeficit >= 20) {
+          const a = this.achievement.unlock('othello_comeback');
+          if (a) this._newAchievements = [...(this._newAchievements || []), a];
+        }
+      }
+
       return;
     }
 
@@ -517,6 +555,7 @@ class Othello {
     switch (action) {
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
+          this._usedUndo = true;  // 标记使用了撤销
           const prev = this.undoMgr.undo();
           if (prev) {
             this.board = prev.board;
@@ -540,7 +579,7 @@ class Othello {
         this.draw();
         break;
       case 'hint':
-        if (this.hintMgr) { this.hintMgr.showHint(); sound.playSuccess(); }
+        if (this.hintMgr) { this.hintMgr.showHint(); this._usedHint = true; sound.playSuccess(); }
         break;
       case 'rule':
         sound.play('click');

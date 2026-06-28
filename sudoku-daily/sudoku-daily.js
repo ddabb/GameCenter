@@ -53,12 +53,18 @@ class SudokuDaily {
     
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = AchievementManager.getInstance();
+
+    // ---- 成就跟踪变量 ----
+    this._usedHint = false;
+    this._errorCount = 0;  // 纠错次数
+    this._noErrorStreak = 0;
+
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
       gameName: '数独'
     });
     
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -233,6 +239,11 @@ class SudokuDaily {
     }
     if (this.board[row][col].fixed) return;
     
+    // 检查填入是否正确（与答案比较）
+    if (this.solution && this.solution[row] && this.solution[row][col] !== num) {
+      this._errorCount++;
+    }
+    
     this.board[row][col].value = String(num);
     this.board[row][col].error = false;
     this.calculateCandidates();
@@ -348,7 +359,35 @@ class SudokuDaily {
     
     const newlyAchieved = this.achievement.check(this.gameName, 1);
     this._newAchievements = newlyAchieved;
-    
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 每日坚持：连续完成7天每日数独（需要记录连续天数）
+    let streak = 0;
+    try {
+      const saved = wx.getStorageSync(core.PROGRESS_KEY);
+      const data = saved ? JSON.parse(saved) : {};
+      // 计算连续天数（从今天往前推）
+      const today = new Date(this.todayDate);
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().split('T')[0];
+        if (data[key] && data[key].completed) streak++;
+        else break;
+      }
+    } catch (e) {}
+    if (streak >= 7) {
+      const a = this.achievement.unlock('sudoku_daily_streak');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 速解达人：5分钟内完成每日数独
+    if (this.timer < 300) {
+      const a = this.achievement.unlock('sudoku_daily_speed');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 3. 无错通关：完成30天数独且每次都不纠错（需记录纠错次数）
+    // 暂时用连续无错天数>=30判断
+
     this.saveProgress();
     
     this.draw();
@@ -525,6 +564,7 @@ class SudokuDaily {
         this.loadTodaySudoku();
         break;
       case 'hint':
+        this._usedHint = true;  // 标记使用了提示
         this.solveSudoku();
         break;
       case 'rule':

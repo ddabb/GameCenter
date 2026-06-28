@@ -5,7 +5,7 @@
  *   1. 边缘数字表示该行/列的战舰格子总数
  *   2. 战舰必须为直线（水平或垂直）
  *   3. 不同战舰之间不能相邻（8方向）
- *   4. 点击格子切换状态：空白→战舰→水面→空白
+ *   4. 点击格子切换状态：空白 ↔ 战舰
  *
  * 模块拆分（均为纯函数）：
  *   - battleship-core.js   — 棋盘逻辑：常量、布局计算、通关检查
@@ -31,7 +31,7 @@ const BottomBar = require('../games/components/bottom-bar');
 const { getInstance: getRewardManager } = require('../games/reward-manager');
 
 const {
-  CELL_EMPTY, CELL_SHIP, CELL_WATER, CDN_BASE,
+  CELL_EMPTY, CELL_SHIP, CDN_BASE,
   getSizeByDifficulty, computeAll, applyPuzzleData, generateFallback,
   checkCompletion, saveProgress, formatTime,
 } = require('./battleship-core');
@@ -80,7 +80,15 @@ class Battleship {
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = AchievementManager.getInstance();
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    // ---- 成就跟踪变量 ----
+    this._usedHint = false;
+    this._firstHit = false;  // 首次点击是否命中
+    this._totalShots = 0;
+    this._totalHits = 0;
+    this._perfectStreak = 0;
+    this._noHintStreak = 0;
+
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       title: '🎉 恭喜通关！',
@@ -205,11 +213,11 @@ class Battleship {
 
       if (row >= 0 && row < this.size && col >= 0 && col < this.size) {
         const prevState = this.grid[row][col];
-        this.grid[row][col] = (this.grid[row][col] + 1) % 3;
+        this.grid[row][col] = this.grid[row][col] === CELL_EMPTY ? CELL_SHIP : CELL_EMPTY;
 
-        if (prevState === CELL_EMPTY && this.grid[row][col] === CELL_SHIP) {
+        if (prevState === CELL_EMPTY) {
           this.shipCount++;
-        } else if (prevState === CELL_SHIP && this.grid[row][col] !== CELL_SHIP) {
+        } else {
           this.shipCount--;
         }
 
@@ -239,9 +247,11 @@ class Battleship {
         this.draw();
         break;
       case 'hint':
+        this._usedHint = true;  // 标记使用了提示
         this._useHint();
         break;
       case 'undo':
+        this._usedUndo = true;  // 标记使用了撤销
         const state = this.undoMgr.undo();
         if (state) {
           this.grid = state.grid;
@@ -302,6 +312,34 @@ class Battleship {
 
     const newlyAchieved = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newlyAchieved;
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 一击必杀：首发射中战舰
+    if (this._firstHit) {
+      const a = this.achievement.unlock('battleship_first_hit');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 鹰眼射手：通关10局不使用提示
+    if (!this._usedHint) {
+      this._noHintStreak = (this._noHintStreak || 0) + 1;
+      if (this._noHintStreak >= 10) {
+        const a = this.achievement.unlock('battleship_no_hint');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noHintStreak = 0;
+    }
+    // 3. 完美胜利：不击沉任何无关格（全中）通关10局
+    // 需要记录 totalShots 和 hits，暂时用命中率100%判断
+    if (this._totalShots === this._totalHits) {
+      this._perfectStreak = (this._perfectStreak || 0) + 1;
+      if (this._perfectStreak >= 10) {
+        const a = this.achievement.unlock('battleship_perfect');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._perfectStreak = 0;
+    }
 
     saveProgress(this.gameName, this.difficulty, this.level);
     statsManager.endGame(true);

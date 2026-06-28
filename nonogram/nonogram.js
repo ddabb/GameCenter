@@ -71,11 +71,18 @@ class Nonogram {
     this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
     this.hintMgr = new HintManager();
+
+    // ---- 成就跟踪变量 ----
+    this._usedHint = false;
+    this._usedCross = false;  // 是否使用叉号标记
+    this._noHintStreak = 0;
+    this._noCrossStreak = 0;
+
     this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
       gameName: '数织'
     });
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -99,7 +106,7 @@ class Nonogram {
     const modeBtnH = 32;
     const topGap = 6;
     const btnToStatus = 4;
-    const statusToHints = 6;
+    const statusToHints = 26;
     const bottomGap = 12;
 
     const availH = footerTop - headerBottom - topGap - modeBtnH - btnToStatus - 14 - statusToHints - bottomGap;
@@ -111,7 +118,7 @@ class Nonogram {
       36
     );
 
-    this._hintFontSize = Math.max(9, Math.floor(roughCellSize * 0.32));
+    this._hintFontSize = Math.max(9, Math.floor(roughCellSize * 0.64));
     this._rowHintW = Math.max(30, maxRowLen * (this._hintFontSize + 3) + 6);
     this._colHintH = Math.max(16, maxColLen * (this._hintFontSize + 2) + 4);
 
@@ -119,7 +126,7 @@ class Nonogram {
     const maxCellH = Math.floor((availH - this._colHintH) / this.size);
     this.cellSize = Math.max(16, Math.min(maxCellW, maxCellH, 36));
 
-    this._hintFontSize = Math.max(9, Math.floor(this.cellSize * 0.32));
+    this._hintFontSize = Math.max(9, Math.floor(this.cellSize * 0.64));
     this._rowHintW = Math.max(30, maxRowLen * (this._hintFontSize + 3) + 6);
     this._colHintH = Math.max(16, maxColLen * (this._hintFontSize + 2) + 4);
 
@@ -213,6 +220,34 @@ class Nonogram {
     try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
     const newlyAchieved = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newlyAchieved;
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 像素画家：完成10个彩色数织（暂时用通关数>=10判断）
+    if (winCount >= 10) {
+      const a = this.achievement.unlock('nonogram_10_pics');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 填色达人：连续20关不使用叉号（需记录是否使用叉号）
+    if (!this._usedCross) {
+      this._noCrossStreak = (this._noCrossStreak || 0) + 1;
+      if (this._noCrossStreak >= 20) {
+        const a = this.achievement.unlock('nonogram_no_cross');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noCrossStreak = 0;
+    }
+    // 3. 逻辑至上：连续10关不使用提示
+    if (!this._usedHint) {
+      this._noHintStreak = (this._noHintStreak || 0) + 1;
+      if (this._noHintStreak >= 10) {
+        const a = this.achievement.unlock('nonogram_logic');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noHintStreak = 0;
+    }
+
     statsManager.endGame(true);
 
     this.draw();
@@ -303,6 +338,7 @@ class Nonogram {
     switch (action) {
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
+          this._usedUndo = true;  // 标记使用了撤销
           const prev = this.undoMgr.undo();
           if (prev) { this.grid = prev.grid; sound.playClick(); this.draw(); }
         }
@@ -314,7 +350,7 @@ class Nonogram {
         this.draw();
         break;
       case 'hint':
-        if (this.hintMgr) { this.hintMgr.showHint(); sound.playSuccess(); }
+        if (this.hintMgr) { this._usedHint = true; this.hintMgr.showHint(); sound.playSuccess(); }
         break;
       case 'rule':
         sound.play('click');

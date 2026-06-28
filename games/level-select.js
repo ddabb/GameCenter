@@ -2,6 +2,7 @@
  * level-select.js - 选关页面（Canvas版，支持难度分级）
  */
 const LevelLoader = require('./level-loader');
+const HeaderBar = require('./components/header-bar');
 const roundRect = require('../utils/round-rect.js');
 const sound = require('./sound-manager');
 
@@ -62,9 +63,8 @@ class LevelSelect {
 
     // 布局
     this.padding = 15;
-    this.backBtn = { x: 10, y: this.statusBarHeight + 10, w: 50, h: 35 };
-    this.titleY = this.statusBarHeight + 55;
-    this.tabY = this.statusBarHeight + 75;
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
+    this.tabY = this.headerBar.boardStartY;
     this.tabH = 32;
     this.gridStartY = this.tabY + (this.showDifficultyTabs ? this.tabH + 10 : 10);
     this.cols = 5;
@@ -126,8 +126,7 @@ class LevelSelect {
     const y = touch.clientY;
 
     // 返回按钮
-    if (x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.w &&
-        y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.h) {
+    if (this.headerBar.isBackButton(x, y)) {
       this.switchGame('menu');
       return;
     }
@@ -205,21 +204,8 @@ class LevelSelect {
     this.ctx.fillStyle = grad;
     this.ctx.fillRect(0, 0, W, H);
 
-    // 返回按钮
-    this.ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    this.ctx.beginPath();
-    roundRect(this.ctx,this.backBtn.x, this.backBtn.y, this.backBtn.w, this.backBtn.h, 8);
-    this.ctx.fill();
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = '14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('← 返回', this.backBtn.x + this.backBtn.w / 2, this.backBtn.y + this.backBtn.h / 2 + 5);
-
-    // 标题
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = 'bold 20px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(GAME_NAMES[this.gameName] || this.gameName, W / 2, this.titleY);
+    // 顶部栏
+    this.headerBar.draw({ title: GAME_NAMES[this.gameName] || this.gameName });
 
     // 难度 Tabs
     if (this.showDifficultyTabs) {

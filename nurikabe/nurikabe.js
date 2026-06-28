@@ -54,9 +54,15 @@ class Nurikabe {
     this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
 
+    // ---- 成就跟踪变量 ----
+    this._usedHint = false;
+    this._usedUndo = false;
+    this._noHintStreak = 0;
+
     this.tutorial = new TutorialOverlay(ctx, this.width, this.height, this.gameName);
 
     this.headerBar = new HeaderBar(ctx, this.width, this.statusBarHeight, {
+      extraTopOffset: 0,
       bgColor: '#e0f7fa',
       textColor: '#00695c',
       infoColor: '#4db6ac',
@@ -227,6 +233,34 @@ class Nurikabe {
     let winCount = 0;
     try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_' + (this.difficulty || 'easy')) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
     this._newAchievements = this.achievement.check(this.gameName, winCount);
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 速砌高手：10秒内完成一关
+    if (this.timer < 10) {
+      const a = this.achievement.unlock('nurikabe_speed_10');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 无师自通：连续10关不使用提示
+    if (!this._usedHint) {
+      this._noHintStreak = (this._noHintStreak || 0) + 1;
+      if (this._noHintStreak >= 10) {
+        const a = this.achievement.unlock('nurikabe_no_hint');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noHintStreak = 0;
+    }
+    // 3. 铁壁铜墙：通关10个困难数墙
+    let hardCount = 0;
+    try {
+      const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_hard') || '{}');
+      hardCount = p.unlocked || 0;
+    } catch(e) {}
+    if (this.difficulty === 'hard' && hardCount >= 10) {
+      const a = this.achievement.unlock('nurikabe_hard_10');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+
     saveProgress(this.gameName, this.difficulty, this.level);
     statsManager.endGame(true);
   }
@@ -274,6 +308,7 @@ class Nurikabe {
     switch (action) {
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
+          this._usedUndo = true;  // 标记使用了撤销
           const state = this.undoMgr.undo();
           if (state && state.board) {
             this.board = state.board;

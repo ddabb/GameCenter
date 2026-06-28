@@ -77,7 +77,7 @@ class FrogEscape {
     this.undoMgr = new UndoManager();
 
     // 共享 UI 组件
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -89,6 +89,17 @@ class FrogEscape {
       retryText: '再来一局',
       backText: '返回菜单'
     });
+
+    // ---- 成就系统 ----
+    const { AchievementManager } = require('../games/achievement-manager');
+    this.achievement = AchievementManager.getInstance();
+    this._newAchievements = [];
+
+    // ---- 成就跟踪变量 ----
+    this._firstClick = true;  // 是否首次点击
+    this._firstClickHit = false;  // 首次点击是否命中青蛙
+    this._usedHint = false;
+    this._noHintStreak = 0;
 
     // 规则弹窗
     this.tutorial = new TutorialOverlay(ctx, this.width, this.height, 'sweep-frog');
@@ -439,6 +450,8 @@ class FrogEscape {
 
       const boardCell = this._boardData[row][col];
       if (boardCell && boardCell.isFrog) {
+        // 首次点击命中了青蛙（但被安全保护移走了）
+        this._firstClickHit = true;  // 标记首次点击命中
         boardCell.isFrog = false;
         for (let r2 = 0; r2 < this.rows; r2++) {
           for (let c2 = 0; c2 < this.cols; c2++) {
@@ -614,6 +627,31 @@ class FrogEscape {
         time: this.time || 0
       });
       rewardMgr.showRewardToast(rewardResult);
+
+      // ========== 成就检查 ==========
+      let winCount = 0;
+      try {
+        const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}');
+        winCount = p.unlocked || 0;
+      } catch (e) {}
+      this._newAchievements = this.achievement.check(this.gameName, winCount);
+
+      // ========== 独有成就解锁判断 ==========
+      // 1. 一击中的：首次点击即获胜（第一步就揭开所有安全格）
+      if (this._firstClick) {
+        const a = this.achievement.unlock('sweep_frog_first_click');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+      // 2. 速度之星：10秒内完成一局
+      if (this.time < 10) {
+        const a = this.achievement.unlock('sweep_frog_speed');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+      // 3. 扫雷达人：通关50局
+      if (winCount >= 50) {
+        const a = this.achievement.unlock('sweep_frog_win_50');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
     }
   }
 
@@ -662,6 +700,7 @@ class FrogEscape {
         break;
       case 'hint':
         if (this.hintMgr) {
+          this._usedHint = true;  // 标记使用了提示
           this.hintMgr.showHint();
           sound.playSuccess();
         }

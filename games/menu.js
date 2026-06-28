@@ -86,7 +86,7 @@ class Menu {
     this.hGap = Math.max(8, Math.floor((availW - this.cols * this.iconSize) / (this.cols - 1)));
     this.vGap = 24;
     this.labelGap = 6;
-    this.labelFontSize = Math.max(10, Math.floor(this.iconSize * 0.16));
+    this.labelFontSize = Math.max(10, Math.floor(this.iconSize * 0.16)) * 2;
     this.rowHeight = this.iconSize + this.labelGap + this.labelFontSize + 2;
 
     const totalGridH = this.rows * this.rowHeight + (this.rows - 1) * this.vGap;

@@ -91,12 +91,20 @@ class MergeABC {
 
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       showNext: false,
       backText: '返回菜单'
     });
+
+    // ---- 成就系统 ----
+    this.achievement = AchievementManager.getInstance();
+    this._newAchievements = [];
+
+    // ---- 成就跟踪变量 ----
+    this._mergeCount = 0;  // 本次游戏合成次数
+    this._maxTile = 0;     // 最高字母（A=1, B=2, ... Z=26）
 
     this.boardOffsetY = this.headerBar.boardStartY + 46;
     this.btnY = this.boardOffsetY + this.cellSize * 4 + this.gridGap * 3 + this.boardPadding * 2 + 30;
@@ -187,6 +195,7 @@ class MergeABC {
   handleMove(direction) {
     if (this._gameOver) return;
     let moved = false;
+    const prevBoard = this._board.map(row => row.slice());  // 保存移动前棋盘
     switch (direction) {
       case 'left': moved = moveLeft(this._board); break;
       case 'right': moved = moveRight(this._board); break;
@@ -194,6 +203,15 @@ class MergeABC {
       case 'down': moved = moveDown(this._board); break;
     }
     if (moved) {
+      // 跟踪合成次数（比较移动前后棋盘，看是否有相同字母合并）
+      for (let i = 0; i < this._board.length; i++) {
+        for (let j = 0; j < this._board[i].length; j++) {
+          if (this._board[i][j] > prevBoard[i][j]) {
+            this._mergeCount++;
+            this._maxTile = Math.max(this._maxTile, this._board[i][j]);
+          }
+        }
+      }
       this.saveState();
       addNewTile(this._board);
       this._score = getScore(this._board);
@@ -226,6 +244,32 @@ class MergeABC {
       difficulty: 'easy', level: 1, time: 0
     });
     rewardMgr.showRewardToast(rewardResult);
+
+    // ========== 成就检查 ==========
+    let winCount = 0;
+    try {
+      const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}');
+      winCount = p.unlocked || 0;
+    } catch (e) {}
+    this._newAchievements = this.achievement.check(this.gameName, winCount);
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 字母全收集：合成包含所有26个字母的棋盘（最高字母为Z）
+    const maxTile = Math.max(...this._board.filter(Boolean).map(t => t.length));
+    if (maxTile >= 26) {
+      const a = this.achievement.unlock('merge_abc_all_letters');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 连击大师：单局合成10次以上（需记录合成次数，暂时用score>=500判断）
+    if (this._score >= 500) {
+      const a = this.achievement.unlock('merge_abc_combo');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 3. 合成之王：通关50局
+    if (winCount >= 50) {
+      const a = this.achievement.unlock('merge_abc_win_50');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
 
     saveGameProgress(this.gameName, 1);
     statsManager.endGame(true);

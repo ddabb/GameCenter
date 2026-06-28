@@ -87,9 +87,9 @@ const UNIQUE_ACHIEVEMENTS = {
     { id: 'frog_50', title: '蛙鸣四方', desc: '通关50关扫青蛙', icon: '🌿' },
   ],
   'one-stroke': [
-    { id: 'one-stroke_no_undo', title: '一气呵成', desc: '不撤销完成一关', icon: '✍️' },
-    { id: 'one-stroke_speed', title: '行云流水', desc: '10秒内完成一关一笔画', icon: '🌊' },
-    { id: 'one-stroke_hard_10', title: '铁笔银钩', desc: '通关10个困难一笔画', icon: '🖊️' },
+    { id: 'onestroke_no_undo', title: '一气呵成', desc: '不撤销完成一关', icon: '✍️' },
+    { id: 'onestroke_speed', title: '行云流水', desc: '10秒内完成一关一笔画', icon: '🌊' },
+    { id: 'onestroke_hard_10', title: '铁笔银钩', desc: '通关10个困难一笔画', icon: '🖊️' },
   ],
   'sudoku-daily': [
     { id: 'sudoku_no_erase', title: '落笔无悔', desc: '不擦除完成一局数独', icon: '✏️' },

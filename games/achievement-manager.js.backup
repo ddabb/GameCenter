@@ -1,10 +1,9 @@
 /**
- * achievement-manager.js — 成就系统 v2.1 (修复版)
+ * achievement-manager.js — 成就系统 v2.0
  * 
- * 修复内容：
- * 1. _enrichProgress() - 修复通用成就target计算，修复全局成就进度计算
- * 2. getByGame() - 重写分组逻辑，确保成就正确归到对应游戏
- * 3. 保留原有接口，向后兼容
+ * 通用成就：每个游戏都有（首次通关/10关/50关）
+ * 独有成就：每个游戏根据玩法设计的特色成就
+ * 全局成就：跨游戏的里程碑
  */
 
 // ========== 游戏配置 ==========
@@ -87,9 +86,9 @@ const UNIQUE_ACHIEVEMENTS = {
     { id: 'frog_50', title: '蛙鸣四方', desc: '通关50关扫青蛙', icon: '🌿' },
   ],
   'one-stroke': [
-    { id: 'one-stroke_no_undo', title: '一气呵成', desc: '不撤销完成一关', icon: '✍️' },
-    { id: 'one-stroke_speed', title: '行云流水', desc: '10秒内完成一关一笔画', icon: '🌊' },
-    { id: 'one-stroke_hard_10', title: '铁笔银钩', desc: '通关10个困难一笔画', icon: '🖊️' },
+    { id: 'onestroke_no_undo', title: '一气呵成', desc: '不撤销完成一关', icon: '✍️' },
+    { id: 'onestroke_speed', title: '行云流水', desc: '10秒内完成一关一笔画', icon: '🌊' },
+    { id: 'onestroke_hard_10', title: '铁笔银钩', desc: '通关10个困难一笔画', icon: '🖊️' },
   ],
   'sudoku-daily': [
     { id: 'sudoku_no_erase', title: '落笔无悔', desc: '不擦除完成一局数独', icon: '✏️' },
@@ -123,7 +122,7 @@ function buildAllAchievements() {
       all.push({
         id: `${suffix}_${g}`,
         title: `${title}${GAME_TITLES_SUFFIX[suffix]}`,
-        desc: suffix === 'first_win' ? `首次通关${title}` : `通关${title} ${suffix.replace('win_', '')}关`,
+        desc: suffix === 'first_win' ? `首次通关${title}` : `通关${title} ${suffix.replace('win_','')}关`,
         icon: GAME_ICONS[suffix]
       });
     });
@@ -212,10 +211,8 @@ class AchievementManager {
     });
 
     // "多面手"：每个游戏至少1个独有成就
-    const hasOneEach = GAMES.every(g => {
-      const uniqueList = UNIQUE_ACHIEVEMENTS[g] || [];
-      return uniqueList.some(a => this.data.unlocked[a.id]);
-    });
+    const uniqueIds = GAMES.map(g => (UNIQUE_ACHIEVEMENTS[g] || []).map(a => a.id));
+    const hasOneEach = uniqueIds.every(ids => ids.some(id => this.data.unlocked[id]));
     if (hasOneEach && !this.data.unlocked['all_unique_1']) {
       this.data.unlocked['all_unique_1'] = Date.now();
       newly.push(ALL_ACHIEVEMENTS.find(a => a.id === 'all_unique_1'));
@@ -282,7 +279,7 @@ class AchievementManager {
   }
 
   /**
-   * 计算成就的进度和目标（修复版 v2.1）
+   * 计算成就的进度和目标
    */
   _enrichProgress(a) {
     // 通用成就（按游戏）
@@ -334,43 +331,28 @@ class AchievementManager {
   }
 
   /**
-   * 按游戏分组获取成就（修复版 v2.1）
+   * 按游戏分组获取成就
    */
   getByGame() {
     const result = { _global: [], _unique: {} };
     GAMES.forEach(g => { result._unique[g] = []; });
     
     this.getAll().forEach(a => {
-      // 1. 全局成就
-      if (GLOBAL_ACHIEVEMENTS.find(g => g.id === a.id)) {
+      // 判断是否为某游戏的成就
+      const gameMatch = GAMES.find(g => a.id.endsWith(`_${g}`) || a.id.startsWith(`${g}_`));
+      if (a.id.startsWith('first_win_') || a.id.startsWith('win_10_') || a.id.startsWith('win_50_') || a.id.startsWith('win_100_')) {
+        const g = a.id.split('_').slice(-1)[0] || a.id.split('_').slice(-2).join('-');
+        // 通用成就归入对应游戏
+        const gn = a.id.replace(/^(first_win|win_10|win_50|win_100)_/, '');
+        if (!result._unique[gn]) result._unique[gn] = [];
+        result._unique[gn].push(a);
+      } else if (UNIQUE_ACHIEVEMENTS[gameMatch]) {
+        if (!result._unique[gameMatch]) result._unique[gameMatch] = [];
+        result._unique[gameMatch].push(a);
+      } else {
         result._global.push(a);
-        return;
       }
-      
-      // 2. 通用成就（first_win_xxx, win_10_xxx 等）
-      const genMatch = a.id.match(/^(first_win|win_10|win_50|win_100)_(.+)$/);
-      if (genMatch) {
-        const game = genMatch[2];
-        if (!result._unique[game]) result._unique[game] = [];
-        result._unique[game].push(a);
-        return;
-      }
-      
-      // 3. 独有成就（xxx_yyy）
-      const uniqueMatch = a.id.match(/^([^_]+)_(.+)$/);
-      if (uniqueMatch) {
-        const game = uniqueMatch[1];
-        if (UNIQUE_ACHIEVEMENTS[game]) {
-          if (!result._unique[game]) result._unique[game] = [];
-          result._unique[game].push(a);
-          return;
-        }
-      }
-      
-      // 4. 兜底：放入全局
-      result._global.push(a);
     });
-    
     return result;
   }
 

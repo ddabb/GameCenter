@@ -59,6 +59,7 @@ class Akari {
       gameName: '数灯'
     });
     this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, {
+      extraTopOffset: 0,
       bgColor: '#fef0f5',
       textColor: '#333',
       infoColor: '#888',
@@ -274,6 +275,7 @@ class Akari {
     switch (action) {
       case 'undo':
         if (this.undoMgr.canUndo()) {
+          this._usedUndo = true;
           const state = this.undoMgr.undo();
           if (state) {
             this.lights = state.lights;
@@ -307,6 +309,7 @@ class Akari {
   }
 
   _useHint() {
+    this._usedHint = true;  // 标记使用了提示
     if (this.showAnswer) {
       wx.showToast({ title: '查看答案时无法使用提示', icon: 'none' });
       return;
@@ -391,6 +394,34 @@ class Akari {
 
     const newlyAchieved = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newlyAchieved;
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 闪电点灯：5秒内完成一关
+    if (this.timer < 5) {
+      const a = this.achievement.unlock('akari_speed_5');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 暗夜行者：通关10个困难灯塔（需在 progress 里累计）
+    let hardCount = 0;
+    try {
+      const p = JSON.parse(wx.getStorageSync(`progress_${this.gameName}_hard`) || '{}');
+      hardCount = p.unlocked || 0;
+    } catch (e) {}
+    if (this.difficulty === 'hard' && hardCount >= 10) {
+      const a = this.achievement.unlock('akari_hard_10');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 3. 独立思考：连续10关不使用提示（需要在使用提示时记录 streak）
+    if (!this._usedHint) {
+      this._noHintStreak = (this._noHintStreak || 0) + 1;
+      if (this._noHintStreak >= 10) {
+        const a = this.achievement.unlock('akari_no_hint');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noHintStreak = 0;
+    }
+
     core.saveProgress(this.gameName, this.level, this.difficulty);
     statsManager.endGame(true);
     this.draw();

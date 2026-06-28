@@ -2,7 +2,7 @@
  * battleship-core.js — 战舰谜题核心逻辑（纯函数 + 数据常量）
  *
  * 包含：
- *   - 棋盘常量（空白/战舰/水面）
+ *   - 棋盘常量（空白/战舰）
  *   - 布局计算（格子大小、偏移量、提示区域）
  *   - 谜题数据处理（CDN数据解析、内置生成器）
  *   - 通关检查（行列计数匹配、战舰形状验证、相邻检查）
@@ -16,7 +16,6 @@
 
 const CELL_EMPTY = 0;
 const CELL_SHIP = 1;
-const CELL_WATER = 2;
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/ddabb/FreeToolsPuzzle@main/data/battleship';
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -261,7 +260,6 @@ function saveProgress(gameName, difficulty, level) {
 module.exports = {
   CELL_EMPTY,
   CELL_SHIP,
-  CELL_WATER,
   CDN_BASE,
   roundRect,
   getSizeByDifficulty,

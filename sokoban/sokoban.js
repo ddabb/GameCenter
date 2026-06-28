@@ -81,6 +81,12 @@ class Sokoban {
     this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
 
+    // ---- 成就跟踪变量 ----
+    this._usedHint = false;
+    this._usedUndo = false;
+    this._noHintStreak = 0;
+    this._noUndoStreak = 0;
+
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
       gameName: '推箱子'
@@ -125,7 +131,7 @@ class Sokoban {
       ]
     };
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       gameName: this.gameName,
@@ -280,6 +286,21 @@ class Sokoban {
     try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName) || '{}'); winCount = p.unlocked || 0; } catch(e) {}
     const newlyAchieved = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newlyAchieved;
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 从不回头：连续5关不使用撤销
+    if (!this._usedUndo) {
+      this._noUndoStreak = (this._noUndoStreak || 0) + 1;
+      if (this._noUndoStreak >= 5) {
+        const a = this.achievement.unlock('sokoban_no_undo');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noUndoStreak = 0;
+    }
+    // 2. 最短路径：以最优步数通关（需记录最优步数，暂时用步数<=最小步数*1.2判断）
+    // 3. 推箱达人：通关50关（由通用成就 win_50_sokoban 覆盖，此处不重复）
+
     sound.play('victory');
     core.saveProgress(this.gameName, this.level, this.difficulty);
     statsManager.endGame(true);
@@ -451,6 +472,7 @@ class Sokoban {
     switch (action) {
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
+          this._usedUndo = true;  // 标记使用了撤销
           const state = this.undoMgr.undo();
           if (state) {
             this.grid = state.grid;
@@ -469,6 +491,7 @@ class Sokoban {
         break;
       case 'hint':
         if (this.hintMgr) {
+          this._usedHint = true;  // 标记使用了提示
           this.hintMgr.showHint();
           sound.playSuccess();
         }

@@ -44,22 +44,28 @@ class SlitherLink {
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
+
+    // ---- 成就跟踪变量 ----
+    this._usedHint = false;
+    this._usedUndo = false;
+    this._noHintStreak = 0;
+
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.animationTime = 0;
 
-    this.loadLevel();
+    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
+      gameName: '数回'
+    });
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
       onAchievementDraw: () => { this._newAchievements = null; }
     });
     this.bindEvents();
-    this.loadingOverlay = new LoadingOverlay(this.ctx, this.width, this.height, {
-      gameName: '数回'
-    });
+    this.loadLevel();
   }
 
   async loadLevel() {
@@ -219,6 +225,34 @@ class SlitherLink {
     } catch (e) {}
     const newlyAchieved = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newlyAchieved;
+
+    // ========== 独有成就解锁判断 ==========
+    // 1. 回路高手：30秒内完成一关
+    if (this.timer < 30) {
+      const a = this.achievement.unlock('slither_speed_30');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 2. 独立成环：连续10关不使用提示
+    if (!this._usedHint) {
+      this._noHintStreak = (this._noHintStreak || 0) + 1;
+      if (this._noHintStreak >= 10) {
+        const a = this.achievement.unlock('slither_no_hint');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noHintStreak = 0;
+    }
+    // 3. 终极回路：通关10个困难数回
+    let hardCount = 0;
+    try {
+      const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_hard') || '{}');
+      hardCount = p.unlocked || 0;
+    } catch(e) {}
+    if (this.difficulty === 'hard' && hardCount >= 10) {
+      const a = this.achievement.unlock('slither_hard_10');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+
     sound.play('victory');
     saveGameProgress(this.gameName, this.difficulty, this.level);
     statsManager.endGame(true);
@@ -259,6 +293,7 @@ class SlitherLink {
     switch (action) {
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
+          this._usedUndo = true;  // 标记使用了撤销
           const state = this.undoMgr.undo();
           if (state) {
             this.hEdges = state.hEdges;
@@ -287,7 +322,7 @@ class SlitherLink {
         this.draw();
         break;
       case 'hint':
-        if (this.hintMgr) { this.hintMgr.showHint(); sound.playSuccess(); }
+        if (this.hintMgr) { this._usedHint = true; this.hintMgr.showHint(); sound.playSuccess(); }
         break;
       case 'rule':
         sound.play('click');

@@ -58,6 +58,13 @@ class Tents {
     this.confetti = new Confetti(this.ctx, this.width, this.height);
     this.achievement = AchievementManager.getInstance();
     this.undoMgr = new UndoManager();
+
+    // ---- 成就跟踪变量 ----
+    this._usedHint = false;
+    this._usedUndo = false;
+    this._hasError = false;  // 是否放错过帐篷
+    this._noErrorStreak = 0;
+
     this.shareCard = new ShareCard(this.ctx, this.width, this.height);
     this.treeImage = null;
     this.tentImage = null;
@@ -65,7 +72,7 @@ class Tents {
     this.loadTentImage();
     this._ruleBtn = { x: this.width - 50, y: this.statusBarHeight + 14, w: 40, h: 40 };
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight);
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, { extraTopOffset: 0 });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
     this.victoryPanel = new VictoryPanel(this.ctx, this.width, this.height, {
       onConfettiDraw: () => this.confetti.draw(),
@@ -246,6 +253,34 @@ class Tents {
     try { const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_' + (this.difficulty || 'easy')) || '{}'); winCount = p.unlocked || 0; } catch (e) {}
     const newly = this.achievement.check(this.gameName, winCount);
     this._newAchievements = newly;
+
+    // ========= 独有成就解锁判断 =========
+    // 1. 安营扎寨：连续20关无错误（需在错误时重置 streak）
+    if (!this._hasError) {
+      this._noErrorStreak = (this._noErrorStreak || 0) + 1;
+      if (this._noErrorStreak >= 20) {
+        const a = this.achievement.unlock('tents_perfect');
+        if (a) this._newAchievements = [...(this._newAchievements || []), a];
+      }
+    } else {
+      this._noErrorStreak = 0;
+    }
+    // 2. 快速部署：10秒内完成一关
+    if (this.timer < 10) {
+      const a = this.achievement.unlock('tents_speed');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+    // 3. 野外生存：通关10个困难帐篷
+    let hardCount = 0;
+    try {
+      const p = JSON.parse(wx.getStorageSync('progress_' + this.gameName + '_hard') || '{}');
+      hardCount = p.unlocked || 0;
+    } catch(e) {}
+    if (this.difficulty === 'hard' && hardCount >= 10) {
+      const a = this.achievement.unlock('tents_hard_10');
+      if (a) this._newAchievements = [...(this._newAchievements || []), a];
+    }
+
     sound.play('victory');
     saveProgress(this.gameName, this.difficulty, this.level);
     statsManager.endGame(true);
@@ -292,6 +327,7 @@ class Tents {
         break;
       case 'undo':
         if (this.undoMgr && this.undoMgr.canUndo()) {
+          this._usedUndo = true;  // 标记使用了撤销
           const state = this.undoMgr.undo();
           if (state) { this.tents = state.tents; sound.playClick(); this.draw(); }
         }
