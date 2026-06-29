@@ -311,6 +311,31 @@ function safeInit() {
     if (!ctx) throw new Error('canvas.getContext("2d") 返回 null');
     // canvas 尺寸由系统自动管理，不手动设置避免PC端异常
 
+    // ── 版本更新提示 ────────────────────────────────────────────────────────────
+    if (typeof wx.canIUse === 'function' && wx.canIUse('getUpdateManager')) {
+      const updateManager = wx.getUpdateManager();
+      
+      updateManager.onCheckForUpdate(function (res) {
+        console.debug('[SolvePuzzle] 检查更新结果：', res.hasUpdate);
+      });
+
+      updateManager.onUpdateReady(function () {
+        wx.showModal({
+          title: '更新提示',
+          content: '新版本已经准备好，是否重启应用？',
+          success: function (res) {
+            if (res.confirm) {
+              updateManager.applyUpdate();
+            }
+          }
+        });
+      });
+
+      updateManager.onUpdateFailed(function () {
+        console.error('[SolvePuzzle] 新版本下载失败');
+      });
+    }
+
     // ── canvas.addEventListener polyfill ──
     // 微信小游戏 canvas 没有 addEventListener，需映射到 wx.onTouch*
     if (!canvas.addEventListener) {

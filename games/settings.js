@@ -6,6 +6,7 @@ const soundManager = require('./sound-manager');
 const PrivacyManager = require('./privacy');
 const { RedeemCodeUI } = require('./redeem-code');
 const CheckInManager = require('./check-in');
+const version = require('../version.js');
 
 class Settings {
   constructor(ctx, canvas, systemInfo, switchGame) {
@@ -45,7 +46,8 @@ class Settings {
       { key: 'checkin', label: '📅 每日签到', type: 'link', y: y0 + (itemH + gap) * 3 },
       { key: 'redeem', label: '🎁 兑换码', type: 'link', y: y0 + (itemH + gap) * 4 },
       { key: 'privacy', label: '隐私政策', type: 'link', y: y0 + (itemH + gap) * 5 },
-      { key: 'about', label: '关于我们', type: 'link', y: y0 + (itemH + gap) * 6 },
+      { key: 'contact', label: '📞 联系我们', type: 'link', y: y0 + (itemH + gap) * 6 },
+      { key: 'about', label: '关于我们', type: 'link', y: y0 + (itemH + gap) * 7 },
     ];
     items.forEach(it => {
       it.x = padding;
@@ -161,6 +163,8 @@ class Settings {
           this._showCheckin();
         } else if (item.key === 'redeem') {
           this._showRedeem();
+        } else if (item.key === 'contact') {
+          this._openOfficialAccount();
         } else if (item.key === 'about') {
           this._showAbout();
         }
@@ -313,11 +317,39 @@ class Settings {
   }
 
   _showAbout() {
+    const updateLog = version.updateLog[0];
+    const changes = updateLog.changes.map(c => '• ' + c).join('\n');
+    
     wx.showModal({
-      title: '关于我们',
-      content: 'SolvePuzzle v1.5.0\n12款经典益智游戏合集\n27000+关卡等你挑战\n\n如有建议，欢迎反馈！',
+      title: '关于 ' + version.name,
+      content: version.name + ' v' + version.number + '\n' + version.description + '\n\n最近更新（' + updateLog.date + '）：\n' + changes + '\n\n如有建议，欢迎反馈！',
       showCancel: false
     });
+  }
+
+  _openOfficialAccount() {
+    if (typeof wx.canIUse === 'function' && wx.canIUse('openOfficialAccountProfile')) {
+      wx.openOfficialAccountProfile({
+        username: 'gh_d9b54132dd2c',
+        success(res) {
+          console.log('[Settings] 打开公众号成功');
+        },
+        fail(err) {
+          console.log('[Settings] 打开公众号失败', err);
+          wx.showToast({
+            title: '请手动搜索公众号：随身工具宝',
+            icon: 'none',
+            duration: 3000
+          });
+        }
+      });
+    } else {
+      wx.showToast({
+        title: '当前版本不支持，请升级微信',
+        icon: 'none',
+        duration: 2000
+      });
+    }
   }
 
   destroy() {
