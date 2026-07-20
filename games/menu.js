@@ -5,6 +5,7 @@
  */
 const roundRect = require('../utils/round-rect.js');
 const sound = require('./sound-manager');
+const appConfig = require('../utils/game-config');
 
 class Menu {
   constructor(ctx, canvas, systemInfo, switchGame) {
@@ -55,6 +56,8 @@ class Menu {
       { name: 'battleship',    title: '战舰',      icon: '🚢', color: '#00B5D8', cardImage: null },
       { name: 'merge-abc',     title: '合成ABC',   icon: '🔤', color: '#D69E2E', cardImage: null },
     ];
+    // 游戏列表移除「招牌游戏」，它已在进入时直接开局，避免重复呈现。
+    this.games = this.games.filter(g => g.name !== appConfig.FEATURED_GAME);
 
     this._loadGameCardImages();
 
@@ -128,7 +131,8 @@ class Menu {
       for (const item of this._navItems) {
         if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
           sound.play('click');
-          if (item.key !== 'home') this.switchGame(item.key);
+          if (item.key === 'home') this.switchGame(appConfig.FEATURED_GAME);
+          else this.switchGame(item.key);
           return;
         }
       }
@@ -212,7 +216,7 @@ class Menu {
     ctx.fillStyle = '#1A1A2E';
     ctx.font = 'bold 22px -apple-system,BlinkMacSystemFont,sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('🎮 指尖谜题', this.padding, SAT + SH + 34);
+    ctx.fillText('🎮 全部游戏', this.padding, SAT + SH + 34);
   }
 
   _drawSudokuBanner() {

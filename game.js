@@ -2,6 +2,7 @@
 // 小程序主要内容是益智解谜玩法的游戏，包含黑白棋、24点、扫蛙、一笔画、数独、推箱子、点灯、战船、合并abc、数织、数墙、搭帐篷、六连通等多种益智游戏；
 
 const roundRect = require('./utils/round-rect.js');
+const appConfig = require('./utils/game-config');
 
 // 兼容 global（开发者工具模拟器可能没有）
 // 微信小游戏使用严格模式，不能直接赋值给未声明变量
@@ -432,9 +433,11 @@ function safeInit() {
       console.log('[init] 分包加载回调, success=', success);
       if (!success) return;
       // 失败时 showErrorOnCanvas 已在 loadSubpackage 内调用
-
-      stopLoadingAnimation();
-      loadGame('menu');
+      // 先不在此停止加载动画，待招牌游戏分包真正加载完成（loadGame 内部）再停，
+      // 避免招牌游戏分包下载期间画面停滞。
+      // 进入后直接开玩「招牌游戏」，降低初始选择成本；
+      // 其它游戏通过游戏内「返回」按钮进入菜单（游戏列表）查看。
+      loadGame(appConfig.FEATURED_GAME);
     });
 
     console.log('[init] 初始化完成');
@@ -541,6 +544,7 @@ function loadGame(gameName, level, difficulty) {
     const Module = getGameModule(gameName);
     if (!Module) {
       console.error('[loadGame] 模块加载失败:', gameName);
+      stopLoadingAnimation();
       gameInstance = new (getGameModule('menu'))(ctx, canvas, systemInfo, switchGame);
       currentGame = 'menu';
       return;
