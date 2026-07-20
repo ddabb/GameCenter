@@ -1,6 +1,6 @@
 {
   "deviceOrientation": "portrait",
-  "scripts": ["utils/round-rect.js", "game.js"],
+  "scripts": ["utils/round-rect.js", "utils/game-config.js", "game.js"],
   "subpackages": [
     { "name": "games", "root": "games/" },
     { "name": "othello", "root": "othello/" },

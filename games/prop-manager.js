@@ -182,13 +182,13 @@ class PropManager {
         break;
       case 'coins':
         try {
-          const checkin = require('./check-in');
+          const checkin = require('./checkin');
           checkin.addCoins(amount);
         } catch (e) {}
         break;
       case 'gems':
         try {
-          const checkin = require('./check-in');
+          const checkin = require('./checkin');
           checkin.addGems(amount);
         } catch (e) {}
         break;

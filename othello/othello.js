@@ -46,6 +46,7 @@ const { ShareCard } = require('../games/share-card');
 const VictoryPanel = require('../games/components/victory-panel');
 const HeaderBar = require('../games/components/header-bar');
 const BottomBar = require('../games/components/bottom-bar');
+const appConfig = require('../utils/game-config');
 const { getInstance: getRewardManager } = require('../games/reward-manager');
 
 // ---- 同分包内的模块 ----
@@ -144,7 +145,16 @@ class Othello {
     this.tutorial = new TutorialOverlay(this.ctx, this.width, this.height, this.gameName);
     this.bindEvents();
 
-    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, {
+    // 招牌游戏作为首页：左上角不放「返回」，改为高亮的「全部游戏」入口
+    // 招牌游戏作为首页：去掉左上角返回，改为右上角高亮的「全部游戏」入口
+    const isFeatured = this.gameName === appConfig.FEATURED_GAME;
+    this.headerBar = new HeaderBar(this.ctx, this.width, this.statusBarHeight, isFeatured ? {
+      extraTopOffset: 0,
+      showBack: false,
+      menuText: '☰ 全部游戏',
+      menuAccent: true,
+      hideBrand: true
+    } : {
       extraTopOffset: 0
     });
     this.bottomBar = new BottomBar(this.ctx, this.width, this.height, this.statusBarHeight);
@@ -265,6 +275,13 @@ class Othello {
 
       // 1. 返回按钮
       if (this.headerBar.isBackButton(x, y)) {
+        sound.play('click');
+        this.switchGame('menu');
+        return;
+      }
+
+      // 1.1 右上角「全部游戏」入口（招牌游戏首页）
+      if (this.headerBar.isMenuButton(x, y)) {
         sound.play('click');
         this.switchGame('menu');
         return;

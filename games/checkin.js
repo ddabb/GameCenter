@@ -25,7 +25,7 @@ class Checkin {
     this.checkinResult = null;
 
     try {
-      const CheckInManager = require('./check-in.js');
+      const CheckInManager = require('./checkin');
       this.checkinManager = new CheckInManager();
     } catch (e) {
       this.checkinManager = null;

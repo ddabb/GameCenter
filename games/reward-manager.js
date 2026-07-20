@@ -9,7 +9,7 @@
  *   - 商业系统核心
  */
 
-const CheckInManager = require('./check-in');
+const CheckInManager = require('./checkin');
 
 const REWARD_CONFIG = {
   // 有难度分级的游戏

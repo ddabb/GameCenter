@@ -5,7 +5,7 @@
 const soundManager = require('./sound-manager');
 const PrivacyManager = require('./privacy');
 const { RedeemCodeUI } = require('./redeem-code');
-const CheckInManager = require('./check-in');
+const CheckInManager = require('./checkin');
 const version = require('../version.js');
 
 class Settings {

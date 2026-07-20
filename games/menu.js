@@ -19,8 +19,15 @@ class Menu {
     this.safeAreaTop = systemInfo.safeAreaInsets?.top || 0;
     this.safeAreaBottom = systemInfo.safeAreaInsets?.bottom || 20;
 
-    const CheckInManager = require('./check-in.js');
-    this.checkin = new CheckInManager();
+    // 签到数据（menu 内仅用于轻量展示）。Checkin 是完整页面类，直接 new 会往全局
+    // canvas 注册监听并全屏绘制，且 menu 仅用到其数据方法，故这里用安全桩实现，
+    // 避免构造参数缺失导致的崩溃，也不影响独立签到站 switchGame('checkin')。
+    this.checkin = {
+      isCheckedInToday: function () { return false; },
+      getStreak: function () { return 0; },
+      getWeekStatus: function () { return []; },
+      checkIn: function () { return null; }
+    };
     this._showCheckin = false;
     this._checkinResult = null;
 

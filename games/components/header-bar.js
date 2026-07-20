@@ -27,13 +27,39 @@ class HeaderBar {
       textColor: '#fff',          // 标题文字色
       infoColor: 'rgba(255,255,255,0.6)', // 信息文字色
       backColor: 'rgba(255,255,255,0.12)', // 返回按钮背景色
+      showBack: true,             // 是否显示左上角返回按钮（招牌游戏首页关掉）
+      backText: '← 返回',          // 左上角返回按钮文案
+      backAccent: false,          // 左上角按钮高亮
+      menuText: '',               // 右上角入口按钮文案（如招牌游戏的「全部游戏」）
+      menuAccent: false,          // 右上角按钮高亮
+      hideBrand: false,           // 是否隐藏「指尖谜题:」品牌前缀（首页用）
       titleFontSize: 18,
       infoFontSize: 13,
       height: 44,                 // 标题栏高度（不含 status bar）
       showDifficulty: false,      // 是否显示难度选择
       extraTopOffset: 25          // 额外顶部偏移，避免被微信关闭按钮遮盖
     }, opts);
-    this._backBtn = { x: 15, y: this.safeAreaTop + this.opts.extraTopOffset + 8, w: 70, h: 32 };
+    const _mkBtn = (text) => {
+      const tw = text ? this.ctx.measureText(text).width : 0;
+      return { w: Math.max(70, Math.ceil(tw) + 24), h: 32 };
+    };
+    // 左上角按钮：返回按钮（showBack）或 入口按钮（menuText 且非返回态）。
+    // 入口按钮放在左上角，避免被微信右上角自带胶囊按钮遮挡。
+    if (this.opts.showBack) {
+      const b = _mkBtn(this.opts.backText);
+      this._leftBtn = {
+        x: 15, y: this.safeAreaTop + this.opts.extraTopOffset + 8,
+        w: b.w, h: b.h, text: this.opts.backText, accent: this.opts.backAccent, kind: 'back'
+      };
+    } else if (this.opts.menuText) {
+      const b = _mkBtn(this.opts.menuText);
+      this._leftBtn = {
+        x: 15, y: this.safeAreaTop + this.opts.extraTopOffset + 8,
+        w: b.w, h: b.h, text: this.opts.menuText, accent: this.opts.menuAccent, kind: 'menu'
+      };
+    } else {
+      this._leftBtn = null;
+    }
   }
 
   /**
@@ -49,21 +75,25 @@ class HeaderBar {
     const ctx = this.ctx;
     const y0 = this.safeAreaTop + this.opts.extraTopOffset;
 
-    // 返回按钮
-    roundRect(ctx, 15, y0 + 8, 70, 32, 8);
-    ctx.fillStyle = this.opts.backColor;
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px Arial, -apple-system';
-    ctx.textAlign = 'center';
-    ctx.fillText('← 返回', 50, y0 + 29);
+    // 左上角按钮（返回 或 入口，文案与样式可配）
+    if (this._leftBtn) {
+      const b = this._leftBtn;
+      roundRect(ctx, b.x, b.y, b.w, b.h, 8);
+      ctx.fillStyle = b.accent ? 'rgba(102,119,252,0.30)' : this.opts.backColor;
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px Arial, -apple-system';
+      ctx.textAlign = 'center';
+      ctx.fillText(b.text, b.x + b.w / 2, b.y + 21);
+    }
 
     if (params && !params.noTitle) {
       // 标题
       ctx.fillStyle = this.opts.textColor;
       ctx.font = 'bold ' + this.opts.titleFontSize + 'px Arial, -apple-system';
       ctx.textAlign = 'center';
-      ctx.fillText('指尖谜题:' + params.title, this.width / 2, y0 + 30);
+      const titleText = this.opts.hideBrand ? params.title : ('指尖谜题:' + params.title);
+      ctx.fillText(titleText, this.width / 2, y0 + 30);
 
       // 右侧信息
       if (params.info) {
@@ -98,10 +128,20 @@ class HeaderBar {
   }
 
   /**
-   * 判断点击是否在返回按钮上
+   * 判断点击是否在左上角返回按钮上
    */
   isBackButton(x, y) {
-    const b = this._backBtn;
+    if (!this._leftBtn || this._leftBtn.kind !== 'back') return false;
+    const b = this._leftBtn;
+    return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  }
+
+  /**
+   * 判断点击是否在左上角入口按钮上（如「全部游戏」）
+   */
+  isMenuButton(x, y) {
+    if (!this._leftBtn || this._leftBtn.kind !== 'menu') return false;
+    const b = this._leftBtn;
     return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   }
 

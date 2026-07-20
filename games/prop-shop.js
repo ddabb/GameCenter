@@ -2,7 +2,7 @@
  * prop-shop.js - 道具商城页面
  * 使用金币购买提示、撤销、答案等道具
  */
-const CheckInManager = require('./check-in');
+const CheckInManager = require('./checkin');
 const sound = require('./sound-manager');
 const { PropManager, PROP_CONFIG, getInstance } = require('./prop-manager');
 
