@@ -287,6 +287,16 @@ class Othello {
         return;
       }
 
+      // 1.2 规则/教程浮层（模态：显示时拦截所有点击，点「开始游戏」关闭）
+      if (this.tutorial && this.tutorial.shouldShow()) {
+        if (this.tutorial.hitTest(x, y)) {
+          sound.play('click');
+          this.tutorial.dismiss();
+          this.draw();
+        }
+        return;
+      }
+
       // 2. 通关面板
       if (this.gameOver) {
         const result = this.victoryPanel.handleClick(x, y);
@@ -317,13 +327,6 @@ class Othello {
       // 4. 底部操作栏
       const action = this.bottomBar.handleClick(x, y);
       if (action) { this._handleBottomAction(action); return; }
-
-      // 5. 教程遮罩
-      if (this.tutorial && this.tutorial.shouldShow() && this.tutorial.hitTest(x, y)) {
-        this.tutorial.dismiss();
-        this.draw();
-        return;
-      }
 
       // 6. 难度选择按钮
       let diffY = this._diffBarY;
@@ -551,6 +554,11 @@ class Othello {
       this.victoryPanel.setSubtitle(`${resultText}  ·  ${this.blackCount} : ${this.whiteCount}`);
       this.victoryPanel.setAchievements(this._newAchievements);
       this.victoryPanel.draw();
+    }
+
+    // 8. 教程/规则浮层（最上层，点击「📖 规则」或首次进入时显示）
+    if (this.tutorial && this.tutorial.shouldShow()) {
+      this.tutorial.draw();
     }
   }
 
